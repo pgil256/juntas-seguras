@@ -1,0 +1,21 @@
+{
+    "type": "object",
+    "properties": {
+        "team_id": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "pay_out_order": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            }
+        }
+    },
+    "required": [
+        "team_id",
+        "pay_out_order"
+    ],
+    "additionalProperties": false
+}
