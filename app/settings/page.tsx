@@ -22,7 +22,11 @@ import {
   AlertTriangle,
   Trash2,
   Check,
+  Plus,
+  Building,
 } from "lucide-react";
+import { PaymentMethodDialog } from "@/components/payments/PaymentMethodDialog";
+import { PaymentMethodFormValues } from "@/components/payments/PaymentMethodForm";
 import Navbar from "@/components/Navbar";
 import {
   Card,
@@ -116,6 +120,9 @@ export default function SettingsPage() {
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<any>(null);
+  const [paymentMethods, setPaymentMethods] = useState(userData.paymentMethods);
 
   const [profile, setProfile] = useState({
     name: userData.name,
@@ -175,6 +182,93 @@ export default function SettingsPage() {
       ...preferences,
       [name]: value,
     });
+  };
+  
+  // Handle adding or editing a payment method
+  const handlePaymentMethodSubmit = (values: PaymentMethodFormValues) => {
+    if (editingPaymentMethod) {
+      // Update existing payment method
+      const updatedMethods = paymentMethods.map(method => {
+        if (method.id === editingPaymentMethod.id) {
+          const last4 = values.type === 'card' 
+            ? values.cardNumber?.slice(-4) || method.last4
+            : values.accountNumber?.slice(-4) || method.last4;
+            
+          return {
+            ...method,
+            type: values.type,
+            name: values.type === 'card' ? `${values.cardholderName}'s Card` : `${values.accountHolderName}'s Bank`,
+            last4,
+            isDefault: values.isDefault,
+          };
+        }
+        
+        // If the edited method is now default, ensure others are not default
+        return values.isDefault ? { ...method, isDefault: false } : method;
+      });
+      
+      setPaymentMethods(updatedMethods);
+    } else {
+      // Add new payment method
+      const last4 = values.type === 'card' 
+        ? values.cardNumber?.slice(-4) || '****'
+        : values.accountNumber?.slice(-4) || '****';
+      
+      const newMethod = {
+        id: Math.max(...paymentMethods.map(m => m.id)) + 1,
+        type: values.type,
+        name: values.type === 'card' ? `${values.cardholderName}'s Card` : `${values.accountHolderName}'s Bank`,
+        last4,
+        isDefault: values.isDefault,
+      };
+      
+      // If the new method is default, update other methods
+      let updatedMethods = paymentMethods.map(method => 
+        values.isDefault ? { ...method, isDefault: false } : method
+      );
+      
+      // Add the new method
+      updatedMethods = [...updatedMethods, newMethod];
+      setPaymentMethods(updatedMethods);
+    }
+    
+    // Reset and close modal
+    setEditingPaymentMethod(null);
+    setShowPaymentMethodModal(false);
+  };
+  
+  // Set a payment method as default
+  const setDefaultPaymentMethod = (methodId: number) => {
+    const updatedMethods = paymentMethods.map(method => ({
+      ...method,
+      isDefault: method.id === methodId
+    }));
+    
+    setPaymentMethods(updatedMethods);
+  };
+  
+  // Remove a payment method
+  const removePaymentMethod = (methodId: number) => {
+    const methodToRemove = paymentMethods.find(m => m.id === methodId);
+    
+    // Filter out the method to remove
+    let updatedMethods = paymentMethods.filter(method => method.id !== methodId);
+    
+    // If the removed method was default, set the first remaining method as default
+    if (methodToRemove?.isDefault && updatedMethods.length > 0) {
+      updatedMethods = [
+        { ...updatedMethods[0], isDefault: true },
+        ...updatedMethods.slice(1)
+      ];
+    }
+    
+    setPaymentMethods(updatedMethods);
+  };
+  
+  // Edit a payment method
+  const editPaymentMethod = (method: any) => {
+    setEditingPaymentMethod(method);
+    setShowPaymentMethodModal(true);
   };
 
   const saveProfile = () => {
@@ -872,17 +966,26 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex space-x-3">
                           {!method.isDefault && (
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setDefaultPaymentMethod(method.id)}
+                            >
                               Set as Default
                             </Button>
                           )}
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => editPaymentMethod(method)}
+                          >
                             Edit
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             className="text-red-600"
+                            onClick={() => removePaymentMethod(method.id)}
                           >
                             Remove
                           </Button>
@@ -892,7 +995,10 @@ export default function SettingsPage() {
                   ))}
                 </div>
 
-                <Button className="mt-4">
+                <Button 
+                  className="mt-4"
+                  onClick={() => setShowPaymentMethodModal(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Payment Method
                 </Button>
@@ -1050,26 +1156,22 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Payment Method Dialog */}
+      <PaymentMethodDialog
+        isOpen={showPaymentMethodModal}
+        onClose={() => {
+          setShowPaymentMethodModal(false);
+          setEditingPaymentMethod(null);
+        }}
+        onSubmit={handlePaymentMethodSubmit}
+        initialValues={editingPaymentMethod && {
+          type: editingPaymentMethod.type,
+          isDefault: editingPaymentMethod.isDefault,
+          // In a real app, you'd retrieve the full payment details from an API
+        }}
+        isEditing={!!editingPaymentMethod}
+      />
     </div>
   );
 }
-
-// Missing components
-const Plus = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-      ></path>
-    </svg>
-  );
-};

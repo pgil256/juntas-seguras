@@ -2,6 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useCreatePool } from "@/lib/hooks/useCreatePool";
+import { useSession } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   X,
   Calendar,
@@ -41,7 +44,19 @@ const CreatePoolModal = ({
   onClose,
   onCreatePool,
 }: CreatePoolModalProps) => {
+  const { status } = useSession();
   const [step, setStep] = useState(1);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+  
+  const { createPool, isLoading, error } = useCreatePool({
+    onSuccess: (poolId) => {
+      // Notify parent component
+      if (onCreatePool) {
+        onCreatePool({ id: poolId, ...poolData });
+      }
+    }
+  });
+  
   const [poolData, setPoolData] = useState({
     name: "",
     contributionAmount: "",
@@ -51,6 +66,7 @@ const CreatePoolModal = ({
     startDate: "",
     description: "",
     inviteMethod: "email",
+    emails: ""
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,24 +86,82 @@ const CreatePoolModal = ({
     setStep((prev) => prev - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onCreatePool) {
-      onCreatePool(poolData);
+  const validateForm = (): boolean => {
+    const errors: string[] = [];
+    
+    if (status !== 'authenticated') {
+      errors.push('You must be signed in to create a pool');
     }
-    onClose();
-    // Reset form
-    setStep(1);
-    setPoolData({
-      name: "",
-      contributionAmount: "",
-      frequency: "weekly",
-      totalMembers: "4",
-      duration: "3",
-      startDate: "",
-      description: "",
-      inviteMethod: "email",
-    });
+    
+    if (!poolData.name.trim()) {
+      errors.push('Pool name is required');
+    }
+    
+    if (!poolData.contributionAmount || isNaN(Number(poolData.contributionAmount)) || Number(poolData.contributionAmount) <= 0) {
+      errors.push('Valid contribution amount is required');
+    }
+    
+    if (!poolData.startDate) {
+      errors.push('Start date is required');
+    }
+    
+    setFormErrors(errors);
+    return errors.length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    try {
+      // Transform form data to match API expected format
+      const totalRounds = parseInt(poolData.totalMembers); // Total rounds equals number of members
+      
+      // Process invitations if provided
+      let invitations = undefined;
+      if (poolData.inviteMethod === 'email' && poolData.emails) {
+        // Split emails by comma, trim whitespace, and filter empty values
+        invitations = poolData.emails
+          .split(',')
+          .map(email => email.trim())
+          .filter(email => email.length > 0);
+      }
+      
+      const createPoolRequest = {
+        name: poolData.name,
+        description: poolData.description,
+        contributionAmount: Number(poolData.contributionAmount),
+        frequency: poolData.frequency,
+        totalRounds,
+        startDate: poolData.startDate,
+        invitations
+      };
+      
+      // Use the hook to create the pool
+      const poolId = await createPool(createPoolRequest);
+      
+      if (poolId) {
+        // Reset form and close modal on success
+        setStep(1);
+        setPoolData({
+          name: "",
+          contributionAmount: "",
+          frequency: "weekly",
+          totalMembers: "4",
+          duration: "3",
+          startDate: "",
+          description: "",
+          inviteMethod: "email",
+          emails: ""
+        });
+        onClose();
+      }
+    } catch (err) {
+      console.error("Error creating pool:", err);
+    }
   };
 
   return (
@@ -383,6 +457,30 @@ const CreatePoolModal = ({
                 <div></div> // Empty div for spacing
               )}
 
+              {formErrors.length > 0 && (
+                <div className="mb-4 w-full">
+                  <Alert variant="destructive">
+                    <AlertTitle>Validation Errors</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-5">
+                        {formErrors.map((err, index) => (
+                          <li key={index}>{err}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              
+              {error && (
+                <div className="mb-4 w-full">
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
+              
               {step < 3 ? (
                 <Button
                   type="button"
@@ -393,8 +491,12 @@ const CreatePoolModal = ({
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  Create Pool
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Creating...' : 'Create Pool'}
                 </Button>
               )}
             </DialogFooter>

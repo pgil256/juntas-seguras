@@ -21,6 +21,19 @@ export interface SearchResponse {
   transactions: SearchResult[];
   messages: SearchResult[];
   totalResults: number;
+  pagination?: PaginationInfo;
+}
+
+/**
+ * Pagination information for search results
+ */
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  totalItems: number;
+  itemsPerPage: number;
 }
 
 /**
@@ -36,5 +49,9 @@ export interface SearchParams {
     dateTo?: string;
     status?: string;
     [key: string]: any;
+  };
+  sort?: {
+    field: string;
+    direction: 'asc' | 'desc';
   };
 }

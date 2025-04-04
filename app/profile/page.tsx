@@ -376,13 +376,18 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     {userData.securitySettings.twoFactorAuth ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Enabled
-                      </span>
+                      <div className="flex items-center space-x-3">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Enabled
+                        </span>
+                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                          Manage
+                        </button>
+                      </div>
                     ) : (
-                      <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      <Button variant="outline" size="sm" onClick={() => window.location.href = '/profile/security/two-factor'}>
                         Enable
-                      </button>
+                      </Button>
                     )}
                   </div>
 
@@ -405,6 +410,29 @@ export default function ProfilePage() {
                     </button>
                   </div>
 
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Shield className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          Account Activity
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          View recent activity and security events
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = '/profile/security/activity'}
+                      className="flex items-center"
+                    >
+                      View Activity
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                  
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <Shield className="h-5 w-5 text-gray-400 mr-3" />

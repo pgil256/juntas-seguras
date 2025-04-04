@@ -266,13 +266,20 @@ export default function HelpPage() {
               </p>
             </div>
             <div className="mt-4 md:mt-0 flex space-x-3">
-              <Button variant="outline" className="flex items-center">
+              <Button 
+                variant="outline" 
+                className="flex items-center"
+                onClick={() => alert('Live chat would open here')}
+              >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Live Chat
               </Button>
-              <Button className="flex items-center">
-                <Mail className="h-4 w-4 mr-2" />
-                Contact Support
+              <Button 
+                className="flex items-center"
+                onClick={() => router.push('/help/support')}
+              >
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Support Tickets
               </Button>
             </div>
           </div>
@@ -346,7 +353,11 @@ export default function HelpPage() {
                     <p className="mt-1 text-sm text-gray-500">
                       New to Juntas Seguras? Start here to learn the basics
                     </p>
-                    <Button variant="link" className="mt-2">
+                    <Button 
+                      variant="link" 
+                      className="mt-2"
+                      onClick={() => router.push('/help/documentation')}
+                    >
                       Read the guide
                     </Button>
                   </div>
@@ -360,13 +371,17 @@ export default function HelpPage() {
                       <MessageCircle className="h-6 w-6 text-green-600" />
                     </div>
                     <h3 className="mt-4 text-lg font-medium">
-                      Contact Support
+                      Support Tickets
                     </h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      Need personalized help? Reach out to our support team
+                      Create a ticket or check the status of your existing tickets
                     </p>
-                    <Button variant="link" className="mt-2">
-                      Get in touch
+                    <Button 
+                      variant="link" 
+                      className="mt-2"
+                      onClick={() => router.push('/help/support')}
+                    >
+                      Manage tickets
                     </Button>
                   </div>
                 </CardContent>
@@ -383,7 +398,11 @@ export default function HelpPage() {
                       Learn about payment methods, schedules, and
                       troubleshooting
                     </p>
-                    <Button variant="link" className="mt-2">
+                    <Button 
+                      variant="link" 
+                      className="mt-2"
+                      onClick={() => router.push('/help/documentation?section=payments')}
+                    >
                       Payment guide
                     </Button>
                   </div>
@@ -590,17 +609,21 @@ export default function HelpPage() {
                   <div className="text-sm text-gray-500">+1 (555) 123-4567</div>
                 </div>
               </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
-                <MessageCircle className="h-5 w-5 text-blue-600 mr-3" />
-                <div>
+              <Button 
+                className="bg-white p-4 rounded-lg shadow-sm flex items-center hover:bg-blue-50 h-auto"
+                variant="ghost"
+                onClick={() => router.push('/help/support')}
+              >
+                <HelpCircle className="h-5 w-5 text-blue-600 mr-3" />
+                <div className="text-left">
                   <div className="text-sm font-medium text-gray-900">
-                    Live Chat
+                    Support Tickets
                   </div>
                   <div className="text-sm text-gray-500">
-                    Available 9am - 8pm ET
+                    Create or track your tickets
                   </div>
                 </div>
-              </div>
+              </Button>
             </div>
           </div>
         </div>

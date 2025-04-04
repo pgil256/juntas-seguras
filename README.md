@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Juntas Seguras - Financial Savings Pool App
 
-## Getting Started
+A secure, transparent platform for managing community savings pools (juntas).
 
-First, run the development server:
+## Overview
 
-```bash
+Juntas Seguras allows groups of people to create and manage savings pools. Members contribute a set amount regularly, and each member gets a turn to receive the full pool amount. This app provides transparency, security, and ease of management for these traditional savings systems.
+
+## Features
+
+- Create and manage savings pools with customizable parameters
+- Track contributions and payouts
+- Member management with invite system
+- In-app messaging for pool communication
+- Transaction history and analytics
+- Mobile-friendly interface
+
+## Demo Instructions
+
+This is a simplified demo version of the application. To try it out:
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Set up MongoDB:
+   - See [MongoDB Setup Guide](MONGODB_SETUP.md) for detailed instructions
+   - Recommended: Use MongoDB Atlas for cloud-hosted database (WSL compatible)
+   - Alternative: Run MongoDB locally using Docker
+
+4. Set up environment variables:
+   - Create a `.env.local` file with:
+   ```
+   # For MongoDB Atlas
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/juntas-app
+   # Or for local MongoDB
+   # MONGODB_URI=mongodb://localhost:27017/juntas-app
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=your-random-secret-key
+   ```
+   
+5. Test your database connection:
+   ```
+   npm run test-db
+   ```
+
+6. Start the development server:
+   ```
+   npm run dev
+   ```
+
+7. Seed the database with initial data:
+   ```
+   curl -X POST http://localhost:3000/api/seed
+   ```
+
+8. Login with demo credentials:
+   - Email: `demo@example.com`
+   - Password: `demo123`
+
+## Tech Stack
+
+- Next.js 15 with App Router
+- React 18
+- TypeScript
+- MongoDB (with Mongoose)
+- NextAuth.js for authentication
+- Tailwind CSS for styling
+- shadcn/ui components
+
+## Working Demo Features
+
+The current demo focuses on core functionality:
+
+- User authentication (simplified)
+- Pool creation
+- Viewing pool details
+- Member management
+- Pool messaging
+
+Peripheral features like advanced payment processing, two-factor authentication, and the support system are currently stubbed or mocked.
+
+## Development
+
+To run in development mode:
+
+```
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To build for production:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+To deploy this application to Vercel:
 
-To learn more about Next.js, take a look at the following resources:
+1. Set up MongoDB Atlas (see [MongoDB Setup Guide](MONGODB_SETUP.md))
+2. Follow the [Vercel Deployment Guide](VERCEL_DEPLOYMENT.md) for step-by-step instructions
+3. Make sure to set environment variables in the Vercel dashboard:
+   - `MONGODB_URI` (your MongoDB Atlas connection string)
+   - `NEXTAUTH_SECRET` (see .env.production file)
+   - `NEXTAUTH_URL` (your Vercel deployment URL)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License - see the LICENSE file for details.

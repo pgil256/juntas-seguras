@@ -1,7 +1,6 @@
-// app/payments/page.tsx
-"use client";
+'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   Download,
   Filter,
@@ -14,107 +13,118 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-} from "lucide-react";
+  DollarSign,
+} from 'lucide-react';
+import { PaymentProcessingModal } from '@/components/payments/PaymentProcessingModal';
+import { PaymentMethodDialog } from '@/components/payments/PaymentMethodDialog';
+import { PaymentMethodFormValues } from '@/components/payments/PaymentMethodForm';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Navbar from '@/components/Navbar';
+import { usePaymentMethods } from '@/lib/hooks/usePaymentMethods';
+import { Transaction, TransactionStatus, TransactionType, PaymentDetails } from '@/types/payment';
+
+// For demo purposes - in a real app, this would come from authentication context
+const mockUserId = 'user123';
+const mockPoolId = 'pool456';
 
 // Sample transaction data
 const allTransactions = [
   {
-    id: 1,
-    type: "deposit",
+    id: '1',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-02-20",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-02-20',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 2,
-    type: "withdrawal",
+    id: '2',
+    type: TransactionType.WITHDRAWAL,
     amount: 40.0,
-    date: "2025-02-15",
-    status: "completed",
-    description: "Carlos Mendez payout",
-    member: "Carlos Mendez",
+    date: '2025-02-15',
+    status: TransactionStatus.COMPLETED,
+    description: 'Carlos Mendez payout',
+    member: 'Carlos Mendez',
   },
   {
-    id: 3,
-    type: "deposit",
+    id: '3',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-02-13",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-02-13',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 4,
-    type: "deposit",
+    id: '4',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-02-06",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-02-06',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 5,
-    type: "deposit",
+    id: '5',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-01-30",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-01-30',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 6,
-    type: "withdrawal",
+    id: '6',
+    type: TransactionType.WITHDRAWAL,
     amount: 40.0,
-    date: "2025-01-24",
-    status: "completed",
-    description: "Maria Rodriguez payout",
-    member: "Maria Rodriguez",
+    date: '2025-01-24',
+    status: TransactionStatus.COMPLETED,
+    description: 'Maria Rodriguez payout',
+    member: 'Maria Rodriguez',
   },
   {
-    id: 7,
-    type: "deposit",
+    id: '7',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-01-23",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-01-23',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 8,
-    type: "deposit",
+    id: '8',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-01-16",
-    status: "completed",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-01-16',
+    status: TransactionStatus.COMPLETED,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 9,
-    type: "deposit",
+    id: '9',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-03-01",
-    status: "pending",
-    description: "Weekly contribution",
-    member: "You",
+    date: '2025-03-01',
+    status: TransactionStatus.PENDING,
+    description: 'Weekly contribution',
+    member: 'You',
   },
   {
-    id: 10,
-    type: "deposit",
+    id: '10',
+    type: TransactionType.DEPOSIT,
     amount: 5.0,
-    date: "2025-01-09",
-    status: "failed",
-    description: "Weekly contribution - insufficient funds",
-    member: "Sofia Torres",
+    date: '2025-01-09',
+    status: TransactionStatus.FAILED,
+    description: 'Weekly contribution - insufficient funds',
+    member: 'Sofia Torres',
   },
 ];
 
@@ -122,50 +132,77 @@ const allTransactions = [
 const upcomingPayments = [
   {
     id: 1,
-    member: "You",
-    dueDate: "2025-03-01",
+    member: 'You',
+    dueDate: '2025-03-01',
     amount: 5.0,
-    status: "scheduled",
+    status: 'scheduled',
   },
   {
     id: 2,
-    member: "Maria Rodriguez",
-    dueDate: "2025-03-01",
+    member: 'Maria Rodriguez',
+    dueDate: '2025-03-01',
     amount: 5.0,
-    status: "pending",
+    status: 'pending',
   },
   {
     id: 3,
-    member: "Carlos Mendez",
-    dueDate: "2025-03-01",
+    member: 'Carlos Mendez',
+    dueDate: '2025-03-01',
     amount: 5.0,
-    status: "pending",
+    status: 'pending',
   },
   {
     id: 4,
-    member: "Ana Garcia",
-    dueDate: "2025-03-01",
+    member: 'Ana Garcia',
+    dueDate: '2025-03-01',
     amount: 5.0,
-    status: "pending",
+    status: 'pending',
   },
   {
     id: 5,
-    member: "Juan Perez",
-    dueDate: "2025-03-01",
+    member: 'Juan Perez',
+    dueDate: '2025-03-01',
     amount: 5.0,
-    status: "pending",
+    status: 'pending',
   },
 ];
 
 export default function PaymentsPage() {
-  const [transactions, setTransactions] = useState(allTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>(allTransactions);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
-    type: "all",
-    status: "all",
-    dateRange: "all",
-    search: "",
+    type: 'all',
+    status: 'all',
+    dateRange: 'all',
+    search: '',
   });
+  
+  // States for payment modals
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  
+  // Use the payment methods hook
+  const { 
+    paymentMethods, 
+    isLoading: isLoadingPaymentMethods, 
+    error: paymentMethodsError,
+    addPaymentMethod,
+    removePaymentMethod,
+    refreshPaymentMethods
+  } = usePaymentMethods({ userId: mockUserId });
+  
+  // Find the pending payment from upcomingPayments for the current user
+  const userPendingPayment = upcomingPayments.find(
+    payment => payment.member === 'You' && payment.status !== 'completed'
+  );
+  
+  // Payment details for the modal
+  const paymentDetails: PaymentDetails = {
+    poolName: 'Family Savings Pool',
+    amount: userPendingPayment?.amount || 5.0,
+    dueDate: userPendingPayment?.dueDate || '2025-03-01',
+    paymentMethods: paymentMethods,
+  };
 
   const handleFilterChange = (field: string, value: string) => {
     const newFilters = { ...filters, [field]: value };
@@ -177,28 +214,28 @@ export default function PaymentsPage() {
     let filtered = allTransactions;
 
     // Filter by type
-    if (currentFilters.type !== "all") {
+    if (currentFilters.type !== 'all') {
       filtered = filtered.filter((t) => t.type === currentFilters.type);
     }
 
     // Filter by status
-    if (currentFilters.status !== "all") {
+    if (currentFilters.status !== 'all') {
       filtered = filtered.filter((t) => t.status === currentFilters.status);
     }
 
     // Filter by date range
-    if (currentFilters.dateRange !== "all") {
+    if (currentFilters.dateRange !== 'all') {
       const now = new Date();
       const pastDate = new Date();
 
       switch (currentFilters.dateRange) {
-        case "week":
+        case 'week':
           pastDate.setDate(now.getDate() - 7);
           break;
-        case "month":
+        case 'month':
           pastDate.setMonth(now.getMonth() - 1);
           break;
-        case "year":
+        case 'year':
           pastDate.setFullYear(now.getFullYear() - 1);
           break;
       }
@@ -224,10 +261,10 @@ export default function PaymentsPage() {
 
   const resetFilters = () => {
     const newFilters = {
-      type: "all",
-      status: "all",
-      dateRange: "all",
-      search: "",
+      type: 'all',
+      status: 'all',
+      dateRange: 'all',
+      search: '',
     };
     setFilters(newFilters);
     setTransactions(allTransactions);
@@ -235,29 +272,29 @@ export default function PaymentsPage() {
 
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
     }).format(amount);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "completed":
+      case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "pending":
+      case 'pending':
         return <Clock className="h-5 w-5 text-yellow-500" />;
-      case "failed":
+      case 'failed':
         return <XCircle className="h-5 w-5 text-red-500" />;
-      case "scheduled":
+      case 'scheduled':
         return <Calendar className="h-5 w-5 text-blue-500" />;
       default:
         return <AlertCircle className="h-5 w-5 text-gray-500" />;
@@ -266,18 +303,84 @@ export default function PaymentsPage() {
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case "deposit":
+      case 'deposit':
         return <ArrowDownLeft className="h-5 w-5 text-green-500" />;
-      case "withdrawal":
+      case 'withdrawal':
         return <ArrowUpRight className="h-5 w-5 text-blue-500" />;
       default:
         return null;
     }
   };
 
+  // Payment modal handlers
+  const handleAddPaymentMethod = () => {
+    // Close payment modal and open payment method modal
+    setShowPaymentModal(false);
+    setShowPaymentMethodModal(true);
+  };
+  
+  // Handle payment method addition
+  const handlePaymentMethodSubmit = async (values: PaymentMethodFormValues) => {
+    try {
+      // Add payment method using the hook
+      const result = await addPaymentMethod(values);
+      
+      if (result.success) {
+        // Close method modal and reopen payment modal
+        setShowPaymentMethodModal(false);
+        setShowPaymentModal(true);
+      } else {
+        console.error('Failed to add payment method:', result.error);
+        alert(`Failed to add payment method: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error adding payment method:', error);
+    }
+  };
+  
+  // Handle payment completion
+  const handlePaymentComplete = async () => {
+    // Refresh transactions list
+    // In a real app, this would fetch from the API
+    // For demo purposes, we'll update our mock data
+    const newTransaction = {
+      id: `${Date.now()}`,
+      type: TransactionType.DEPOSIT,
+      amount: paymentDetails.amount,
+      date: new Date().toISOString().split('T')[0],
+      status: TransactionStatus.COMPLETED,
+      description: 'Weekly contribution',
+      member: 'You',
+    };
+    
+    setTransactions([newTransaction, ...transactions]);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      
+      {/* Payment Processing Modal */}
+      <PaymentProcessingModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onAddPaymentMethod={handleAddPaymentMethod}
+        paymentDetails={paymentDetails}
+        userId={mockUserId}
+        poolId={mockPoolId}
+        onPaymentComplete={handlePaymentComplete}
+      />
+      
+      {/* Payment Method Dialog */}
+      <PaymentMethodDialog
+        isOpen={showPaymentMethodModal}
+        onClose={() => {
+          setShowPaymentMethodModal(false);
+          // Reopen payment modal when closing payment method modal
+          setShowPaymentModal(true);
+        }}
+        onSubmit={handlePaymentMethodSubmit}
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -291,13 +394,17 @@ export default function PaymentsPage() {
               </p>
             </div>
             <div className="mt-4 md:mt-0 flex space-x-3">
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <Button variant="outline" className="flex items-center">
                 <Download className="h-4 w-4 mr-2" />
                 Export
-              </button>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+              </Button>
+              <Button 
+                onClick={() => setShowPaymentModal(true)}
+                className="flex items-center"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
                 Make Payment
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -371,14 +478,21 @@ export default function PaymentsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {payment.member === "You" &&
                             payment.status !== "completed" && (
-                              <button className="text-blue-600 hover:text-blue-800 font-medium">
+                              <Button 
+                                variant="link" 
+                                className="h-auto p-0 text-blue-600 hover:text-blue-800 font-medium"
+                                onClick={() => setShowPaymentModal(true)}
+                              >
                                 Pay Now
-                              </button>
+                              </Button>
                             )}
                           {payment.member !== "You" && (
-                            <button className="text-gray-600 hover:text-gray-800 font-medium">
+                            <Button 
+                              variant="link"
+                              className="h-auto p-0 text-gray-600 hover:text-gray-800 font-medium"
+                            >
                               Send Reminder
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>

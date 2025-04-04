@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SearchFiltersProps {
   onFilterChange: (filters: any) => void;
@@ -19,7 +20,59 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
     dateFrom: initialFilters.dateFrom || '',
     dateTo: initialFilters.dateTo || '',
     status: initialFilters.status || 'all',
+    sortField: initialFilters.sortField || '',
+    sortDirection: initialFilters.sortDirection || 'desc',
   });
+  
+  // Available sort fields based on category
+  const getSortFieldOptions = (category: string) => {
+    const commonOptions = [
+      { value: 'relevance', label: 'Relevance' },
+    ];
+    
+    switch (category) {
+      case 'pools':
+        return [
+          ...commonOptions,
+          { value: 'name', label: 'Name' },
+          { value: 'members', label: 'Members' },
+        ];
+      case 'members':
+        return [
+          ...commonOptions,
+          { value: 'name', label: 'Name' },
+          { value: 'position', label: 'Position' },
+        ];
+      case 'transactions':
+        return [
+          ...commonOptions,
+          { value: 'date', label: 'Date' },
+          { value: 'amount', label: 'Amount' },
+        ];
+      case 'messages':
+        return [
+          ...commonOptions,
+          { value: 'date', label: 'Date' },
+          { value: 'author', label: 'Author' },
+        ];
+      default:
+        return commonOptions;
+    }
+  };
+
+  // Set default sort field when category changes
+  useEffect(() => {
+    const category = filters.category;
+    if (category !== 'all' && !filters.sortField) {
+      // Set default sort field based on category
+      let defaultSortField = 'relevance';
+      if (category === 'transactions' || category === 'messages') {
+        defaultSortField = 'date';
+      }
+      
+      handleFilterChange('sortField', defaultSortField);
+    }
+  }, [filters.category]);
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value };
@@ -33,9 +86,17 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
       dateFrom: '',
       dateTo: '',
       status: 'all',
+      sortField: '',
+      sortDirection: 'desc',
     };
     setFilters(resetFilters);
     onFilterChange(resetFilters);
+  };
+
+  // Toggle sort direction
+  const toggleSortDirection = () => {
+    const newDirection = filters.sortDirection === 'asc' ? 'desc' : 'asc';
+    handleFilterChange('sortDirection', newDirection);
   };
 
   return (
@@ -73,6 +134,43 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
               <Label htmlFor="category-messages">Messages</Label>
             </div>
           </RadioGroup>
+        </div>
+        
+        {/* Sorting Options */}
+        <div>
+          <h3 className="text-sm font-medium mb-3">Sort By</h3>
+          <div className="flex items-center space-x-2">
+            <Select
+              value={filters.sortField}
+              onValueChange={(value) => handleFilterChange('sortField', value)}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select field" />
+              </SelectTrigger>
+              <SelectContent>
+                {getSortFieldOptions(filters.category).map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSortDirection}
+              title={filters.sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+              disabled={!filters.sortField}
+              className="shrink-0"
+            >
+              {filters.sortDirection === 'asc' ? (
+                <ArrowUp className="h-4 w-4" />
+              ) : (
+                <ArrowDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
         
         {/* Date Range */}
@@ -133,6 +231,10 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="pending" id="status-pending" />
               <Label htmlFor="status-pending">Pending</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="upcoming" id="status-upcoming" />
+              <Label htmlFor="status-upcoming">Upcoming</Label>
             </div>
           </RadioGroup>
         </div>

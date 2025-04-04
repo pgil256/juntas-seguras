@@ -1,14 +1,17 @@
 // app/my-pool/page.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { usePools } from "@/lib/hooks/usePools";
 import {
   Calendar,
   DollarSign,
   Users,
   RefreshCw,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import {
   Card,
@@ -18,113 +21,173 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
+import CreatePoolModal from "@/components/pools/CreatePoolModal";
+import { Button } from "@/components/ui/button";
+import { Pool } from "@/types/pool";
 
-// Sample data for pool information
-const poolDetails = {
-  name: "Family Savings Pool",
-  totalMembers: 8,
-  currentPosition: 3,
-  amountPerCycle: "$40",
-  cycleFrequency: "Weekly",
-  currentRound: 4,
-  totalRounds: 8,
-  nextPayoutDate: "March 15, 2025",
-  nextPayoutMember: "Ana Garcia",
-  startDate: "January 10, 2025",
-  endDate: "May 28, 2025",
-  status: "Active",
+// Function to format dates from ISO string
+const formatDate = (dateString?: string) => {
+  if (!dateString) return "Not set";
+  
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  }).format(date);
 };
 
-const members = [
-  {
-    id: 1,
-    name: "You",
-    position: 3,
-    status: "Current",
-    paidThisRound: true,
-    payoutDate: "March 15, 2025",
-    totalContributed: "$120",
-  },
-  {
-    id: 2,
-    name: "Maria Rodriguez",
-    position: 1,
-    status: "Completed",
-    paidThisRound: true,
-    payoutDate: "January 24, 2025",
-    totalContributed: "$160",
-  },
-  {
-    id: 3,
-    name: "Carlos Mendez",
-    position: 2,
-    status: "Completed",
-    paidThisRound: true,
-    payoutDate: "February 7, 2025",
-    totalContributed: "$160",
-  },
-  {
-    id: 4,
-    name: "Ana Garcia",
-    position: 4,
-    status: "Upcoming",
-    paidThisRound: true,
-    payoutDate: "March 28, 2025",
-    totalContributed: "$120",
-  },
-  {
-    id: 5,
-    name: "Juan Perez",
-    position: 5,
-    status: "Upcoming",
-    paidThisRound: true,
-    payoutDate: "April 11, 2025",
-    totalContributed: "$120",
-  },
-  {
-    id: 6,
-    name: "Sofia Torres",
-    position: 6,
-    status: "Upcoming",
-    paidThisRound: false,
-    payoutDate: "April 25, 2025",
-    totalContributed: "$80",
-  },
-  {
-    id: 7,
-    name: "Diego Flores",
-    position: 7,
-    status: "Upcoming",
-    paidThisRound: false,
-    payoutDate: "May 9, 2025",
-    totalContributed: "$80",
-  },
-  {
-    id: 8,
-    name: "Gabriela Ortiz",
-    position: 8,
-    status: "Upcoming",
-    paidThisRound: false,
-    payoutDate: "May 23, 2025",
-    totalContributed: "$80",
-  },
-];
+// Function to calculate end date based on frequency and rounds
+const calculateEndDate = (startDate: string, frequency: string, rounds: number) => {
+  const date = new Date(startDate);
+  
+  switch (frequency.toLowerCase()) {
+    case 'weekly':
+      date.setDate(date.getDate() + (7 * rounds));
+      break;
+    case 'biweekly':
+      date.setDate(date.getDate() + (14 * rounds));
+      break;
+    case 'monthly':
+      date.setMonth(date.getMonth() + rounds);
+      break;
+    default:
+      date.setDate(date.getDate() + (7 * rounds)); // Default to weekly
+  }
+  
+  return formatDate(date.toISOString());
+};
 
 export default function MyPoolPage() {
   const router = useRouter();
+  const { data: session, status: authStatus } = useSession();
+  const { pools, isLoading, error, refreshPools } = usePools();
+  const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+  const [isCreatePoolModalOpen, setIsCreatePoolModalOpen] = useState(false);
+
+  // Select the first pool by default when pools are loaded
+  useEffect(() => {
+    if (pools && pools.length > 0 && !selectedPool) {
+      setSelectedPool(pools[0]);
+    }
+  }, [pools, selectedPool]);
+
+  const handleCreatePool = () => {
+    setIsCreatePoolModalOpen(true);
+  };
+
+  const handlePoolCreated = (newPool: any) => {
+    refreshPools();
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "current":
       case "Current":
         return "bg-blue-100 text-blue-800";
+      case "completed":
       case "Completed":
         return "bg-green-100 text-green-800";
+      case "upcoming":
       case "Upcoming":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state / create pool prompt
+  if (!pools || pools.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-800">No Pools Found</h2>
+            <p className="mt-2 text-gray-500">
+              You don't have any savings pools yet. Create your first pool to get started.
+            </p>
+            <div className="mt-6">
+              <Button 
+                onClick={handleCreatePool}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Pool
+              </Button>
+              <CreatePoolModal 
+                isOpen={isCreatePoolModalOpen} 
+                onClose={() => setIsCreatePoolModalOpen(false)} 
+                onCreatePool={handlePoolCreated}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no pool is selected (which shouldn't happen at this point, but just in case)
+  if (!selectedPool) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-800">Select a Pool</h2>
+            <p className="mt-2 text-gray-500">
+              Please select a pool to view details.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Find the user's member record in the selected pool
+  const currentUser = session?.user;
+  const userMember = currentUser ? 
+    selectedPool.members.find(m => m.email === currentUser.email) : null;
+
+  // Find member with the next payout
+  const nextPayoutMember = selectedPool.members
+    .sort((a, b) => a.position - b.position)
+    .find(m => m.status === 'upcoming');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,20 +200,23 @@ export default function MyPoolPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">My Pool</h2>
-              <p className="mt-1 text-gray-500">{poolDetails.name}</p>
+              <p className="mt-1 text-gray-500">{selectedPool.name}</p>
             </div>
             <div className="mt-4 md:mt-0 flex space-x-3">
-              <button
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                onClick={() => router.push("/invite-members")}
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/pools/${selectedPool.id}/members`)}
+                className="inline-flex items-center"
               >
                 <Users className="h-4 w-4 mr-2" />
                 Invite Members
-              </button>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+              </Button>
+              <Button 
+                className="inline-flex items-center"
+              >
                 <DollarSign className="h-4 w-4 mr-2" />
                 Make Payment
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -172,7 +238,7 @@ export default function MyPoolPage() {
                   <dt className="text-sm font-medium text-gray-500">Status</dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {poolDetails.status}
+                      {selectedPool.status}
                     </span>
                   </dd>
                 </div>
@@ -181,7 +247,7 @@ export default function MyPoolPage() {
                     Your Position
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {poolDetails.currentPosition} of {poolDetails.totalMembers}
+                    {userMember ? `${userMember.position} of ${selectedPool.memberCount}` : 'Not found'}
                   </dd>
                 </div>
                 <div className="bg-gray-50 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -189,7 +255,7 @@ export default function MyPoolPage() {
                     Amount Per Cycle
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {poolDetails.amountPerCycle}
+                    ${selectedPool.contributionAmount}
                   </dd>
                 </div>
                 <div className="bg-white px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -197,7 +263,7 @@ export default function MyPoolPage() {
                     Cycle Frequency
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {poolDetails.cycleFrequency}
+                    {selectedPool.frequency}
                   </dd>
                 </div>
                 <div className="bg-gray-50 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -205,8 +271,7 @@ export default function MyPoolPage() {
                     Next Payout
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {poolDetails.nextPayoutDate} ({poolDetails.nextPayoutMember}
-                    )
+                    {formatDate(selectedPool.nextPayoutDate)} {nextPayoutMember ? `(${nextPayoutMember.name})` : ''}
                   </dd>
                 </div>
                 <div className="bg-white px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -214,7 +279,7 @@ export default function MyPoolPage() {
                     Timeline
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {poolDetails.startDate} to {poolDetails.endDate}
+                    {formatDate(selectedPool.createdAt)} to {calculateEndDate(selectedPool.createdAt, selectedPool.frequency, selectedPool.totalRounds)}
                   </dd>
                 </div>
               </dl>
@@ -228,7 +293,7 @@ export default function MyPoolPage() {
             <CardHeader>
               <CardTitle>Pool Progress</CardTitle>
               <CardDescription>
-                Round {poolDetails.currentRound} of {poolDetails.totalRounds}
+                Round {selectedPool.currentRound} of {selectedPool.totalRounds}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -242,7 +307,7 @@ export default function MyPoolPage() {
                   <div className="text-right">
                     <span className="text-xs font-semibold inline-block text-blue-600">
                       {Math.round(
-                        (poolDetails.currentRound / poolDetails.totalRounds) *
+                        (selectedPool.currentRound / selectedPool.totalRounds) *
                           100
                       )}
                       %
@@ -253,7 +318,7 @@ export default function MyPoolPage() {
                   <div
                     style={{
                       width: `${
-                        (poolDetails.currentRound / poolDetails.totalRounds) *
+                        (selectedPool.currentRound / selectedPool.totalRounds) *
                         100
                       }%`,
                     }}
@@ -316,45 +381,47 @@ export default function MyPoolPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {members.map((member) => (
-                      <tr
-                        key={member.id}
-                        className={member.name === "You" ? "bg-blue-50" : ""}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {member.name}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {member.position}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                              member.status
-                            )}`}
-                          >
-                            {member.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {member.paidThisRound ? (
-                            <span className="text-green-600">Yes</span>
-                          ) : (
-                            <span className="text-red-600">No</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {member.payoutDate}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {member.totalContributed}
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedPool.members
+                      .sort((a, b) => a.position - b.position)
+                      .map((member) => (
+                        <tr
+                          key={member.id}
+                          className={member.email === currentUser?.email ? "bg-blue-50" : ""}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {member.email === currentUser?.email ? "You" : member.name}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">
+                              {member.position}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                                member.status
+                              )}`}
+                            >
+                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {member.paymentsOnTime > member.paymentsMissed ? (
+                              <span className="text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-red-600">No</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(member.payoutDate)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${member.totalContributed}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -377,8 +444,8 @@ export default function MyPoolPage() {
                   <span className="h-5 w-5 text-blue-500 mr-2">•</span>
                   <span>
                     All members must contribute{" "}
-                    <strong>{poolDetails.amountPerCycle}</strong> every{" "}
-                    {poolDetails.cycleFrequency.toLowerCase()}.
+                    <strong>${selectedPool.contributionAmount}</strong> every{" "}
+                    {selectedPool.frequency.toLowerCase()}.
                   </span>
                 </li>
                 <li className="flex items-start">
@@ -419,6 +486,13 @@ export default function MyPoolPage() {
           </Card>
         </div>
       </div>
+      
+      {/* Create Pool Modal */}
+      <CreatePoolModal 
+        isOpen={isCreatePoolModalOpen} 
+        onClose={() => setIsCreatePoolModalOpen(false)} 
+        onCreatePool={handlePoolCreated}
+      />
     </div>
   );
 }

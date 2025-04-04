@@ -1,7 +1,6 @@
-// app/member-management/[id]/page.tsx
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -17,6 +16,7 @@ import {
   RefreshCw,
   Send,
   MessageSquare,
+  Loader,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import {
@@ -57,166 +57,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { usePool } from "@/lib/hooks/usePool";
+import { usePoolMembers } from "@/lib/hooks/usePoolMembers";
+import { usePoolInvitations } from "@/lib/hooks/usePoolInvitations";
+import { PoolMember, PoolMemberRole, PoolMemberStatus, InvitationStatus } from "@/types/pool";
+import { MemberMessageDialog } from "@/components/pools/MemberMessageDialog";
+import { InviteMembersDialog } from "@/components/pools/InviteMembersDialog";
 
-// Sample pool data
-const poolData = {
-  id: "123",
-  name: "Family Savings Pool",
-  description: "Our shared savings for household expenses and emergencies",
-  totalMembers: 8,
-  contributionAmount: 50,
-  frequency: "Weekly",
-  startDate: "January 10, 2025",
-  admin: {
-    id: 1,
-    name: "You",
-    email: "you@example.com",
-  },
-  members: [
-    {
-      id: 1,
-      name: "You",
-      email: "you@example.com",
-      phone: "(555) 123-4567",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "admin",
-      position: 3,
-      status: "current",
-      paymentsOnTime: 8,
-      paymentsMissed: 0,
-      totalContributed: 400,
-      payoutReceived: false,
-      payoutDate: "2025-03-15",
-      avatar: "",
-    },
-    {
-      id: 2,
-      name: "Maria Rodriguez",
-      email: "maria@example.com",
-      phone: "(555) 234-5678",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "member",
-      position: 1,
-      status: "completed",
-      paymentsOnTime: 8,
-      paymentsMissed: 0,
-      totalContributed: 400,
-      payoutReceived: true,
-      payoutDate: "2025-01-24",
-      avatar: "",
-    },
-    {
-      id: 3,
-      name: "Carlos Mendez",
-      email: "carlos@example.com",
-      phone: "(555) 345-6789",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "member",
-      position: 2,
-      status: "completed",
-      paymentsOnTime: 7,
-      paymentsMissed: 1,
-      totalContributed: 350,
-      payoutReceived: true,
-      payoutDate: "2025-02-07",
-      avatar: "",
-    },
-    {
-      id: 4,
-      name: "Ana Garcia",
-      email: "ana@example.com",
-      phone: "(555) 456-7890",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "member",
-      position: 4,
-      status: "upcoming",
-      paymentsOnTime: 8,
-      paymentsMissed: 0,
-      totalContributed: 400,
-      payoutReceived: false,
-      payoutDate: "2025-03-28",
-      avatar: "",
-    },
-    {
-      id: 5,
-      name: "Juan Perez",
-      email: "juan@example.com",
-      phone: "(555) 567-8901",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "member",
-      position: 5,
-      status: "upcoming",
-      paymentsOnTime: 6,
-      paymentsMissed: 2,
-      totalContributed: 300,
-      payoutReceived: false,
-      payoutDate: "2025-04-11",
-      avatar: "",
-    },
-    {
-      id: 6,
-      name: "Sofia Torres",
-      email: "sofia@example.com",
-      phone: "(555) 678-9012",
-      joinDate: "2025-01-10T00:00:00Z",
-      role: "member",
-      position: 6,
-      status: "upcoming",
-      paymentsOnTime: 7,
-      paymentsMissed: 1,
-      totalContributed: 350,
-      payoutReceived: false,
-      payoutDate: "2025-04-25",
-      avatar: "",
-    },
-    {
-      id: 7,
-      name: "Diego Flores",
-      email: "diego@example.com",
-      phone: "(555) 789-0123",
-      joinDate: "2025-01-12T00:00:00Z",
-      role: "member",
-      position: 7,
-      status: "upcoming",
-      paymentsOnTime: 5,
-      paymentsMissed: 3,
-      totalContributed: 250,
-      payoutReceived: false,
-      payoutDate: "2025-05-09",
-      avatar: "",
-    },
-    {
-      id: 8,
-      name: "Gabriela Ortiz",
-      email: "gabriela@example.com",
-      phone: "(555) 890-1234",
-      joinDate: "2025-01-15T00:00:00Z",
-      role: "member",
-      position: 8,
-      status: "upcoming",
-      paymentsOnTime: 8,
-      paymentsMissed: 0,
-      totalContributed: 400,
-      payoutReceived: false,
-      payoutDate: "2025-05-23",
-      avatar: "",
-    },
-  ],
-  invitationsSent: [
-    {
-      id: 1,
-      email: "luis@example.com",
-      sentDate: "2025-02-28T00:00:00Z",
-      status: "pending",
-    },
-    {
-      id: 2,
-      email: "carmen@example.com",
-      sentDate: "2025-03-01T00:00:00Z",
-      status: "expired",
-    },
-  ],
-};
+// For demo purposes - in a real app, this would come from authentication context
+const mockUserId = 'user123';
 
 export default function MemberManagementPage({
   params,
@@ -224,19 +74,54 @@ export default function MemberManagementPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const [members, setMembers] = useState(poolData.members);
-  const [invitations, setInvitations] = useState(poolData.invitationsSent);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<any>(null);
-  const [newInvite, setNewInvite] = useState({
-    name: "",
-    email: "",
-    phone: "",
-  });
+  const [selectedMember, setSelectedMember] = useState<PoolMember | null>(null);
   const [messageText, setMessageText] = useState("");
+  const [positionsChanged, setPositionsChanged] = useState(false);
+  const [originalPositions, setOriginalPositions] = useState<PoolMember[]>([]);
+  const [editedMember, setEditedMember] = useState<PoolMember | null>(null);
+  
+  // Fetch pool details
+  const { 
+    pool, 
+    isLoading: isLoadingPool, 
+    error: poolError, 
+    refreshPool 
+  } = usePool({ 
+    poolId: params.id,
+    userId: mockUserId
+  });
+  
+  // Fetch pool members
+  const {
+    members,
+    isLoading: isLoadingMembers,
+    error: membersError,
+    addMember,
+    updateMember,
+    removeMember,
+    updatePositions,
+    refreshMembers
+  } = usePoolMembers({
+    poolId: params.id,
+    userId: mockUserId
+  });
+  
+  // Use the pool invitations hook for managing invitations
+  const {
+    invitations,
+    isLoading: isLoadingInvitations,
+    error: invitationsError,
+    resendInvitation,
+    cancelInvitation,
+    refreshInvitations
+  } = usePoolInvitations({
+    poolId: params.id,
+    userId: mockUserId
+  });
 
   const getInitials = (name: string) => {
     return name
@@ -256,11 +141,11 @@ export default function MemberManagementPage({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "current":
+      case PoolMemberStatus.CURRENT:
         return "bg-blue-100 text-blue-800";
-      case "completed":
+      case PoolMemberStatus.COMPLETED:
         return "bg-green-100 text-green-800";
-      case "upcoming":
+      case PoolMemberStatus.UPCOMING:
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -269,47 +154,159 @@ export default function MemberManagementPage({
 
   const getInvitationStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
+      case InvitationStatus.PENDING:
         return "bg-yellow-100 text-yellow-800";
-      case "accepted":
+      case InvitationStatus.ACCEPTED:
         return "bg-green-100 text-green-800";
-      case "expired":
+      case InvitationStatus.EXPIRED:
+        return "bg-red-100 text-red-800";
+      case InvitationStatus.REJECTED:
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
-
-  const handleInvite = () => {
-    // In a real app, this would send an invitation to the email address
-    console.log("Inviting:", newInvite);
-
-    // Add to invitations list
-    const newInvitation = {
-      id: invitations.length + 1,
-      email: newInvite.email,
-      sentDate: new Date().toISOString(),
-      status: "pending",
+  
+  // Save original positions on component mount
+  useEffect(() => {
+    if (members.length > 0) {
+      setOriginalPositions([...members]);
+    }
+  }, [members]);
+  
+  // Move a member up in position (lower position number)
+  const moveMemberUp = (memberId: number) => {
+    const memberIndex = members.findIndex(m => m.id === memberId);
+    if (memberIndex <= 0) return; // Already at the top
+    
+    const newMembers = [...members];
+    const memberToMove = newMembers[memberIndex];
+    const memberAbove = newMembers[memberIndex - 1];
+    
+    // Swap positions
+    const tempPosition = memberToMove.position;
+    memberToMove.position = memberAbove.position;
+    memberAbove.position = tempPosition;
+    
+    // Sort by position
+    newMembers.sort((a, b) => a.position - b.position);
+    
+    // Update the members list
+    setMembers(newMembers);
+    setPositionsChanged(true);
+  };
+  
+  // Move a member down in position (higher position number)
+  const moveMemberDown = (memberId: number) => {
+    const memberIndex = members.findIndex(m => m.id === memberId);
+    if (memberIndex === -1 || memberIndex >= members.length - 1) return; // Already at the bottom
+    
+    const newMembers = [...members];
+    const memberToMove = newMembers[memberIndex];
+    const memberBelow = newMembers[memberIndex + 1];
+    
+    // Swap positions
+    const tempPosition = memberToMove.position;
+    memberToMove.position = memberBelow.position;
+    memberBelow.position = tempPosition;
+    
+    // Sort by position
+    newMembers.sort((a, b) => a.position - b.position);
+    
+    // Update the members list
+    setMembers(newMembers);
+    setPositionsChanged(true);
+  };
+  
+  // Reset positions to original
+  const resetPositions = () => {
+    setMembers([...originalPositions]);
+    setPositionsChanged(false);
+  };
+  
+  // Save position changes
+  const savePositionChanges = async () => {
+    // Prepare the position updates
+    const positionUpdates = members.map(member => ({
+      memberId: member.id,
+      position: member.position
+    }));
+    
+    // Call the API to update positions
+    const result = await updatePositions({ positions: positionUpdates });
+    
+    if (result.success) {
+      // Update the original positions
+      setOriginalPositions([...members]);
+      setPositionsChanged(false);
+    } else {
+      // Show error message
+      alert(result.error || 'Failed to update positions');
+    }
+  };
+  
+  // Initialize edited member data when a member is selected
+  useEffect(() => {
+    if (selectedMember) {
+      setEditedMember({...selectedMember});
+    }
+  }, [selectedMember]);
+  
+  // Handle member profile edit
+  const handleEditMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editedMember || !selectedMember) return;
+    
+    // Get form data
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    // Prepare updates
+    const updates = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      role: formData.get('role') as PoolMemberRole,
+      paymentsOnTime: parseInt(formData.get('paymentsOnTime') as string),
+      paymentsMissed: parseInt(formData.get('paymentsMissed') as string),
+      payoutReceived: formData.has('payoutReceived'),
+      payoutDate: formData.get('payoutDate') as string,
     };
-    setInvitations([...invitations, newInvitation]);
-
-    // Reset form and close dialog
-    setNewInvite({ name: "", email: "", phone: "" });
-    setShowInviteDialog(false);
+    
+    // Call the API to update the member
+    const result = await updateMember({
+      memberId: selectedMember.id,
+      updates
+    });
+    
+    if (result.success) {
+      // Close dialog and reset
+      setShowEditDialog(false);
+      setSelectedMember(null);
+      setEditedMember(null);
+    } else {
+      // Show error message
+      alert(result.error || 'Failed to update member');
+    }
   };
 
-  const handleRemoveMember = () => {
+  // We're now using the InviteMembersDialog component which handles invitations directly
+
+  const handleRemoveMember = async () => {
     if (!selectedMember) return;
-
-    // In a real app, this would call an API to remove the member
-    console.log("Removing member:", selectedMember);
-
-    // Remove from members list
-    setMembers(members.filter((m) => m.id !== selectedMember.id));
-
-    // Close dialog and reset selection
-    setShowRemoveDialog(false);
-    setSelectedMember(null);
+    
+    // Call the API to remove the member
+    const result = await removeMember(selectedMember.id);
+    
+    if (result.success) {
+      // Close dialog and reset selection
+      setShowRemoveDialog(false);
+      setSelectedMember(null);
+    } else {
+      // Show error message
+      alert(result.error || 'Failed to remove member');
+    }
   };
 
   const handleSendMessage = () => {
@@ -324,27 +321,88 @@ export default function MemberManagementPage({
     setSelectedMember(null);
   };
 
-  const handleResendInvitation = (invitationId: number) => {
-    // In a real app, this would resend the invitation
-    console.log("Resending invitation:", invitationId);
+  const handleResendInvitation = async (invitationId: number) => {
+    try {
+      const result = await resendInvitation(invitationId);
+      
+      if (!result.success) {
+        // Show error message
+        alert(result.error || 'Failed to resend invitation');
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      alert('An unexpected error occurred while resending the invitation');
+    }
+  };
 
-    // Update invitation status
-    setInvitations(
-      invitations.map((inv) =>
-        inv.id === invitationId
-          ? { ...inv, sentDate: new Date().toISOString(), status: "pending" }
-          : inv
-      )
+  const handleCancelInvitation = async (invitationId: number) => {
+    try {
+      const result = await cancelInvitation(invitationId);
+      
+      if (!result.success) {
+        // Show error message
+        alert(result.error || 'Failed to cancel invitation');
+      }
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
+      alert('An unexpected error occurred while cancelling the invitation');
+    }
+  };
+  
+  // Loading state
+  if (isLoadingPool || isLoadingMembers || isLoadingInvitations) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-center h-64">
+            <Loader className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+            <p className="text-lg text-gray-500">Loading member details...</p>
+          </div>
+        </div>
+      </div>
     );
-  };
-
-  const handleCancelInvitation = (invitationId: number) => {
-    // In a real app, this would cancel the invitation
-    console.log("Cancelling invitation:", invitationId);
-
-    // Remove from invitations list
-    setInvitations(invitations.filter((inv) => inv.id !== invitationId));
-  };
+  }
+  
+  // Error state
+  if (poolError || membersError || invitationsError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{poolError || membersError || invitationsError}</AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <Button onClick={() => router.push(`/pools/${params.id}`)}>
+              Back to Pool
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // No pool or members found
+  if (!pool) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <Alert>
+            <AlertTitle>Pool Not Found</AlertTitle>
+            <AlertDescription>The requested pool could not be found.</AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <Button onClick={() => router.push('/my-pool')}>
+              Back to My Pools
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -369,82 +427,34 @@ export default function MemberManagementPage({
                   Manage Members
                 </h2>
                 <p className="mt-1 text-gray-500">
-                  {poolData.name} • {poolData.members.length} members
+                  {pool.name} • {members.length} members
                 </p>
               </div>
             </div>
 
             <div className="mt-4 md:mt-0">
-              <Dialog
-                open={showInviteDialog}
-                onOpenChange={setShowInviteDialog}
+              <Button 
+                className="flex items-center"
+                onClick={() => setShowInviteDialog(true)}
               >
-                <DialogTrigger asChild>
-                  <Button className="flex items-center">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Invite a New Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join the pool. They'll receive
-                      instructions on how to join.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label htmlFor="name">Name (Optional)</Label>
-                      <Input
-                        id="name"
-                        value={newInvite.name}
-                        onChange={(e) =>
-                          setNewInvite({ ...newInvite, name: e.target.value })
-                        }
-                        placeholder="Enter name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">
-                        Email Address <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        value={newInvite.email}
-                        onChange={(e) =>
-                          setNewInvite({ ...newInvite, email: e.target.value })
-                        }
-                        placeholder="Enter email address"
-                        type="email"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone Number (Optional)</Label>
-                      <Input
-                        id="phone"
-                        value={newInvite.phone}
-                        onChange={(e) =>
-                          setNewInvite({ ...newInvite, phone: e.target.value })
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowInviteDialog(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleInvite} disabled={!newInvite.email}>
-                      Send Invitation
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite Member
+              </Button>
+              
+              {/* Import and use the InviteMembersDialog component */}
+              {pool && (
+                <InviteMembersDialog
+                  poolId={params.id}
+                  poolName={pool.name}
+                  isOpen={showInviteDialog}
+                  onClose={() => {
+                    setShowInviteDialog(false);
+                    // Refresh invitations when dialog closes
+                    refreshInvitations();
+                  }}
+                  userId={mockUserId}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -501,7 +511,7 @@ export default function MemberManagementPage({
                                   {member.email}
                                 </div>
                               </div>
-                              {member.role === "admin" && (
+                              {member.role === PoolMemberRole.ADMIN && (
                                 <Badge className="ml-2">Admin</Badge>
                               )}
                             </div>
@@ -553,6 +563,10 @@ export default function MemberManagementPage({
                                     setShowEditDialog(true);
                                   }}
                                 >
+                                  <Users className="h-4 w-4 mr-2" />
+                                  Edit Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
                                   <Mail className="h-4 w-4 mr-2" />
                                   Send Reminder
                                 </DropdownMenuItem>
@@ -641,7 +655,7 @@ export default function MemberManagementPage({
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
-                                {invitation.status === "pending" ? (
+                                {invitation.status === InvitationStatus.PENDING ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -750,6 +764,7 @@ export default function MemberManagementPage({
                                   variant="outline"
                                   size="sm"
                                   disabled={member.position === 1}
+                                  onClick={() => moveMemberUp(member.id)}
                                 >
                                   Move Up
                                 </Button>
@@ -757,6 +772,7 @@ export default function MemberManagementPage({
                                   variant="outline"
                                   size="sm"
                                   disabled={member.position === members.length}
+                                  onClick={() => moveMemberDown(member.id)}
                                 >
                                   Move Down
                                 </Button>
@@ -769,10 +785,20 @@ export default function MemberManagementPage({
                 </div>
               </CardContent>
               <CardFooter className="justify-end">
-                <Button variant="outline" className="mr-2">
+                <Button 
+                  variant="outline" 
+                  className="mr-2"
+                  onClick={resetPositions}
+                  disabled={!positionsChanged}
+                >
                   Reset to Original
                 </Button>
-                <Button>Save Changes</Button>
+                <Button 
+                  onClick={savePositionChanges}
+                  disabled={!positionsChanged}
+                >
+                  Save Changes
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -833,60 +859,213 @@ export default function MemberManagementPage({
         </DialogContent>
       </Dialog>
 
-      {/* Message Member Dialog */}
-      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent>
+      {/* Member Message Dialog - Direct Messaging */}
+      {selectedMember && (
+        <MemberMessageDialog
+          isOpen={showMessageDialog}
+          onClose={() => setShowMessageDialog(false)}
+          poolId={params.id}
+          member={{
+            id: selectedMember.id,
+            name: selectedMember.name,
+            avatar: selectedMember.avatar
+          }}
+          userId={mockUserId}
+        />
+      )}
+
+      {/* Edit Member Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Message</DialogTitle>
+            <DialogTitle>Edit Member Profile</DialogTitle>
             <DialogDescription>
-              Send a message to this member about the pool
+              Update member information and preferences
             </DialogDescription>
           </DialogHeader>
           {selectedMember && (
-            <div className="py-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage
-                    src={selectedMember.avatar}
-                    alt={selectedMember.name}
-                  />
-                  <AvatarFallback className="bg-blue-200 text-blue-800">
-                    {getInitials(selectedMember.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">{selectedMember.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {selectedMember.email}
+            <form onSubmit={handleEditMember}>
+              <div className="py-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage
+                      src={selectedMember.avatar}
+                      alt={selectedMember.name}
+                    />
+                    <AvatarFallback className="bg-blue-200 text-blue-800">
+                      {getInitials(selectedMember.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium text-lg">{selectedMember.name}</div>
+                    <div className="text-sm text-gray-500">
+                      Joined {formatDate(selectedMember.joinDate)}
+                    </div>
                   </div>
                 </div>
+
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={selectedMember.name}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      defaultValue={selectedMember.email}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      defaultValue={selectedMember.phone}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-2">Pool Role</h4>
+                    <div className="flex space-x-4">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="role-member"
+                          name="role"
+                          value={PoolMemberRole.MEMBER}
+                          defaultChecked={selectedMember.role === PoolMemberRole.MEMBER}
+                          className="mr-2"
+                        />
+                        <Label htmlFor="role-member">Member</Label>
+                      </div>
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="role-admin"
+                          name="role"
+                          value={PoolMemberRole.ADMIN}
+                          defaultChecked={selectedMember.role === PoolMemberRole.ADMIN}
+                          className="mr-2"
+                        />
+                        <Label htmlFor="role-admin">Admin</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-2">Payment Status</h4>
+                    <div className="flex space-x-2 items-center">
+                      <Label htmlFor="paymentsOnTime" className="text-sm text-gray-500">Payments On Time:</Label>
+                      <Input
+                        id="paymentsOnTime"
+                        name="paymentsOnTime"
+                        type="number"
+                        defaultValue={selectedMember.paymentsOnTime}
+                        className="w-16 inline"
+                        min="0"
+                      />
+                    </div>
+                    <div className="flex space-x-2 items-center mt-2">
+                      <Label htmlFor="paymentsMissed" className="text-sm text-gray-500">Payments Missed:</Label>
+                      <Input
+                        id="paymentsMissed"
+                        name="paymentsMissed"
+                        type="number"
+                        defaultValue={selectedMember.paymentsMissed}
+                        className="w-16 inline"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-2">Payout Information</h4>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="payoutReceived"
+                        name="payoutReceived"
+                        defaultChecked={selectedMember.payoutReceived}
+                        className="mr-2"
+                      />
+                      <Label htmlFor="payoutReceived">Payout Received</Label>
+                    </div>
+                    <div className="mt-3">
+                      <Label htmlFor="payoutDate">Scheduled Payout Date</Label>
+                      <Input
+                        id="payoutDate"
+                        name="payoutDate"
+                        type="date"
+                        defaultValue={
+                          new Date(selectedMember.payoutDate)
+                            .toISOString()
+                            .split("T")[0]
+                        }
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2 mt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEditDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <div className="flex space-x-2 mb-2 sm:mb-0">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+                      onClick={() => {
+                        console.log("Sending reset password link to", selectedMember?.email);
+                      }}
+                    >
+                      Reset Password
+                    </Button>
+                    <Button type="submit">
+                      Save Changes
+                    </Button>
+                  </div>
+                </DialogFooter>
               </div>
-              <div className="mt-2">
-                <Label htmlFor="message">Message</Label>
-                <textarea
-                  id="message"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md mt-1 h-32"
-                  placeholder="Type your message here..."
-                />
-              </div>
-            </div>
+            </form>
           )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowMessageDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSendMessage} disabled={!messageText}>
-              <Send className="h-4 w-4 mr-2" />
-              Send Message
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Member Message Dialog - Direct Messaging */}
+      {selectedMember && (
+        <MemberMessageDialog
+          isOpen={showMessageDialog}
+          onClose={() => setShowMessageDialog(false)}
+          poolId={params.id}
+          member={{
+            id: selectedMember.id,
+            name: selectedMember.name,
+            avatar: selectedMember.avatar
+          }}
+          userId={mockUserId}
+        />
+      )}
     </div>
   );
 }

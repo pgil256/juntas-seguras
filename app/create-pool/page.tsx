@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCreatePool } from "@/lib/hooks/useCreatePool";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Calendar,
   Users,
@@ -33,9 +35,22 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 
+// Mock user ID - in a real app, this would come from authentication context
+const mockUserId = 'user123';
+
 export default function CreatePoolPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { createPool, isLoading, error } = useCreatePool({
+    userId: mockUserId,
+    onSuccess: (poolId) => {
+      // Navigate to the newly created pool
+      router.push(`/pools/${poolId}`);
+    }
+  });
   const [poolData, setPoolData] = useState({
     name: "",
     contributionAmount: "",
@@ -69,13 +84,51 @@ export default function CreatePoolPage() {
     window.scrollTo(0, 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would submit the pool data to an API
-    console.log("Creating pool with data:", poolData);
+  const validateForm = (): boolean => {
+    const errors: string[] = [];
+    
+    if (!poolData.name.trim()) {
+      errors.push('Pool name is required');
+    }
+    
+    if (!poolData.contributionAmount || isNaN(Number(poolData.contributionAmount)) || Number(poolData.contributionAmount) <= 0) {
+      errors.push('Valid contribution amount is required');
+    }
+    
+    if (!poolData.startDate) {
+      errors.push('Start date is required');
+    }
+    
+    setFormErrors(errors);
+    return errors.length === 0;
+  };
 
-    // Navigate to dashboard or the newly created pool
-    router.push("/");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Transform form data to match API expected format
+      const totalRounds = parseInt(poolData.totalMembers); // Total rounds equals number of members
+      const createPoolRequest = {
+        name: poolData.name,
+        description: poolData.description,
+        contributionAmount: Number(poolData.contributionAmount),
+        frequency: poolData.frequency,
+        totalRounds,
+        startDate: poolData.startDate
+      };
+      
+      // Use the hook to create the pool
+      await createPool(createPoolRequest);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const calculateTotalValue = () => {
@@ -476,6 +529,30 @@ export default function CreatePoolPage() {
               </Button>
             )}
 
+            {formErrors.length > 0 && (
+              <div className="mb-4 w-full">
+                <Alert variant="destructive">
+                  <AlertTitle>Validation Errors</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-5">
+                      {formErrors.map((err, index) => (
+                        <li key={index}>{err}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            
+            {error && (
+              <div className="mb-4 w-full">
+                <Alert variant="destructive">
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+            
             {step < 3 ? (
               <Button
                 type="button"
@@ -486,8 +563,12 @@ export default function CreatePoolPage() {
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Create Pool
+              <Button 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isLoading || isSubmitting}
+              >
+                {isLoading ? 'Creating...' : 'Create Pool'}
               </Button>
             )}
           </div>

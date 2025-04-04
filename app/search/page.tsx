@@ -1,102 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { SearchInput } from '@/components/search/SearchInput';
 import { SearchResults } from '@/components/search/SearchResults';
 import { SearchFilters } from '@/components/search/SearchFilters';
-import { SearchResponse } from '@/types/search';
-import { Loader2 } from 'lucide-react';
+import { SearchPagination } from '@/components/search/SearchPagination';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useSearch } from '@/lib/hooks/useSearch';
 
 export default function SearchPage() {
-  const searchParams = useSearchParams();
-  const queryParam = searchParams.get('q') || '';
-  const [query, setQuery] = useState(queryParam);
-  const [results, setResults] = useState<SearchResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    category: searchParams.get('category') || 'all',
-    dateFrom: searchParams.get('dateFrom') || '',
-    dateTo: searchParams.get('dateTo') || '',
-    status: searchParams.get('status') || 'all',
-  });
-
-  // Function to perform search
-  const performSearch = async (searchQuery: string, searchFilters: any = {}) => {
-    if (!searchQuery.trim()) {
-      setResults(null);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Build query parameters
-      const params = new URLSearchParams({
-        q: searchQuery
-      });
-      
-      // Add filter parameters if they exist
-      if (searchFilters.category && searchFilters.category !== 'all') {
-        params.append('category', searchFilters.category);
-      }
-      
-      if (searchFilters.dateFrom) {
-        params.append('dateFrom', searchFilters.dateFrom);
-      }
-      
-      if (searchFilters.dateTo) {
-        params.append('dateTo', searchFilters.dateTo);
-      }
-      
-      if (searchFilters.status && searchFilters.status !== 'all') {
-        params.append('status', searchFilters.status);
-      }
-      
-      // Make API call to search endpoint
-      const response = await fetch(`/api/search?${params.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`Search API responded with status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setResults(data.results);
-    } catch (error) {
-      console.error('Search error:', error);
-      // Set empty results on error
-      setResults({
-        pools: [],
-        members: [],
-        transactions: [],
-        messages: [],
-        totalResults: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle search submission
-  const handleSearch = (searchQuery: string) => {
-    setQuery(searchQuery);
-    performSearch(searchQuery, filters);
-  };
-
-  // Handle filter changes
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters);
-    performSearch(query, newFilters);
-  };
-
-  // Initial search on page load or query param change
-  useEffect(() => {
-    if (queryParam) {
-      setQuery(queryParam);
-      performSearch(queryParam, filters);
-    }
-  }, [queryParam]);
+  const {
+    query,
+    results,
+    loading,
+    error,
+    filters,
+    currentPage,
+    handleSearch,
+    handleFilterChange,
+    handlePageChange,
+  } = useSearch();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,12 +47,35 @@ export default function SearchPage() {
                   />
                 </div>
                 <div className="flex-1">
+                  {error && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                
                   {loading ? (
                     <div className="flex justify-center py-12">
                       <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                     </div>
                   ) : results ? (
-                    <SearchResults results={results} query={query} />
+                    <div>
+                      <SearchResults 
+                        results={results} 
+                        query={query} 
+                        onPageChange={handlePageChange}
+                        currentPage={currentPage}
+                      />
+                      
+                      {/* Pagination Controls */}
+                      {results.pagination && (
+                        <SearchPagination 
+                          pagination={results.pagination} 
+                          onPageChange={handlePageChange} 
+                        />
+                      )}
+                    </div>
                   ) : (
                     <div className="py-12 text-center text-gray-500">
                       Enter a search term to get started

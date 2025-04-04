@@ -29,9 +29,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+scope.txt
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +41,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# unnecessary components and files
+/git_to_text/
+convertToText.js
+/components/ui/unused/
+/app/mock-data/
+/app/placeholders/
+/temp/
+/scripts/dev-only/
+/docs/internal/

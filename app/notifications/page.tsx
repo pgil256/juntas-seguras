@@ -1,18 +1,19 @@
 // app/notifications/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Bell,
-  CheckCircle2,
+  Bell as BellIcon,
   Filter,
   ChevronDown,
   MoreHorizontal,
   X,
   Trash2,
   Mail,
-  Bell as BellIcon,
+  CheckCircle2,
+  Bell,
 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import Navbar from "@/components/Navbar";
 import {
   Card,
@@ -32,74 +33,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-
-// Sample notification data
-const sampleNotifications = [
-  {
-    id: 1,
-    message: "Your next payment for Family Savings Pool is due tomorrow",
-    type: "payment",
-    date: "2025-03-08T00:00:00Z",
-    read: false,
-    isImportant: true,
-  },
-  {
-    id: 2,
-    message: "Maria Rodriguez made a deposit of $50",
-    type: "transaction",
-    date: "2025-03-07T15:30:00Z",
-    read: false,
-    isImportant: false,
-  },
-  {
-    id: 3,
-    message: "Carlos Mendez has received the payout of $400",
-    type: "transaction",
-    date: "2025-03-07T10:45:00Z",
-    read: false,
-    isImportant: false,
-  },
-  {
-    id: 4,
-    message: "Pool cycle #4 has started",
-    type: "pool",
-    date: "2025-03-05T08:00:00Z",
-    read: true,
-    isImportant: false,
-  },
-  {
-    id: 5,
-    message: "Sofia Torres missed a payment. Reminder sent.",
-    type: "alert",
-    date: "2025-03-04T16:20:00Z",
-    read: true,
-    isImportant: true,
-  },
-  {
-    id: 6,
-    message: "You've been invited to join Vacation Fund pool",
-    type: "invite",
-    date: "2025-03-02T09:15:00Z",
-    read: true,
-    isImportant: false,
-  },
-  {
-    id: 7,
-    message: "Your account has been successfully verified",
-    type: "system",
-    date: "2025-02-28T14:30:00Z",
-    read: true,
-    isImportant: false,
-  },
-  {
-    id: 8,
-    message: "Family Savings Pool: Next payout is scheduled for March 15",
-    type: "pool",
-    date: "2025-02-25T11:45:00Z",
-    read: true,
-    isImportant: false,
-  },
-];
+import { useNotifications } from "@/contexts/NotificationContext";
+import { NotificationIcon } from "@/components/notifications/NotificationIcon";
+import { NotificationType } from "@/types/notification";
+import { useCreateNotification } from "@/lib/hooks/useCreateNotification";
 
 // Notification categories for filtering
 const categories = [
@@ -112,100 +49,115 @@ const categories = [
   { value: "system", label: "System" },
 ];
 
-// Notification preferences for settings tab
-const notificationPreferences = [
-  {
-    id: "email_payment",
-    label: "Payment Reminders",
-    description: "Get notified before payments are due",
-    email: true,
-    push: true,
-  },
-  {
-    id: "email_transaction",
-    label: "Transactions",
-    description: "When members make deposits or receive payouts",
-    email: true,
-    push: true,
-  },
-  {
-    id: "email_pool",
-    label: "Pool Updates",
-    description: "Changes to pool status or information",
-    email: false,
-    push: true,
-  },
-  {
-    id: "email_invite",
-    label: "New Invitations",
-    description: "When you're invited to join a pool",
-    email: true,
-    push: true,
-  },
-  {
-    id: "email_missed",
-    label: "Missed Payments",
-    description: "When a member misses a scheduled payment",
-    email: true,
-    push: true,
-  },
-];
-
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(sampleNotifications);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [preferences, setPreferences] = useState(notificationPreferences);
+  const {
+    notifications,
+    preferences,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    togglePreference,
+    savePreferences,
+    getNotifications,
+  } = useNotifications();
+  
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isAllEmailEnabled, setIsAllEmailEnabled] = useState(true);
+  const [isAllPushEnabled, setIsAllPushEnabled] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  
+  // For the test notification creation
+  const { createNotification, isCreating } = useCreateNotification();
+  const [testMessage, setTestMessage] = useState("");
+  const [testType, setTestType] = useState<NotificationType>("system");
+  const [testImportant, setTestImportant] = useState(false);
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+  // Refresh notifications when the page loads
+  useEffect(() => {
+    getNotifications();
+  }, [getNotifications]);
 
-    if (diffDays === 0) {
-      // Today
-      return new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-      }).format(date);
-    } else if (diffDays === 1) {
-      // Yesterday
-      return "Yesterday";
-    } else if (diffDays < 7) {
-      // Less than a week ago
-      return new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
+  // Check if all email or push notifications are enabled
+  useEffect(() => {
+    if (preferences.length > 0) {
+      setIsAllEmailEnabled(preferences.every(pref => pref.email));
+      setIsAllPushEnabled(preferences.every(pref => pref.push));
+    }
+  }, [preferences]);
+
+  // Toggle all email notifications
+  const toggleAllEmail = () => {
+    const newValue = !isAllEmailEnabled;
+    setIsAllEmailEnabled(newValue);
+    preferences.forEach(pref => {
+      if (pref.email !== newValue) {
+        togglePreference(pref.id, "email");
+      }
+    });
+  };
+
+  // Toggle all push notifications
+  const toggleAllPush = () => {
+    const newValue = !isAllPushEnabled;
+    setIsAllPushEnabled(newValue);
+    preferences.forEach(pref => {
+      if (pref.push !== newValue) {
+        togglePreference(pref.id, "push");
+      }
+    });
+  };
+
+  // Handle saving preferences
+  const handleSavePreferences = async () => {
+    const success = await savePreferences();
+    if (success) {
+      setSaveStatus("Preferences saved successfully!");
+      setTimeout(() => setSaveStatus(null), 3000);
     } else {
-      // More than a week ago
-      return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-      }).format(date);
+      setSaveStatus("Error saving preferences. Please try again.");
+      setTimeout(() => setSaveStatus(null), 3000);
     }
   };
 
-  // Mark a notification as read
-  const markAsRead = (id: number) => {
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
+  // Create a test notification
+  const handleCreateTestNotification = async () => {
+    if (!testMessage) return;
+    
+    const success = await createNotification({
+      message: testMessage,
+      type: testType,
+      isImportant: testImportant
+    });
+    
+    if (success) {
+      setTestMessage("");
+      getNotifications(); // Refresh notifications
+    }
   };
 
-  // Mark all notifications as read
-  const markAllAsRead = () => {
-    setNotifications(
-      notifications.map((notification) => ({ ...notification, read: true }))
-    );
-  };
-
-  // Delete a notification
-  const deleteNotification = (id: number) => {
-    setNotifications(
-      notifications.filter((notification) => notification.id !== id)
-    );
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = parseISO(dateString);
+      const now = new Date();
+      const diffHours = Math.abs(now.getTime() - date.getTime()) / 36e5;
+      
+      if (diffHours < 24) {
+        // Today
+        return format(date, "h:mm a");
+      } else if (diffHours < 48) {
+        // Yesterday
+        return "Yesterday";
+      } else if (diffHours < 168) {
+        // Less than a week ago
+        return format(date, "EEEE"); // Day name
+      } else {
+        // More than a week ago
+        return format(date, "MMM d"); // Month and day
+      }
+    } catch (error) {
+      return dateString;
+    }
   };
 
   // Filter notifications by category
@@ -215,65 +167,6 @@ export default function NotificationsPage() {
       : notifications.filter(
           (notification) => notification.type === selectedCategory
         );
-
-  // Toggle notification preference
-  const togglePreference = (id: string, type: "email" | "push") => {
-    setPreferences(
-      preferences.map((pref) =>
-        pref.id === id
-          ? { ...pref, [type]: !pref[type as keyof typeof pref] }
-          : pref
-      )
-    );
-  };
-
-  // Get icon for notification type
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "payment":
-        return (
-          <div className="rounded-full bg-blue-100 p-2">
-            <Bell className="h-5 w-5 text-blue-600" />
-          </div>
-        );
-      case "transaction":
-        return (
-          <div className="rounded-full bg-green-100 p-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-          </div>
-        );
-      case "pool":
-        return (
-          <div className="rounded-full bg-purple-100 p-2">
-            <Users className="h-5 w-5 text-purple-600" />
-          </div>
-        );
-      case "invite":
-        return (
-          <div className="rounded-full bg-yellow-100 p-2">
-            <UserPlus className="h-5 w-5 text-yellow-600" />
-          </div>
-        );
-      case "alert":
-        return (
-          <div className="rounded-full bg-red-100 p-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-          </div>
-        );
-      case "system":
-        return (
-          <div className="rounded-full bg-gray-100 p-2">
-            <Settings className="h-5 w-5 text-gray-600" />
-          </div>
-        );
-      default:
-        return (
-          <div className="rounded-full bg-gray-100 p-2">
-            <Bell className="h-5 w-5 text-gray-600" />
-          </div>
-        );
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -325,6 +218,7 @@ export default function NotificationsPage() {
           <TabsList>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="test">Test</TabsTrigger>
           </TabsList>
 
           <TabsContent value="notifications">
@@ -360,7 +254,7 @@ export default function NotificationsPage() {
                         }`}
                       >
                         <div className="flex-shrink-0 mr-4">
-                          {getNotificationIcon(notification.type)}
+                          <NotificationIcon type={notification.type as NotificationType} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
@@ -446,7 +340,11 @@ export default function NotificationsPage() {
                         Receive notifications via email
                       </p>
                     </div>
-                    <Switch id="email-all" />
+                    <Switch 
+                      id="email-all" 
+                      checked={isAllEmailEnabled}
+                      onCheckedChange={toggleAllEmail}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -458,7 +356,11 @@ export default function NotificationsPage() {
                         Receive notifications in your browser and mobile
                       </p>
                     </div>
-                    <Switch id="push-all" />
+                    <Switch 
+                      id="push-all" 
+                      checked={isAllPushEnabled}
+                      onCheckedChange={toggleAllPush}
+                    />
                   </div>
 
                   <div className="border-t pt-6">
@@ -516,9 +418,76 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6">
-                    <Button>Save Preferences</Button>
+                  <div className="mt-6 flex items-center">
+                    <Button onClick={handleSavePreferences}>Save Preferences</Button>
+                    {saveStatus && (
+                      <span className={`ml-4 text-sm ${saveStatus.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>
+                        {saveStatus}
+                      </span>
+                    )}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="test">
+            <Card>
+              <CardHeader>
+                <CardTitle>Test Notifications</CardTitle>
+                <CardDescription>
+                  Create test notifications to see how they appear
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="message" className="block mb-1">Notification Message</Label>
+                    <textarea 
+                      id="message"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      rows={3}
+                      value={testMessage}
+                      onChange={(e) => setTestMessage(e.target.value)}
+                      placeholder="Enter your notification message"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="type" className="block mb-1">Notification Type</Label>
+                    <select
+                      id="type"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      value={testType}
+                      onChange={(e) => setTestType(e.target.value as NotificationType)}
+                    >
+                      <option value="payment">Payment</option>
+                      <option value="transaction">Transaction</option>
+                      <option value="pool">Pool</option>
+                      <option value="invite">Invitation</option>
+                      <option value="alert">Alert</option>
+                      <option value="system">System</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Switch
+                      id="important"
+                      checked={testImportant}
+                      onCheckedChange={() => setTestImportant(!testImportant)}
+                    />
+                    <Label htmlFor="important" className="ml-2">
+                      Mark as important
+                    </Label>
+                  </div>
+                  
+                  <Button 
+                    onClick={handleCreateTestNotification}
+                    disabled={isCreating || !testMessage}
+                    className="mt-2"
+                  >
+                    {isCreating ? 'Creating...' : 'Create Test Notification'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -528,86 +497,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-
-// Missing components
-const Users = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-      />
-    </svg>
-  );
-};
-
-const UserPlus = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-      />
-    </svg>
-  );
-};
-
-const AlertCircle = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-      />
-    </svg>
-  );
-};
-
-const Settings = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-    </svg>
-  );
-};

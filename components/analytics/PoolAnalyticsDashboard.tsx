@@ -26,68 +26,208 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { usePoolAnalytics } from '@/lib/hooks/usePoolAnalytics';
+import { usePools } from '@/lib/hooks/usePools';
+import { 
+  DollarSign, 
+  CheckCircle, 
+  Clock, 
+  Calendar, 
+  BarChart as BarChartIcon,
+  Loader
+} from 'lucide-react';
 
-// Sample data for analytics
-const poolData = {
-  id: "123",
-  name: "Family Savings Pool",
-  description: "Our shared savings for household expenses and emergencies",
-  startDate: "2025-01-10",
-  currentRound: 4,
-  totalRounds: 8,
-  contributionAmount: 50,
-  totalMembers: 8,
-  totalSaved: 1600,
-  nextPayoutDate: "2025-03-15",
-};
+// Mock user ID - would come from auth context in a real app
+const mockUserId = 'user123';
 
-const contributionData = [
-  { month: 'Jan', onTime: 8, late: 0, missed: 0 },
-  { month: 'Feb', onTime: 7, late: 1, missed: 0 },
-  { month: 'Mar', onTime: 6, late: 2, missed: 0 },
-];
+// For custom colors in charts
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
-const memberContributionData = [
-  { name: 'You', totalContributed: 250, totalReceived: 0, onTimeRate: 100 },
-  { name: 'Maria R.', totalContributed: 250, totalReceived: 400, onTimeRate: 100 },
-  { name: 'Carlos M.', totalContributed: 250, totalReceived: 400, onTimeRate: 87 },
-  { name: 'Ana G.', totalContributed: 250, totalReceived: 0, onTimeRate: 100 },
-  { name: 'Juan P.', totalContributed: 200, totalReceived: 0, onTimeRate: 75 },
-  { name: 'Sofia T.', totalContributed: 200, totalReceived: 0, onTimeRate: 87 },
-  { name: 'Diego F.', totalContributed: 150, totalReceived: 0, onTimeRate: 62 },
-  { name: 'Gabriela O.', totalContributed: 250, totalReceived: 0, onTimeRate: 100 },
-];
+interface PoolAnalyticsDashboardProps {
+  initialPoolId?: string;
+}
 
-const savingsGrowthData = [
-  { month: 'Jan Week 1', amount: 400 },
-  { month: 'Jan Week 2', amount: 800 },
-  { month: 'Jan Week 3', amount: 1200 },
-  { month: 'Jan Week 4', amount: 1600 },
-  { month: 'Feb Week 1', amount: 2000 },
-  { month: 'Feb Week 2', amount: 2400 },
-  { month: 'Feb Week 3', amount: 2800 },
-  { month: 'Feb Week 4', amount: 3200 },
-  { month: 'Mar Week 1', amount: 3600 },
-  { month: 'Mar Week 2', amount: 4000 },
-];
-
-const payoutDistributionData = [
-  { name: 'Paid Out', value: 800 },
-  { name: 'Remaining', value: 2800 },
-];
-
-const onTimeRateData = [
-  { month: 'Jan', rate: 100 },
-  { month: 'Feb', rate: 87.5 },
-  { month: 'Mar', rate: 75 },
-];
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
-export default function PoolAnalyticsDashboard() {
+export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsDashboardProps) {
+  // State for filters and selections
   const [timeframe, setTimeframe] = useState('3months');
-  const [poolSelector, setPoolSelector] = useState('123');
-
+  const [selectedPoolId, setSelectedPoolId] = useState(initialPoolId || '');
+  
+  // Fetch all pools for the selection dropdown
+  const { 
+    pools, 
+    isLoading: poolsLoading, 
+    error: poolsError 
+  } = usePools({ userId: mockUserId });
+  
+  // Fetch analytics data for the selected pool
+  const { 
+    analytics, 
+    isLoading: analyticsLoading, 
+    error: analyticsError 
+  } = usePoolAnalytics({ 
+    poolId: selectedPoolId, 
+    userId: mockUserId, 
+    timeframe 
+  });
+  
+  // Set the first pool as selected if none is provided and pools are loaded
+  React.useEffect(() => {
+    if (!selectedPoolId && pools && pools.length > 0) {
+      setSelectedPoolId(pools[0].id);
+    }
+  }, [pools, selectedPoolId]);
+  
+  // Handle pool selection
+  const handlePoolChange = (poolId: string) => {
+    setSelectedPoolId(poolId);
+  };
+  
+  // Handle timeframe selection
+  const handleTimeframeChange = (value: string) => {
+    setTimeframe(value);
+  };
+  
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+  
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  
+  // Loading state
+  if (poolsLoading || (analyticsLoading && selectedPoolId)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <Loader className="h-12 w-12 text-blue-500 animate-spin mb-4" />
+        <p className="text-lg text-gray-500">Loading analytics data...</p>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (poolsError || (analyticsError && selectedPoolId)) {
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          {poolsError || analyticsError || 'Failed to load analytics data'}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
+  // No pools found
+  if (!pools || pools.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+        <BarChartIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900">No Pools Found</h3>
+        <p className="text-gray-500 mt-2">
+          You need to be a member of at least one pool to view analytics.
+        </p>
+        <Button className="mt-6" onClick={() => window.location.href = '/create-pool'}>
+          Create a Pool
+        </Button>
+      </div>
+    );
+  }
+  
+  // No pool selected
+  if (!selectedPoolId) {
+    return (
+      <div className="bg-gray-50 p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800">Pool Analytics</h2>
+            <p className="text-gray-500">
+              Track contributions, growth, and member performance
+            </p>
+          </div>
+          <div className="mt-4 md:mt-0">
+            <Select
+              value={selectedPoolId}
+              onValueChange={handlePoolChange}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Select a pool" />
+              </SelectTrigger>
+              <SelectContent>
+                {pools.map(pool => (
+                  <SelectItem key={pool.id} value={pool.id}>
+                    {pool.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+          <BarChartIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900">Select a Pool</h3>
+          <p className="text-gray-500 mt-2">
+            Please select a pool from the dropdown to view analytics.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  // No analytics data
+  if (!analytics) {
+    return (
+      <div className="bg-gray-50 p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800">Pool Analytics</h2>
+            <p className="text-gray-500">
+              Track contributions, growth, and member performance
+            </p>
+          </div>
+          <div className="mt-4 md:mt-0 flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
+            <Select
+              value={selectedPoolId}
+              onValueChange={handlePoolChange}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Select a pool" />
+              </SelectTrigger>
+              <SelectContent>
+                {pools.map(pool => (
+                  <SelectItem key={pool.id} value={pool.id}>
+                    {pool.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <Alert variant="default" className="mb-6">
+          <AlertTitle>No Analytics Data</AlertTitle>
+          <AlertDescription>
+            There isn't enough data to generate analytics for this pool yet.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  // Main dashboard view with data
   return (
     <div className="bg-gray-50 p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -99,20 +239,23 @@ export default function PoolAnalyticsDashboard() {
         </div>
         <div className="mt-4 md:mt-0 flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
           <Select
-            value={poolSelector}
-            onValueChange={setPoolSelector}
+            value={selectedPoolId}
+            onValueChange={handlePoolChange}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Select Pool" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="123">Family Savings Pool</SelectItem>
-              <SelectItem value="456">Vacation Fund</SelectItem>
+              {pools.map(pool => (
+                <SelectItem key={pool.id} value={pool.id}>
+                  {pool.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select
             value={timeframe}
-            onValueChange={setTimeframe}
+            onValueChange={handleTimeframeChange}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select Timeframe" />
@@ -135,12 +278,10 @@ export default function PoolAnalyticsDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Total Savings</p>
-                <p className="text-2xl font-semibold">${poolData.totalSaved}</p>
+                <p className="text-2xl font-semibold">{formatCurrency(analytics.totalSaved)}</p>
               </div>
               <div className="p-2 bg-blue-100 rounded-lg">
-                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <DollarSign className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -150,13 +291,11 @@ export default function PoolAnalyticsDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Current Round</p>
-                <p className="text-2xl font-semibold">{poolData.currentRound} of {poolData.totalRounds}</p>
+                <p className="text-sm font-medium text-gray-500">Completion</p>
+                <p className="text-2xl font-semibold">{Math.round(analytics.completionPercentage)}%</p>
               </div>
               <div className="p-2 bg-green-100 rounded-lg">
-                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -167,12 +306,10 @@ export default function PoolAnalyticsDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">On-Time Rate</p>
-                <p className="text-2xl font-semibold">87.5%</p>
+                <p className="text-2xl font-semibold">{Math.round(analytics.onTimeRate)}%</p>
               </div>
               <div className="p-2 bg-purple-100 rounded-lg">
-                <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Clock className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -183,12 +320,15 @@ export default function PoolAnalyticsDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Next Payout</p>
-                <p className="text-2xl font-semibold">Mar 15</p>
+                <p className="text-2xl font-semibold">
+                  {analytics.payoutSchedule
+                    .find(p => p.status === 'upcoming')?.date 
+                    ? formatDate(analytics.payoutSchedule.find(p => p.status === 'upcoming')?.date || '')
+                    : 'N/A'}
+                </p>
               </div>
               <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <Calendar className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
           </CardContent>
@@ -218,14 +358,20 @@ export default function PoolAnalyticsDashboard() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={savingsGrowthData}
+                      data={analytics.savingsGrowthData}
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="period" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                      <Area type="monotone" dataKey="amount" stroke="#3b82f6" fill="#93c5fd" />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
+                      <Area 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="#3b82f6" 
+                        fill="#93c5fd" 
+                        activeDot={{ r: 8 }} 
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -245,7 +391,7 @@ export default function PoolAnalyticsDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={payoutDistributionData}
+                        data={analytics.payoutDistributionData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -254,11 +400,11 @@ export default function PoolAnalyticsDashboard() {
                         dataKey="value"
                         label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       >
-                        {payoutDistributionData.map((entry, index) => (
+                        {analytics.payoutDistributionData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -277,11 +423,11 @@ export default function PoolAnalyticsDashboard() {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={onTimeRateData}>
+                    <LineChart data={analytics.onTimeRateData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="period" />
                       <YAxis domain={[0, 100]} />
-                      <Tooltip formatter={(value) => [`${value}%`, 'On-time Rate']} />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, 'On-time Rate']} />
                       <Line
                         type="monotone"
                         dataKey="rate"
@@ -306,9 +452,9 @@ export default function PoolAnalyticsDashboard() {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={contributionData}>
+                    <BarChart data={analytics.contributionData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="period" />
                       <YAxis />
                       <Tooltip />
                       <Legend />
@@ -336,9 +482,9 @@ export default function PoolAnalyticsDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={contributionData}>
+                    <BarChart data={analytics.contributionData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="period" />
                       <YAxis />
                       <Tooltip />
                       <Legend />
@@ -355,25 +501,32 @@ export default function PoolAnalyticsDashboard() {
                     <div className="mt-2 space-y-2">
                       <div className="flex justify-between">
                         <span className="text-blue-700">Total Contributions:</span>
-                        <span className="font-medium">{contributionData.reduce((acc, curr) => acc + curr.onTime + curr.late, 0)} payments</span>
+                        <span className="font-medium">
+                          {analytics.contributionData.reduce((acc, curr) => acc + curr.onTime + curr.late, 0)} payments
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">On-Time Payments:</span>
-                        <span className="font-medium">{contributionData.reduce((acc, curr) => acc + curr.onTime, 0)} payments</span>
+                        <span className="font-medium">
+                          {analytics.contributionData.reduce((acc, curr) => acc + curr.onTime, 0)} payments
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Late Payments:</span>
-                        <span className="font-medium">{contributionData.reduce((acc, curr) => acc + curr.late, 0)} payments</span>
+                        <span className="font-medium">
+                          {analytics.contributionData.reduce((acc, curr) => acc + curr.late, 0)} payments
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Missed Payments:</span>
-                        <span className="font-medium">{contributionData.reduce((acc, curr) => acc + curr.missed, 0)} payments</span>
+                        <span className="font-medium">
+                          {analytics.contributionData.reduce((acc, curr) => acc + curr.missed, 0)} payments
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">On-Time Rate:</span>
                         <span className="font-medium">
-                          {(contributionData.reduce((acc, curr) => acc + curr.onTime, 0) / 
-                            (contributionData.reduce((acc, curr) => acc + curr.onTime + curr.late + curr.missed, 0)) * 100).toFixed(1)}%
+                          {Math.round(analytics.onTimeRate)}%
                         </span>
                       </div>
                     </div>
@@ -382,18 +535,38 @@ export default function PoolAnalyticsDashboard() {
                   <div className="p-4 bg-green-50 rounded-lg">
                     <h3 className="font-medium text-lg text-green-900">Insights</h3>
                     <ul className="mt-2 space-y-2 text-green-700">
-                      <li className="flex items-start">
-                        <div className="mr-2">•</div>
-                        <div>On-time payment rate is declining slightly. Consider sending reminders earlier.</div>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mr-2">•</div>
-                        <div>March has had the most late payments so far.</div>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mr-2">•</div>
-                        <div>No missed payments yet - pool members are committed!</div>
-                      </li>
+                      {analytics.onTimeRate >= 90 && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>Excellent on-time payment rate! The pool is running smoothly.</div>
+                        </li>
+                      )}
+                      {analytics.onTimeRate < 90 && analytics.onTimeRate >= 75 && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>Good on-time payment rate. Consider sending reminders to improve further.</div>
+                        </li>
+                      )}
+                      {analytics.onTimeRate < 75 && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>On-time payment rate needs improvement. Schedule reminders earlier.</div>
+                        </li>
+                      )}
+                      
+                      {analytics.contributionData.length > 0 && analytics.contributionData.some(d => d.late > 0) && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>{analytics.contributionData.reduce((max, curr) => (curr.late > max.late ? curr : max), analytics.contributionData[0]).period} had the most late payments.</div>
+                        </li>
+                      )}
+                      
+                      {analytics.contributionData.length > 0 && analytics.contributionData.every(d => d.missed === 0) && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>No missed payments yet - pool members are committed!</div>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -416,14 +589,14 @@ export default function PoolAnalyticsDashboard() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={memberContributionData}
+                      data={analytics.memberContributionData}
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
                       <YAxis type="category" dataKey="name" />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
                       <Legend />
                       <Bar dataKey="totalContributed" name="Contributed" fill="#3b82f6" />
                       <Bar dataKey="totalReceived" name="Received" fill="#10b981" />
@@ -434,14 +607,14 @@ export default function PoolAnalyticsDashboard() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={memberContributionData}
+                      data={analytics.memberContributionData}
                       layout="vertical"
                       margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" domain={[0, 100]} />
                       <YAxis type="category" dataKey="name" />
-                      <Tooltip formatter={(value) => [`${value}%`, 'On-time Rate']} />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, 'On-time Rate']} />
                       <Bar dataKey="onTimeRate" name="On-time Rate" fill="#8884d8" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -462,14 +635,14 @@ export default function PoolAnalyticsDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {memberContributionData
+                      {analytics.memberContributionData
                         .sort((a, b) => b.onTimeRate - a.onTimeRate)
                         .map((member, index) => (
                           <tr key={member.name}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.name}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${member.totalContributed}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.onTimeRate}%</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(member.totalContributed)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.onTimeRate.toFixed(1)}%</td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 member.onTimeRate >= 90 ? 'bg-green-100 text-green-800' :
@@ -505,18 +678,17 @@ export default function PoolAnalyticsDashboard() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={[
-                      ...savingsGrowthData,
-                      { month: 'Mar Week 3', amount: 4400, projected: true },
-                      { month: 'Mar Week 4', amount: 4800, projected: true },
-                      { month: 'Apr Week 1', amount: 5200, projected: true },
-                      { month: 'Apr Week 2', amount: 5600, projected: true },
-                      { month: 'Apr Week 3', amount: 6000, projected: true },
-                      { month: 'Apr Week 4', amount: 6400, projected: true },
+                      ...analytics.savingsGrowthData,
+                      // Add projected data points
+                      ...(analytics.savingsGrowthData.length > 0 ? generateProjectedData(
+                        analytics.savingsGrowthData,
+                        analytics.projectedTotalValue
+                      ) : [])
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="period" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
                       <Legend />
                       <Line
                         type="monotone"
@@ -536,19 +708,21 @@ export default function PoolAnalyticsDashboard() {
                     <div className="mt-2 space-y-2">
                       <div className="flex justify-between">
                         <span className="text-blue-700">Projected Completion Date:</span>
-                        <span className="font-medium">May 28, 2025</span>
+                        <span className="font-medium">{formatDate(analytics.projectedCompletionDate)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Total Expected Value:</span>
-                        <span className="font-medium">$6,400</span>
+                        <span className="font-medium">{formatCurrency(analytics.projectedTotalValue)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Your Expected Return:</span>
-                        <span className="font-medium">$400</span>
+                        <span className="font-medium">{formatCurrency(analytics.expectedReturn)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Return on Contribution:</span>
-                        <span className="font-medium">8x</span>
+                        <span className="font-medium">
+                          {(analytics.expectedReturn / (analytics.totalSaved / pools.find(p => p.id === selectedPoolId)?.memberCount || 1)).toFixed(1)}x
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -558,16 +732,32 @@ export default function PoolAnalyticsDashboard() {
                     <ul className="mt-2 space-y-2 text-green-700">
                       <li className="flex items-start">
                         <div className="mr-2">•</div>
-                        <div>Pool is on track to complete as scheduled</div>
+                        <div>Pool is {analytics.onTimeRate >= 85 ? 'on track' : 'at risk of delay'} to complete as scheduled</div>
                       </li>
-                      <li className="flex items-start">
-                        <div className="mr-2">•</div>
-                        <div>Your payout is scheduled for March 15, 2025</div>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mr-2">•</div>
-                        <div>If current trends continue, all members will receive their payouts on time</div>
-                      </li>
+                      
+                      {analytics.payoutSchedule.find(p => p.status === 'upcoming')?.member === 'You' && (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>Your payout is scheduled for {formatDate(analytics.payoutSchedule.find(p => p.status === 'upcoming')?.date || '')}</div>
+                        </li>
+                      )}
+                      
+                      {analytics.onTimeRate >= 90 ? (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>If current trends continue, all members will receive their payouts on time</div>
+                        </li>
+                      ) : analytics.onTimeRate >= 75 ? (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>Minor delays possible if payment trends don't improve</div>
+                        </li>
+                      ) : (
+                        <li className="flex items-start">
+                          <div className="mr-2">•</div>
+                          <div>Significant risk of delay if payment patterns continue</div>
+                        </li>
+                      )}
                     </ul>
                   </div>
 
@@ -576,12 +766,27 @@ export default function PoolAnalyticsDashboard() {
                     <div className="mt-2">
                       <div className="flex items-center mb-2">
                         <div className="w-full bg-gray-200 rounded-full h-2.5 mr-2">
-                          <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '15%' }}></div>
+                          <div 
+                            className={`h-2.5 rounded-full ${
+                              analytics.riskLevel <= 25 ? 'bg-green-500' :
+                              analytics.riskLevel <= 50 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                            }`} 
+                            style={{ width: `${analytics.riskLevel}%` }}
+                          ></div>
                         </div>
-                        <span className="text-sm text-gray-700">Low</span>
+                        <span className="text-sm text-gray-700 min-w-[80px]">
+                          {analytics.riskLevel <= 25 ? 'Low' :
+                           analytics.riskLevel <= 50 ? 'Medium' :
+                           'High'}
+                        </span>
                       </div>
                       <p className="text-sm text-purple-700">
-                        Current risk level is low based on member payment history and pool progression.
+                        {analytics.riskLevel <= 25 
+                          ? 'Current risk level is low based on member payment history and pool progression.'
+                          : analytics.riskLevel <= 50 
+                          ? 'Moderate risk based on current payment patterns. Monitoring recommended.'
+                          : 'High risk of delays. Immediate intervention recommended to improve payment patterns.'}
                       </p>
                     </div>
                   </div>
@@ -602,72 +807,23 @@ export default function PoolAnalyticsDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      <tr className="bg-green-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">3</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">You</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">March 15, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            Upcoming
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">4</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Ana G.</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">March 29, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Scheduled
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">5</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Juan P.</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">April 12, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Scheduled
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">6</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sofia T.</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">April 26, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Scheduled
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">7</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Diego F.</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 10, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Scheduled
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">8</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Gabriela O.</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">May 24, 2025</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$400</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Scheduled
-                          </span>
-                        </td>
-                      </tr>
+                      {analytics.payoutSchedule.map((payout) => (
+                        <tr key={payout.round} className={payout.member === 'You' ? 'bg-blue-50' : ''}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{payout.round}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{payout.member}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(payout.date)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(payout.amount)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              payout.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              payout.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -683,3 +839,53 @@ export default function PoolAnalyticsDashboard() {
       </div>
     </div>
   );
+}
+
+// Helper function to generate projected data points
+function generateProjectedData(
+  existingData: Array<{ period: string; amount: number }>,
+  targetAmount: number
+) {
+  if (existingData.length === 0) return [];
+  
+  const lastPoint = existingData[existingData.length - 1];
+  const lastAmount = lastPoint.amount;
+  
+  // Calculate how many more data points we need
+  const remaining = targetAmount - lastAmount;
+  const incrementPerPoint = remaining / 6; // Assume 6 more periods
+  
+  // Generate period labels (simple approach)
+  const lastPeriod = lastPoint.period;
+  const [month, weekPart] = lastPeriod.split(' Week ');
+  let weekNum = parseInt(weekPart || '1');
+  let currentMonth = month;
+  
+  // Month order for simple progression
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthIndex = months.indexOf(currentMonth);
+  
+  const projectedData = [];
+  
+  for (let i = 1; i <= 6; i++) {
+    weekNum++;
+    
+    // If we exceed week 4, move to next month
+    if (weekNum > 4) {
+      weekNum = 1;
+      const nextMonthIndex = (monthIndex + 1) % 12;
+      currentMonth = months[nextMonthIndex];
+    }
+    
+    const periodLabel = `${currentMonth} Week ${weekNum}`;
+    const amount = lastAmount + (incrementPerPoint * i);
+    
+    projectedData.push({
+      period: periodLabel,
+      amount,
+      projected: true
+    });
+  }
+  
+  return projectedData;
+}

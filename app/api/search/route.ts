@@ -1,215 +1,259 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SearchResponse } from '@/types/search';
+import { SearchResponse, PaginationInfo, SearchResult } from '@/types/search';
+import { handleApiRequest } from '@/lib/api';
+import connectToDatabase from '@/lib/db/connect';
+import getPoolModel from '@/lib/db/models/pool';
+import getUserModel from '@/lib/db/models/user';
 
-// Mock data for pools
-const pools = [
-  {
-    id: '1',
-    name: 'Family Savings Pool',
-    description: 'Our shared savings for household expenses and emergencies',
-    members: 8,
-    contributionAmount: 50,
-    frequency: 'Weekly',
-    totalAmount: 950,
-  },
-  {
-    id: '2',
-    name: 'Vacation Fund',
-    description: 'Saving for our annual beach trip',
-    members: 6,
-    contributionAmount: 25,
-    frequency: 'Weekly',
-    totalAmount: 600,
-  },
-  {
-    id: '3',
-    name: 'Emergency Fund',
-    description: 'Group fund for unexpected financial needs',
-    members: 10,
-    contributionAmount: 30,
-    frequency: 'Monthly',
-    totalAmount: 1200,
-  },
-];
+/**
+ * Create a paginated subset of search results
+ */
+function paginateResults<T>(items: T[], page: number, limit: number): {
+  paginatedItems: T[],
+  pagination: PaginationInfo
+} {
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  const paginatedItems = items.slice(startIndex, endIndex);
+  
+  const totalItems = items.length;
+  const totalPages = Math.ceil(totalItems / limit);
+  
+  const pagination: PaginationInfo = {
+    currentPage: page,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1,
+    totalItems,
+    itemsPerPage: limit,
+  };
+  
+  return { paginatedItems, pagination };
+}
 
-// Mock data for members
-const members = [
-  {
-    id: 'm1',
-    name: 'Maria Rodriguez',
-    email: 'maria@example.com',
-    phone: '(555) 234-5678',
-    poolId: '1',
-    position: 1,
-    status: 'completed',
-  },
-  {
-    id: 'm2',
-    name: 'Carlos Mendez',
-    email: 'carlos@example.com',
-    phone: '(555) 345-6789',
-    poolId: '1',
-    position: 2,
-    status: 'completed',
-  },
-  {
-    id: 'm3',
-    name: 'Ana Garcia',
-    email: 'ana@example.com',
-    phone: '(555) 456-7890',
-    poolId: '1',
-    position: 4,
-    status: 'upcoming',
-  },
-];
+/**
+ * Sort search results based on field and direction
+ */
+function sortResults<T extends Record<string, any>>(items: T[], field: string, direction: 'asc' | 'desc' = 'asc'): T[] {
+  return [...items].sort((a, b) => {
+    if (a[field] === undefined || b[field] === undefined) return 0;
+    
+    // Handle string comparison
+    if (typeof a[field] === 'string' && typeof b[field] === 'string') {
+      return direction === 'asc' 
+        ? a[field].localeCompare(b[field])
+        : b[field].localeCompare(a[field]);
+    }
+    
+    // Handle number comparison
+    if (typeof a[field] === 'number' && typeof b[field] === 'number') {
+      return direction === 'asc'
+        ? a[field] - b[field]
+        : b[field] - a[field];
+    }
+    
+    // Handle date comparison
+    if (a[field] instanceof Date && b[field] instanceof Date) {
+      return direction === 'asc'
+        ? a[field].getTime() - b[field].getTime()
+        : b[field].getTime() - a[field].getTime();
+    }
+    
+    return 0;
+  });
+}
 
-// Mock data for transactions
-const transactions = [
-  {
-    id: 't1',
-    type: 'contribution',
-    amount: 50,
-    date: '2025-02-20T10:30:00Z',
-    member: 'You',
-    poolId: '1',
-    status: 'completed',
-  },
-  {
-    id: 't2',
-    type: 'contribution',
-    amount: 50,
-    date: '2025-02-13T10:30:00Z',
-    member: 'Ana Garcia',
-    poolId: '1',
-    status: 'completed',
-  },
-  {
-    id: 't3',
-    type: 'payout',
-    amount: 400,
-    date: '2025-02-15T12:00:00Z',
-    member: 'Carlos Mendez',
-    poolId: '1',
-    status: 'completed',
-  },
-];
+/**
+ * Calculate relevance score for search results
+ * Matches in title are weighted higher than matches in other fields
+ */
+function calculateRelevance(item: any, query: string, fields: string[]): number {
+  const normalizedQuery = query.toLowerCase();
+  let score = 0;
+  
+  fields.forEach(field => {
+    const value = item[field]?.toString().toLowerCase() || '';
+    
+    // Exact match boosts score significantly
+    if (value === normalizedQuery) {
+      score += field === 'title' ? 10 : 5;
+    }
+    // Contains match adds to score
+    else if (value.includes(normalizedQuery)) {
+      score += field === 'title' ? 5 : 2;
+    }
+    // Word boundary match
+    else if (value.split(/\s+/).some((word: string) => word === normalizedQuery)) {
+      score += field === 'title' ? 3 : 1;
+    }
+  });
+  
+  return score;
+}
 
-// Mock data for messages
-const messages = [
-  {
-    id: 'msg1',
-    author: 'Maria Rodriguez',
-    content: 'Just received my payout! Thank you everyone for contributing on time.',
-    date: '2025-01-24T14:30:00Z',
-    poolId: '1',
-  },
-  {
-    id: 'msg2',
-    author: 'Carlos Mendez',
-    content: 'I\'ll be traveling next week, but I\'ve already scheduled my payment.',
-    date: '2025-02-08T09:15:00Z',
-    poolId: '1',
-  },
-  {
-    id: 'msg3',
-    author: 'You',
-    content: 'Remember that contributions are due every Friday by 6pm.',
-    date: '2025-02-10T11:20:00Z',
-    poolId: '1',
-  },
-];
-
-// Perform the search on our mock data
-function performSearch(query: string, category: string = 'all', filters: any = {}) {
+// Perform the search using database data
+function performSearch(
+  query: string, 
+  category: string = 'all', 
+  filters: any = {}, 
+  page: number = 1, 
+  limit: number = 10,
+  sort?: { field: string, direction: 'asc' | 'desc' },
+  poolsData: any[] = [],
+  membersData: any[] = [],
+  transactionsData: any[] = [],
+  messagesData: any[] = []
+) {
   // Normalize the search query
   const normalizedQuery = query.toLowerCase();
   
   // Search results containers
-  let poolResults = [];
-  let memberResults = [];
-  let transactionResults = [];
-  let messageResults = [];
+  let poolResults: SearchResult[] = [];
+  let memberResults: SearchResult[] = [];
+  let transactionResults: SearchResult[] = [];
+  let messageResults: SearchResult[] = [];
   
   // Only search if we have a query
   if (normalizedQuery) {
     // Search pools if category is 'all' or 'pools'
     if (category === 'all' || category === 'pools') {
-      poolResults = pools
+      poolResults = poolsData
         .filter(pool => 
           pool.name.toLowerCase().includes(normalizedQuery) ||
           pool.description.toLowerCase().includes(normalizedQuery) ||
           pool.frequency.toLowerCase().includes(normalizedQuery)
         )
-        .map(pool => ({
-          id: pool.id,
-          type: 'pool' as const,
-          title: pool.name,
-          subtitle: `${pool.members} members • ${pool.contributionAmount} ${pool.frequency.toLowerCase()}`,
-          matchedFields: ['name', 'description'].filter(field =>
-            pool[field as keyof typeof pool]?.toString().toLowerCase().includes(normalizedQuery)
-          ),
-          url: `/${pool.id}`,
-        }));
+        .map(pool => {
+          const relevance = calculateRelevance(pool, normalizedQuery, ['name', 'description', 'frequency']);
+          
+          return {
+            id: pool.id,
+            type: 'pool' as const,
+            title: pool.name,
+            subtitle: `${pool.members} members • ${pool.contributionAmount} ${pool.frequency.toLowerCase()}`,
+            matchedFields: ['name', 'description', 'frequency'].filter(field =>
+              pool[field as keyof typeof pool]?.toString().toLowerCase().includes(normalizedQuery)
+            ),
+            url: `/pools/${pool.id}`,
+            metadata: { relevance },
+          };
+        });
+      
+      // Sort by relevance by default
+      poolResults.sort((a, b) => 
+        (b.metadata?.relevance || 0) - (a.metadata?.relevance || 0)
+      );
     }
     
     // Search members if category is 'all' or 'members'
     if (category === 'all' || category === 'members') {
-      memberResults = members
+      memberResults = membersData
         .filter(member => 
           member.name.toLowerCase().includes(normalizedQuery) ||
           member.email.toLowerCase().includes(normalizedQuery) ||
-          member.phone.includes(normalizedQuery)
+          (member.phone && member.phone.includes(normalizedQuery))
         )
-        .map(member => ({
-          id: member.id,
-          type: 'member' as const,
-          title: member.name,
-          subtitle: member.email,
-          matchedFields: ['name', 'email', 'phone'].filter(field =>
-            member[field as keyof typeof member]?.toString().toLowerCase().includes(normalizedQuery)
-          ),
-          url: `/member-management/${member.poolId}`,
-        }));
+        .map(member => {
+          const relevance = calculateRelevance(member, normalizedQuery, ['name', 'email', 'phone']);
+          
+          return {
+            id: member.id,
+            type: 'member' as const,
+            title: member.name,
+            subtitle: member.email,
+            matchedFields: ['name', 'email', 'phone'].filter(field =>
+              member[field as keyof typeof member]?.toString().toLowerCase().includes(normalizedQuery)
+            ),
+            url: `/member-management/${member.poolId}`,
+            metadata: { 
+              relevance,
+              status: member.status,
+              poolId: member.poolId 
+            },
+          };
+        });
+      
+      // Sort by relevance by default
+      memberResults.sort((a, b) => 
+        (b.metadata?.relevance || 0) - (a.metadata?.relevance || 0)
+      );
     }
     
     // Search transactions if category is 'all' or 'transactions'
     if (category === 'all' || category === 'transactions') {
-      transactionResults = transactions
+      transactionResults = transactionsData
         .filter(transaction => 
           transaction.type.toLowerCase().includes(normalizedQuery) ||
           transaction.member.toLowerCase().includes(normalizedQuery) ||
           transaction.amount.toString().includes(normalizedQuery) ||
           transaction.status.toLowerCase().includes(normalizedQuery)
         )
-        .map(transaction => ({
-          id: transaction.id,
-          type: 'transaction' as const,
-          title: `${transaction.type === 'contribution' ? 'Payment' : 'Payout'} $${transaction.amount}`,
-          subtitle: `By ${transaction.member} • ${new Date(transaction.date).toLocaleDateString()}`,
-          matchedFields: ['type', 'member', 'amount', 'status'].filter(field =>
-            transaction[field as keyof typeof transaction]?.toString().toLowerCase().includes(normalizedQuery)
-          ),
-          url: `/payments`,
-        }));
+        .map(transaction => {
+          const relevance = calculateRelevance(
+            transaction, 
+            normalizedQuery, 
+            ['type', 'member', 'amount', 'status']
+          );
+          
+          return {
+            id: transaction.id,
+            type: 'transaction' as const,
+            title: `${transaction.type === 'contribution' ? 'Payment' : 'Payout'} $${transaction.amount}`,
+            subtitle: `By ${transaction.member} • ${new Date(transaction.date).toLocaleDateString()}`,
+            matchedFields: ['type', 'member', 'amount', 'status'].filter(field =>
+              transaction[field as keyof typeof transaction]?.toString().toLowerCase().includes(normalizedQuery)
+            ),
+            url: `/payments`,
+            metadata: { 
+              relevance,
+              date: transaction.date,
+              status: transaction.status,
+              poolId: transaction.poolId 
+            },
+          };
+        });
+      
+      // Sort by date (most recent first) by default
+      transactionResults.sort((a, b) => 
+        new Date(b.metadata?.date || 0).getTime() - new Date(a.metadata?.date || 0).getTime()
+      );
     }
     
     // Search messages if category is 'all' or 'messages'
     if (category === 'all' || category === 'messages') {
-      messageResults = messages
+      messageResults = messagesData
         .filter(message => 
           message.content.toLowerCase().includes(normalizedQuery) ||
           message.author.toLowerCase().includes(normalizedQuery)
         )
-        .map(message => ({
-          id: message.id,
-          type: 'message' as const,
-          title: message.content.length > 60 ? message.content.substring(0, 60) + '...' : message.content,
-          subtitle: `From ${message.author} • ${new Date(message.date).toLocaleDateString()}`,
-          matchedFields: ['content', 'author'].filter(field =>
-            message[field as keyof typeof message]?.toString().toLowerCase().includes(normalizedQuery)
-          ),
-          url: `/${message.poolId}`,
-        }));
+        .map(message => {
+          const relevance = calculateRelevance(
+            message, 
+            normalizedQuery, 
+            ['content', 'author']
+          );
+          
+          return {
+            id: message.id,
+            type: 'message' as const,
+            title: message.content.length > 60 ? message.content.substring(0, 60) + '...' : message.content,
+            subtitle: `From ${message.author} • ${new Date(message.date).toLocaleDateString()}`,
+            matchedFields: ['content', 'author'].filter(field =>
+              message[field as keyof typeof message]?.toString().toLowerCase().includes(normalizedQuery)
+            ),
+            url: `/pools/${message.poolId}`,
+            metadata: { 
+              relevance,
+              date: message.date,
+              poolId: message.poolId 
+            },
+          };
+        });
+      
+      // Sort by date (most recent first) by default
+      messageResults.sort((a, b) => 
+        new Date(b.metadata?.date || 0).getTime() - new Date(a.metadata?.date || 0).getTime()
+      );
     }
   }
 
@@ -220,17 +264,13 @@ function performSearch(query: string, category: string = 'all', filters: any = {
     
     // Filter transactions by date
     transactionResults = transactionResults.filter(result => {
-      const txnDate = new Date(
-        transactions.find(t => t.id === result.id)?.date || ''
-      ).getTime();
+      const txnDate = new Date(result.metadata?.date || '').getTime();
       return txnDate >= dateFrom && txnDate <= dateTo;
     });
     
     // Filter messages by date
     messageResults = messageResults.filter(result => {
-      const msgDate = new Date(
-        messages.find(m => m.id === result.id)?.date || ''
-      ).getTime();
+      const msgDate = new Date(result.metadata?.date || '').getTime();
       return msgDate >= dateFrom && msgDate <= dateTo;
     });
   }
@@ -239,48 +279,204 @@ function performSearch(query: string, category: string = 'all', filters: any = {
   if (filters.status && filters.status !== 'all') {
     // Filter members by status
     memberResults = memberResults.filter(result => {
-      const member = members.find(m => m.id === result.id);
-      return member?.status === filters.status;
+      return result.metadata?.status === filters.status;
     });
     
     // Filter transactions by status
     transactionResults = transactionResults.filter(result => {
-      const transaction = transactions.find(t => t.id === result.id);
-      return transaction?.status === filters.status;
+      return result.metadata?.status === filters.status;
     });
+  }
+  
+  // Apply custom sorting if provided
+  if (sort?.field && sort?.direction) {
+    if (category === 'pools' || category === 'all') {
+      poolResults = sortResults(poolResults, `metadata.${sort.field}`, sort.direction);
+    }
+    if (category === 'members' || category === 'all') {
+      memberResults = sortResults(memberResults, `metadata.${sort.field}`, sort.direction);
+    }
+    if (category === 'transactions' || category === 'all') {
+      transactionResults = sortResults(transactionResults, `metadata.${sort.field}`, sort.direction);
+    }
+    if (category === 'messages' || category === 'all') {
+      messageResults = sortResults(messageResults, `metadata.${sort.field}`, sort.direction);
+    }
+  }
+  
+  // Get results based on category for pagination
+  let resultsForPagination: SearchResult[] = [];
+  
+  if (category === 'pools') {
+    resultsForPagination = poolResults;
+  } else if (category === 'members') {
+    resultsForPagination = memberResults;
+  } else if (category === 'transactions') {
+    resultsForPagination = transactionResults;
+  } else if (category === 'messages') {
+    resultsForPagination = messageResults;
+  } else {
+    // For 'all' category, combine all results
+    resultsForPagination = [
+      ...poolResults,
+      ...memberResults, 
+      ...transactionResults,
+      ...messageResults
+    ];
+  }
+  
+  // Apply pagination to the selected category's results
+  const { paginatedItems, pagination } = paginateResults(resultsForPagination, page, limit);
+  
+  // For 'all' category, we need to split the paginated items back into their categories
+  let paginatedPools: SearchResult[] = [];
+  let paginatedMembers: SearchResult[] = [];
+  let paginatedTransactions: SearchResult[] = [];
+  let paginatedMessages: SearchResult[] = [];
+  
+  if (category === 'all') {
+    paginatedPools = paginatedItems.filter(item => item.type === 'pool');
+    paginatedMembers = paginatedItems.filter(item => item.type === 'member');
+    paginatedTransactions = paginatedItems.filter(item => item.type === 'transaction');
+    paginatedMessages = paginatedItems.filter(item => item.type === 'message');
+  } else if (category === 'pools') {
+    paginatedPools = paginatedItems;
+  } else if (category === 'members') {
+    paginatedMembers = paginatedItems;
+  } else if (category === 'transactions') {
+    paginatedTransactions = paginatedItems;
+  } else if (category === 'messages') {
+    paginatedMessages = paginatedItems;
   }
   
   // Construct and return the search response
   const searchResponse: SearchResponse = {
-    pools: poolResults,
-    members: memberResults,
-    transactions: transactionResults,
-    messages: messageResults,
+    pools: category === 'all' ? paginatedPools : (category === 'pools' ? paginatedItems : []),
+    members: category === 'all' ? paginatedMembers : (category === 'members' ? paginatedItems : []),
+    transactions: category === 'all' ? paginatedTransactions : (category === 'transactions' ? paginatedItems : []),
+    messages: category === 'all' ? paginatedMessages : (category === 'messages' ? paginatedItems : []),
     totalResults: poolResults.length + memberResults.length + transactionResults.length + messageResults.length,
+    pagination,
   };
   
   return searchResponse;
 }
 
 export async function GET(request: NextRequest) {
-  // Extract query parameters
-  const searchParams = request.nextUrl.searchParams;
-  const query = searchParams.get('q') || '';
-  const category = searchParams.get('category') || 'all';
-  
-  // Extract filter parameters
-  const filters = {
-    dateFrom: searchParams.get('dateFrom') || '',
-    dateTo: searchParams.get('dateTo') || '',
-    status: searchParams.get('status') || 'all',
+  return handleApiRequest(request, async ({ userId }) => {
+    // Extract query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const query = searchParams.get('q') || '';
+    const category = searchParams.get('category') || 'all';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    
+    // Extract filter parameters
+    const filters = {
+      dateFrom: searchParams.get('dateFrom') || '',
+      dateTo: searchParams.get('dateTo') || '',
+      status: searchParams.get('status') || 'all',
+    };
+    
+    // Extract sort parameters
+    const sortField = searchParams.get('sortField') || '';
+    const sortDirection = searchParams.get('sortDirection') || 'desc';
+    const sort = sortField ? { 
+      field: sortField, 
+      direction: (sortDirection === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc' 
+    } : undefined;
+    
+    // Get data from database
+    const UserModel = getUserModel();
+    const PoolModel = getPoolModel();
+    
+    // Get user data to find accessible pools
+    const user = await UserModel.findOne({ id: userId });
+    if (!user) {
+      return { results: createEmptySearchResponse(page, limit) };
+    }
+    
+    // Get pools accessible to this user
+    const userPools = await PoolModel.find({ id: { $in: user.pools } });
+    
+    // Create search collections from DB data
+    const pools = userPools.map(pool => ({
+      id: pool.id,
+      name: pool.name,
+      description: pool.description,
+      members: pool.memberCount,
+      contributionAmount: pool.contributionAmount,
+      frequency: pool.frequency,
+      totalAmount: pool.totalAmount,
+    }));
+    
+    // Extract members from all pools
+    const members = userPools.flatMap(pool => 
+      pool.members.map(member => ({
+        id: `${pool.id}-${member.id}`,
+        name: member.name,
+        email: member.email,
+        phone: member.phone || '',
+        poolId: pool.id,
+        position: member.position,
+        status: member.status,
+      }))
+    );
+    
+    // Extract transactions from all pools
+    const transactions = userPools.flatMap(pool => 
+      pool.transactions.map(txn => ({
+        id: `${pool.id}-${txn.id}`,
+        type: txn.type,
+        amount: txn.amount,
+        date: txn.date,
+        member: txn.member,
+        poolId: pool.id,
+        status: txn.status,
+      }))
+    );
+    
+    // Extract messages from all pools
+    const messages = userPools.flatMap(pool => 
+      pool.messages.map(msg => ({
+        id: `${pool.id}-${msg.id}`,
+        author: msg.author,
+        content: msg.content,
+        date: msg.date,
+        poolId: pool.id,
+      }))
+    );
+    
+    // Perform the search with real data
+    const results = performSearch(
+      query, category, filters, page, limit, sort,
+      pools, members, transactions, messages
+    );
+    
+    return { results };
+  }, {
+    requireAuth: true,
+    methods: ['GET']
+  });
+}
+
+// Helper function to create an empty search response
+function createEmptySearchResponse(page: number, limit: number): SearchResponse {
+  const pagination: PaginationInfo = {
+    currentPage: page,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false, 
+    totalItems: 0,
+    itemsPerPage: limit,
   };
   
-  // Perform the search
-  const results = performSearch(query, category, filters);
-  
-  // Add artificial delay to simulate API latency (remove in production)
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Return the search results
-  return NextResponse.json({ results });
+  return {
+    pools: [],
+    members: [],
+    transactions: [],
+    messages: [],
+    totalResults: 0,
+    pagination,
+  };
 }
