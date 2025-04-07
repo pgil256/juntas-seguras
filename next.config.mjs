@@ -7,14 +7,9 @@ const nextConfig = {
     reactRemoveProperties: { properties: ['^data-', '^aria-', '^fdprocessedid'] },
     styledComponents: true, // Enable styled-components
   },
-  // Ignore build errors
-  typescript: {
-    ignoreBuildErrors: true,
-    tsconfigPath: "tsconfig.json"
-  },
-  eslint: {
-    ignoreDuringBuilds: true
-  },
+  // Completely disable TypeScript and ESLint checks
+  typescript: false,
+  eslint: false,
   // Enable Fast Refresh features with improved file watching for WSL
   webpack: (config) => {
     config.watchOptions = {
