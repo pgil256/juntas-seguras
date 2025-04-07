@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { TwoFactorMethod } from '@/types/security';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { TwoFactorMethod } from '../../types/security';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Loader2, X, KeyRound, Shield } from 'lucide-react';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../app/ClientComponentBoundary';
 
 interface MfaProtectionProps {
   children: React.ReactNode;

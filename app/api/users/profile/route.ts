@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { getUserModel } from "@/lib/db/models/user";
 import connect from "@/lib/db/connect";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
-import { logServerActivity, ActivityType } from "@/lib/utils";
+import { logServerActivity } from "@/lib/utils";
+import { ActivityType } from "@/types/security";
 
 // GET /api/users/profile - Get current user profile
 export async function GET(req: NextRequest) {

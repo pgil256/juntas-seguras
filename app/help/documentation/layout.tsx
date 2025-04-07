@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../ClientComponentBoundary';
 import { 
   FileText, 
   User, 

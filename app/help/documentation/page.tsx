@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../ClientComponentBoundary';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, FileText, Book, Search, Download } from 'lucide-react';
 import {

@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle } from "lucide-react";
 import { VerificationType, VerificationMethod } from "@/types/identity";
 
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../ClientComponentBoundary';
 
 export default function SignUp() {
   const router = useRouter();

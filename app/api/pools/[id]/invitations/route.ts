@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  CreateInvitationRequest, 
-  ResendInvitationRequest, 
-  CancelInvitationRequest, 
-  InvitationStatus,
-  PoolInvitation
-} from '@/types/pool';
+import type { CreateInvitationRequest, ResendInvitationRequest, CancelInvitationRequest } from '../../../../../types/pool';
+import { InvitationStatus } from '../../../../../types/pool';
+import type { PoolInvitation } from '../../../../../types/pool';
 
 // In-memory store for invitations
 // In a real app, this would be in a database
@@ -16,10 +12,10 @@ const invitationsStore = new Map<string, PoolInvitation[]>();
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const poolId = params.id;
+    const poolId = context.params.id;
     const userId = request.headers.get('user-id');
     
     if (!poolId) {
@@ -63,10 +59,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const poolId = params.id;
+    const poolId = context.params.id;
     const userId = request.headers.get('user-id');
     const body = await request.json() as CreateInvitationRequest;
     
@@ -167,10 +163,10 @@ export async function POST(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const poolId = params.id;
+    const poolId = context.params.id;
     const userId = request.headers.get('user-id');
     const body = await request.json() as ResendInvitationRequest;
     const { invitationId } = body;
@@ -245,10 +241,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const poolId = params.id;
+    const poolId = context.params.id;
     const userId = request.headers.get('user-id');
     const invitationId = parseInt(request.nextUrl.searchParams.get('invitationId') || '0');
     

@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
 import { Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../ClientComponentBoundary';
 
 export default function ClearDatabasePage() {
   const [isLoading, setIsLoading] = useState(false);

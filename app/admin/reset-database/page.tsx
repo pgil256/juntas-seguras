@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
 import { Trash2, AlertTriangle, RefreshCw, CheckCircle, DatabaseIcon } from 'lucide-react';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../ClientComponentBoundary';
 
 export default function ResetDatabasePage() {
   const [isLoading, setIsLoading] = useState(false);

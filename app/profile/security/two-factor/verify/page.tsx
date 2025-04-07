@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../../../components/ui/card';
+import { Button } from '../../../../../components/ui/button';
+import { Input } from '../../../../../components/ui/input';
+import { Label } from '../../../../../components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '../../../../../components/ui/alert';
 import { Shield, Loader2, X, KeyRound } from 'lucide-react';
-import { TwoFactorMethod } from '@/types/security';
+import { TwoFactorMethod } from '../../../../../types/security';
 import { useSession, signIn } from 'next-auth/react';
-import ClientComponentBoundary from '@/app/ClientComponentBoundary';
+import ClientComponentBoundary from '../../../../ClientComponentBoundary';
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
