@@ -131,7 +131,12 @@ function createMinimalStaticBuild() {
       version: 4,
       routes: {},
       dynamicRoutes: {},
-      notFoundRoutes: []
+      notFoundRoutes: [],
+      preview: {
+        previewModeId: "previewModeId",
+        previewModeSigningKey: "previewModeSigningKey",
+        previewModeEncryptionKey: "previewModeEncryptionKey"
+      }
     },
     'server/pages-manifest.json': {
       '/': 'pages/index.js',
