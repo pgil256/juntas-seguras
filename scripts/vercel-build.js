@@ -1,20 +1,40 @@
-// Simple static build script for Vercel
+// Vercel build script for juntas-seguras
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('Creating static Next.js build for Vercel...');
+// Check if we want to deploy the full app or just a static landing page
+const DEPLOY_FULL_APP = process.env.DEPLOY_FULL_APP === 'true';
 
-// Create minimal Next.js output structure for static deployment
-const outputDir = path.resolve(process.cwd(), '.next');
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-}
-
-// Create a static HTML page
-const publicDir = path.resolve(process.cwd(), 'public');
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir, { recursive: true });
+if (DEPLOY_FULL_APP) {
+  console.log('Running full Next.js build for Vercel deployment...');
+  
+  // Install TypeScript explicitly as it's needed for the build
+  console.log('Installing TypeScript...');
+  execSync('npm install --save-dev typescript', { stdio: 'inherit' });
+  
+  // Build Next.js application with type and lint checks disabled
+  console.log('Building Next.js application with type and lint checks disabled...');
+  try {
+    execSync('SKIP_TYPE_CHECK=1 NEXT_DISABLE_ESLINT=1 DISABLE_ESLINT_PLUGIN=true next build', { stdio: 'inherit' });
+  } catch (error) {
+    console.error('Build failed:', error);
+    process.exit(1);
+  }
+} else {
+  console.log('Creating static Next.js build for Vercel...');
+  
+  // Create minimal Next.js output structure for static deployment
+  const outputDir = path.resolve(process.cwd(), '.next');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  
+  // Create a static HTML page
+  const publicDir = path.resolve(process.cwd(), 'public');
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
 }
 
 const staticHtml = `
