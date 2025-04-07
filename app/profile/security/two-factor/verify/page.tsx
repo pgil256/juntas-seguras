@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../../../components/ui/card';
 import { Button } from '../../../../../components/ui/button';
@@ -12,7 +12,8 @@ import { TwoFactorMethod } from '../../../../../types/security';
 import { useSession, signIn } from 'next-auth/react';
 import ClientComponentBoundary from '../../../../ClientComponentBoundary';
 
-export default function TwoFactorVerifyPage() {
+// Separate component that uses useSearchParams
+function TwoFactorVerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
@@ -258,5 +259,24 @@ export default function TwoFactorVerifyPage() {
       </Card>
     </div>
     </ClientComponentBoundary>
+  );
+}
+
+export default function TwoFactorVerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center justify-center mb-2">
+              <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+            </div>
+            <CardTitle className="text-xl text-center">Loading...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <TwoFactorVerifyContent />
+    </Suspense>
   );
 }
