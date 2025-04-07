@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+import { Button } from '../../components/ui/button';
 import { Send, Loader } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDirectMessages } from '@/lib/hooks/useDirectMessages';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useDirectMessages } from '../../lib/hooks/useDirectMessages';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 
 interface MemberMessageDialogProps {
   isOpen: boolean;

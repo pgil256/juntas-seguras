@@ -3,9 +3,9 @@
 import { useState, useCallback, FormEvent, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
-import { useDebounce } from '@/lib/hooks/useDebounce';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useDebounce } from '../../lib/hooks/useDebounce';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 
 interface SearchInputProps {
   initialQuery?: string;

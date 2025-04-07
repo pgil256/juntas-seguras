@@ -5,11 +5,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, Menu, X } from "lucide-react";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { SearchInput } from "@/components/search/SearchInput";
-import { UserProfileButton } from "@/components/auth/UserProfileButton";
+import { NotificationBell } from "./notifications/NotificationBell";
+import { SearchInput } from "./search/SearchInput";
+import { UserProfileButton } from "./auth/UserProfileButton";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 
 type NavItem = {
   label: string;

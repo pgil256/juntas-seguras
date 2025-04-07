@@ -25,22 +25,22 @@ import {
   CardFooter, 
   CardHeader, 
   CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Textarea } from '../../components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+import { Badge } from '../../components/ui/badge';
+import { Separator } from '../../components/ui/separator';
+import { Alert, AlertDescription } from '../../components/ui/alert';
 import { 
   Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from '@/components/ui/select';
-import { SupportTicket, TicketStatus, TicketPriority, TicketResponse } from '@/types/support';
-import { useTickets } from '@/lib/hooks/useTickets';
+} from '../../components/ui/select';
+import { SupportTicket, TicketStatus, TicketPriority, TicketResponse } from '../../types/support';
+import { useTickets } from '../../lib/hooks/useTickets';
 
 interface TicketViewerProps {
   ticketId: string;

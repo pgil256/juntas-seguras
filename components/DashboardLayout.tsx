@@ -10,7 +10,7 @@ import {
   HelpCircle,
   LogOut,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import Navbar from "./Navbar";
 
 // Move data outside the component
 const poolStats = {

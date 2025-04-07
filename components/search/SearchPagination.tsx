@@ -8,8 +8,8 @@ import {
   PaginationNext, 
   PaginationPrevious, 
   PaginationEllipsis 
-} from '@/components/ui/pagination';
-import { PaginationInfo } from '@/types/search';
+} from '../../components/ui/pagination';
+import { PaginationInfo } from '../../types/search';
 
 interface SearchPaginationProps {
   pagination: PaginationInfo;

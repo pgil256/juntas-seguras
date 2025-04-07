@@ -2,17 +2,17 @@
 
 import React, { useState } from 'react';
 import { CreditCard, Building, User, Calendar, CreditCardIcon } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '../../components/ui/label';
+import { Input } from '../../components/ui/input';
+import { Button } from '../../components/ui/button';
+import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
 import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '../../components/ui/select';
 
 // Generate arrays for expiry month and year dropdowns
 const currentYear = new Date().getFullYear();

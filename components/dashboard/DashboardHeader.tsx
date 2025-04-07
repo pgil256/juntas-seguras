@@ -3,9 +3,9 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import CreatePoolModal from "@/components/pools/CreatePoolModal";
-import { SearchInput } from "@/components/search/SearchInput";
+import { Button } from "../../components/ui/button";
+import CreatePoolModal from "../../components/pools/CreatePoolModal";
+import { SearchInput } from "../../components/search/SearchInput";
 
 interface DashboardHeaderProps {
   title: string;

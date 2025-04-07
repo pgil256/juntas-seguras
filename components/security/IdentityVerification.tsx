@@ -9,14 +9,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useIdentityVerification } from '@/lib/hooks/useIdentityVerification';
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { Label } from '../../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
+import { useIdentityVerification } from '../../lib/hooks/useIdentityVerification';
 import { Loader2, ShieldCheck, ShieldX, ShieldQuestion, AlertTriangle, BadgeCheck, CreditCard, FileText, FileImage } from 'lucide-react';
-import { VerificationStatus, VerificationType, VerificationMethod } from '@/types/identity';
+import { VerificationStatus, VerificationType, VerificationMethod } from '../../types/identity';
 
 interface IdentityVerificationProps {
   userId: string;

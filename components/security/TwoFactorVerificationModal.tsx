@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Loader2, X, KeyRound } from 'lucide-react';
-import { TwoFactorMethod } from '@/types/security';
+import { TwoFactorMethod } from '../../types/security';
 
 interface TwoFactorVerificationModalProps {
   isOpen: boolean;

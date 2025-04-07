@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { usePoolPayouts } from '@/lib/hooks/usePoolPayouts';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
+import { usePoolPayouts } from '../../lib/hooks/usePoolPayouts';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { Progress } from '../../components/ui/progress';
 import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock } from 'lucide-react';
 
 interface PoolPayoutsManagerProps {

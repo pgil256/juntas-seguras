@@ -9,10 +9,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Transaction } from '@/types/payment';
-import { usePayments } from '@/lib/hooks/usePayments';
+} from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Transaction } from '../../types/payment';
+import { usePayments } from '../../lib/hooks/usePayments';
 
 interface EscrowReleaseDialogProps {
   isOpen: boolean;

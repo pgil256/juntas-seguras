@@ -7,9 +7,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '../../components/ui/dialog';
 import { PaymentMethodForm, PaymentMethodFormValues } from './PaymentMethodForm';
-import MfaProtection from '@/components/security/MfaProtection';
+import MfaProtection from '../../components/security/MfaProtection';
 import { useSession } from 'next-auth/react';
 
 interface PaymentMethodDialogProps {

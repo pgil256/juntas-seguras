@@ -9,13 +9,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { usePayments } from '@/lib/hooks/usePayments';
-import { PaymentDetails, PaymentMethod } from '@/types/payment';
+} from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Label } from '../../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { usePayments } from '../../lib/hooks/usePayments';
+import { PaymentDetails, PaymentMethod } from '../../types/payment';
 
 // Type definitions
 interface PaymentProcessingModalProps {

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Bell, CheckCircle2, AlertCircle } from 'lucide-react';
-import { NotificationType } from '@/types/notification';
+import { NotificationType } from '../../types/notification';
 
 // Import custom SVG components (same as in notifications page)
 const Users = ({ className }: { className?: string }) => {

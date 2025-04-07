@@ -5,8 +5,8 @@ import {
   CardDescription, 
   CardHeader, 
   CardTitle 
-} from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+} from '../../components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { 
   BarChart, 
   Bar, 
@@ -24,11 +24,11 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { usePoolAnalytics } from '@/lib/hooks/usePoolAnalytics';
-import { usePools } from '@/lib/hooks/usePools';
+import { Button } from '../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { usePoolAnalytics } from '../../lib/hooks/usePoolAnalytics';
+import { usePools } from '../../lib/hooks/usePools';
 import { 
   DollarSign, 
   CheckCircle, 

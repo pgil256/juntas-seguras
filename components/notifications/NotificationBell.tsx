@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Bell, X, CheckCircle2, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useNotifications } from '@/contexts/NotificationContext';
-import { Button } from '@/components/ui/button';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { Button } from '../../components/ui/button';
 
 export const NotificationBell = () => {
   const { notifications, unreadCount, markAsRead, deleteNotification } = useNotifications();

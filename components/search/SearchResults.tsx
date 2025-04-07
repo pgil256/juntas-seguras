@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { SearchResponse, SearchResult, PaginationInfo } from '@/types/search';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { SearchResponse, SearchResult, PaginationInfo } from '../../types/search';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Card, CardContent } from '../../components/ui/card';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Badge } from '../../components/ui/badge';
 import { CreditCard, Users, MessageCircle, Calendar, Info, Clock } from 'lucide-react';
 
 interface SearchResultsProps {

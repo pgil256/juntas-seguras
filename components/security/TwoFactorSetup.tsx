@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Shield, Smartphone, Mail, QrCode, Lock, Copy, Check, X, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { TwoFactorMethod, TwoFactorSetup as TwoFactorSetupType } from '@/types/security';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
+import { Label } from '../../components/ui/label';
+import { Input } from '../../components/ui/input';
+import { TwoFactorMethod, TwoFactorSetup as TwoFactorSetupType } from '../../types/security';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 
 interface TwoFactorSetupProps {
   userId: string;
