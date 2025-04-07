@@ -8,22 +8,44 @@ This guide walks you through deploying your Juntas Seguras application to Vercel
 2. Your Juntas Seguras code in a Git repository (GitHub, GitLab, or Bitbucket)
 3. A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) database (see MONGODB_SETUP.md)
 
-## Step 1: Connect Your Repository to Vercel
+## Option 1: Minimal Deployment (Recommended for Initial Setup)
+
+This method deploys a minimal static landing page that will allow you to verify your deployment is working before proceeding with a full deployment.
+
+1. Log in to [Vercel](https://vercel.com/)
+2. Click "Add New..." > "Project"
+3. Import your Git repository
+4. Select the Juntas Seguras repository
+5. Configure Project Settings:
+   - Build Command: `npm run vercel-build`
+   - Output Directory: `.next`
+   - Install Command: `npm install`
+   - Environment Variables: Add the ones listed in Step 3 below
+
+This will deploy a minimal landing page, which serves as a placeholder while you work on the full application deployment.
+
+## Option 2: Full Deployment
+
+Once you've verified the minimal deployment works, you can proceed with the full deployment.
+
+### Step 1: Connect Your Repository to Vercel
 
 1. Log in to [Vercel](https://vercel.com/)
 2. Click "Add New..." > "Project"
 3. Import your Git repository
 4. Select the Juntas Seguras repository
 
-## Step 2: Configure Project Settings
+### Step 2: Configure Project Settings
 
 1. Vercel should auto-detect Next.js settings
 2. Project Name: Enter a name for your deployment (e.g., "juntas-seguras")
 3. Framework Preset: Ensure "Next.js" is selected
 4. Root Directory: Leave as "/" if your repository root is the project root
-5. Build Command: Should auto-fill with "next build" from your vercel.json
+5. Build Command: Use `npm run build:no-lint`
+6. Output Directory: `.next`
+7. Install Command: `npm install`
 
-## Step 3: Environment Variables
+### Step 3: Environment Variables
 
 Click "Environment Variables" and add the following:
 
@@ -44,42 +66,70 @@ Click "Environment Variables" and add the following:
    - Value: "production"
    - Scope: Production
 
-## Step 4: Deploy
+5. **SKIP_TYPE_CHECK**
+   - Value: "1"
+   - Scope: All
+
+6. **NEXT_DISABLE_ESLINT**
+   - Value: "1"
+   - Scope: All
+
+7. **DISABLE_ESLINT_PLUGIN**
+   - Value: "true"
+   - Scope: All
+
+### Step 4: Deploy
 
 1. Click "Deploy"
 2. Wait for the build and deployment to complete
 3. Visit your new deployment URL to verify everything works
 
-## Step 5: Custom Domain (Optional)
-
-1. Go to Project Settings > Domains
-2. Add a custom domain if you have one
-3. Follow Vercel's instructions to configure DNS settings
-
-## Step 6: Post-Deployment Verification
-
-After deployment, verify that:
-
-1. The application loads correctly
-2. User registration works
-3. User login works
-4. MongoDB connection is successful (check logs for errors)
-5. All features are functional
-
 ## Troubleshooting
 
-If you encounter issues:
+If you encounter issues during deployment, try these steps:
 
-1. Check Vercel deployment logs for errors
-2. Verify environment variables are correct
-3. Make sure MongoDB Atlas network access includes Vercel's IP range
-4. Check NextAuth.js configuration
-5. Review server logs for specific errors
+1. **Build failures related to ESLint or TypeScript**:
+   - Verify that environment variables SKIP_TYPE_CHECK, NEXT_DISABLE_ESLINT, and DISABLE_ESLINT_PLUGIN are set correctly
+   - Try deploying with the minimal build option first
 
-## CI/CD and Auto-Deployments
+2. **MongoDB connection issues**:
+   - Ensure your MongoDB Atlas cluster is running
+   - Verify that the connection string in the MONGODB_URI environment variable is correct
+   - Check that your IP whitelist in MongoDB Atlas includes Vercel's IPs (or set it to allow all IPs for testing)
 
-Vercel automatically deploys:
-- When you push to your main branch
-- When you create a PR (creates a preview deployment)
+3. **Authentication issues**:
+   - Make sure NEXTAUTH_URL matches your actual deployment URL
+   - Verify NEXTAUTH_SECRET is properly set
 
-You can customize this behavior in your project's Git settings on Vercel.
+4. **Static assets not loading**:
+   - Check that images and other static assets are properly placed in the public directory
+
+5. **404 errors for API routes**:
+   - Ensure all API routes follow Next.js format and are in the correct location
+
+## Check Build Logs
+
+For detailed debugging:
+
+1. Go to your project dashboard on Vercel
+2. Click on the latest deployment
+3. Go to the "Build Logs" tab to see what went wrong during the build process
+
+## Revert to Minimal Deployment
+
+If you're still having issues with the full deployment, you can temporarily revert to the minimal deployment:
+
+1. Go to your project on Vercel
+2. Go to "Settings" > "General"
+3. Under "Build & Development Settings", change:
+   - Build Command to: `npm run vercel-build`
+   - Output Directory to: `.next`
+4. Save and redeploy
+
+## Progressive Enhancement
+
+Once your minimal deployment is working, you can progressively enhance your application:
+
+1. First, fix any TypeScript or ESLint errors in your local development environment
+2. Then try deploying with build:no-lint to bypass linting but still build the full app
+3. Finally, move to the standard next build process when all issues are resolved

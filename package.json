@@ -8,6 +8,7 @@
     "dev:force": "WATCHPACK_POLLING=true next dev",
     "build": "next build",
     "build:no-lint": "NEXT_DISABLE_ESLINT=1 next build",
+    "build:static": "STATIC_EXPORT=true next build",
     "start": "next start",
     "lint": "next lint",
     "test-db": "node lib/db/test-connection.js",

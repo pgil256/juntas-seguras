@@ -1,5 +1,6 @@
 'use client';
 
+import React, { Suspense } from 'react';
 import { SearchInput } from '../../components/search/SearchInput';
 import { SearchResults } from '../../components/search/SearchResults';
 import { SearchFilters } from '../../components/search/SearchFilters';
@@ -8,7 +9,8 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { useSearch } from '../../lib/hooks/useSearch';
 
-export default function SearchPage() {
+// Wrapped component with useSearchParams
+function SearchPageContent() {
   const {
     query,
     results,
@@ -86,5 +88,30 @@ export default function SearchPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Loading fallback component
+function SearchLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h1 className="text-2xl font-semibold text-gray-900">Search</h1>
+          <div className="mt-8 flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Export the page component with Suspense boundary
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchLoading />}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
