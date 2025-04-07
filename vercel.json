@@ -8,7 +8,8 @@
     "SKIP_TYPE_CHECK": "1",
     "NEXT_DISABLE_ESLINT": "1",
     "DISABLE_ESLINT_PLUGIN": "true",
-    "DEPLOY_FULL_APP": "true"
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "NODE_OPTIONS": "--max_old_space_size=4096"
   },
   "build": {
     "env": {
@@ -16,7 +17,8 @@
       "SKIP_TYPE_CHECK": "1",
       "NEXT_DISABLE_ESLINT": "1",
       "DISABLE_ESLINT_PLUGIN": "true",
-      "DEPLOY_FULL_APP": "true"
+      "NEXT_TELEMETRY_DISABLED": "1",
+      "NODE_OPTIONS": "--max_old_space_size=4096"
     }
   },
   "git": {
