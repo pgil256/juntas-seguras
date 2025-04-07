@@ -1,4 +1,4 @@
-// Build script for Vercel that attempts standard Next.js build first
+// Build script for Vercel that installs TypeScript and handles the build
 const { execSync } = require('child_process');
 
 console.log('Running full Next.js build for Vercel deployment...');
@@ -9,6 +9,10 @@ process.env.SKIP_TYPE_CHECK = '1';
 process.env.DISABLE_ESLINT_PLUGIN = 'true';
 
 try {
+  // First install TypeScript to ensure it's available
+  console.log('Installing TypeScript...');
+  execSync('npm install --no-save typescript@5.0.4', { stdio: 'inherit' });
+  
   console.log('Building Next.js application with type and lint checks disabled...');
   
   // Run the standard Next.js build
