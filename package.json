@@ -12,7 +12,7 @@
     "lint": "next lint",
     "test-db": "node lib/db/test-connection.js",
     "pre-deploy-check": "bash scripts/pre-deploy-check.sh",
-    "vercel-build": "NEXT_DISABLE_ESLINT=1 SKIP_TYPE_CHECK=1 next build"
+    "vercel-build": "node scripts/vercel-build.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
