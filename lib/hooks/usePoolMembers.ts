@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { PoolMember, PoolMemberRole } from '@/types/pool';
+import { PoolMember, PoolMemberRole } from '../../types/pool';
 
 interface UsePoolMembersProps {
   poolId: string;

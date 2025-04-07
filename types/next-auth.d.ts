@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { TwoFactorMethod } from "@/types/security";
+import { TwoFactorMethod } from "../types/security";
 
 declare module "next-auth" {
   /**

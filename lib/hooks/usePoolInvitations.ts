@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PoolInvitation } from '@/types/pool';
+import { PoolInvitation } from '../../types/pool';
 
 interface UsePoolInvitationsProps {
   poolId: string;

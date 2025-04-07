@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { VerificationStatus, VerificationType, VerificationMethod, UserIdentityInfo } from '@/types/identity';
+import { VerificationStatus, VerificationType, VerificationMethod, UserIdentityInfo } from '../../types/identity';
 
 interface UseIdentityVerificationProps {
   userId: string;

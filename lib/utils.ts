@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { v4 as uuidv4 } from 'uuid';
-import { ActivityType, ActivityLog } from '@/types/security';
+import { ActivityType, ActivityLog } from '../types/security';
 
 // For server-side local storage of logs (memory store for development)
 const activityLogs: ActivityLog[] = [];

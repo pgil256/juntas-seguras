@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Pool, PoolMember, PoolTransaction, TransactionType } from '@/types/pool';
+import { Pool, PoolMember, PoolTransaction, TransactionType } from '../../types/pool';
 import { usePool } from './usePool';
 
 export interface PoolAnalyticsType {

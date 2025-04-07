@@ -43,8 +43,8 @@ function fixImports(filePath) {
   return false;
 }
 
-// Find all TypeScript files in the app and components directories
-const files = glob.sync('{app,components}/**/*.{ts,tsx}', { cwd: __dirname });
+// Find all TypeScript files in the app, components, and lib directories
+const files = glob.sync('{app,components,lib,types,contexts}/**/*.{ts,tsx}', { cwd: __dirname });
 let fixedCount = 0;
 
 // Process each file

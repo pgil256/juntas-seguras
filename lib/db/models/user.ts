@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { TwoFactorMethod } from '@/types/security';
-import { VerificationStatus, VerificationType, VerificationMethod } from '@/types/identity';
+import { TwoFactorMethod } from '../../../types/security';
+import { VerificationStatus, VerificationType, VerificationMethod } from '../../../types/identity';
 
 // Two-factor authentication schema
 const TwoFactorSchema = new Schema({

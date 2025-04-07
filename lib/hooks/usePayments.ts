@@ -4,7 +4,7 @@ import {
   TransactionStatus, 
   PaymentProcessRequest, 
   PaymentProcessResponse 
-} from '@/types/payment';
+} from '../../types/payment';
 
 interface UsePaymentsProps {
   userId: string;

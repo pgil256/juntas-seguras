@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { CreatePoolRequest } from '@/types/pool';
+import { CreatePoolRequest } from '../../types/pool';
 
 interface UseCreatePoolProps {
   onSuccess?: (poolId: string) => void;

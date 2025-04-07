@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { Pool, PoolStatus, PoolMemberStatus, PoolMemberRole, TransactionType } from '@/types/pool';
+import { Pool, PoolStatus, PoolMemberStatus, PoolMemberRole, TransactionType } from '../../../types/pool';
 
 // Member schema
 const PoolMemberSchema = new Schema({

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { PaymentMethod, PaymentMethodFormValues, PaymentMethodResponse } from '@/types/payment';
+import { PaymentMethod, PaymentMethodFormValues, PaymentMethodResponse } from '../../types/payment';
 
 interface UsePaymentMethodsProps {
   userId?: string;

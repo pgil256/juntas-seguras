@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Pool } from '@/types/pool';
+import { Pool } from '../../types/pool';
 
 interface UsePoolsReturn {
   pools: Pool[];

@@ -10,7 +10,7 @@ import {
   UpdateTicketRequest,
   AddResponseRequest,
   TicketStats
-} from '@/types/support';
+} from '../../types/support';
 
 interface UseTicketsProps {
   userId?: string;

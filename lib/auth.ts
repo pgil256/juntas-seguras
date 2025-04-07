@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { authOptions } from "../app/api/auth/[...nextauth]/options";
 import type { Session } from "next-auth";
 
 // Helper function to get the current session on the server side

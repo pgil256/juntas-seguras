@@ -1,4 +1,4 @@
-import { AuditLogType } from '@/types/audit';
+import { AuditLogType } from '../types/audit';
 
 /**
  * Creates an audit log entry in the system

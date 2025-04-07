@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { AuditLogType } from '@/types/audit';
+import { AuditLogType } from '../../../types/audit';
 
 // Audit log schema for tracking all system actions
 const AuditLogSchema = new Schema({

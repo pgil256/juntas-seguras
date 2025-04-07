@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Notification, NotificationPreference, NotificationContextType } from '@/types/notification';
+import { Notification, NotificationPreference, NotificationContextType } from '../types/notification';
 
 export const NotificationContext = createContext<NotificationContextType>({
   notifications: [],

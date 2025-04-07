@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { NotificationType } from '@/types/notification';
+import { NotificationType } from '../../types/notification';
 
 export interface CreateNotificationParams {
   message: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SearchResponse, SearchParams } from '@/types/search';
+import { SearchResponse, SearchParams } from '../../types/search';
 import { useDebounce } from './useDebounce';
 
 /**

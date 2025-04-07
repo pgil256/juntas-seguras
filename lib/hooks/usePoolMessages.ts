@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PoolMessage } from '@/types/pool';
+import { PoolMessage } from '../../types/pool';
 
 interface UsePoolMessagesProps {
   poolId: string;
