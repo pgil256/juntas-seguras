@@ -2,8 +2,8 @@
 "use client";
 
 import React from "react";
-import Navbar from "@/components/Navbar";
-import PoolAnalyticsDashboard from "@/components/analytics/PoolAnalyticsDashboard";
+import Navbar from "../../components/Navbar";
+import PoolAnalyticsDashboard from "../../components/analytics/PoolAnalyticsDashboard";
 
 export default function AnalyticsPage() {
   return (
