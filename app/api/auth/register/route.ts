@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
-import connectToDatabase from '@/lib/db/connect';
-import getUserModel from '@/lib/db/models/user';
-import { TwoFactorMethod } from '@/types/security';
+import connectToDatabase from '../../../../lib/db/connect';
+import getUserModel from '../../../../lib/db/models/user';
+import { TwoFactorMethod } from '../../../../types/security';
 
 // Generate TOTP secret (in a real app, use a proper library like speakeasy)
 function generateTotpSecret() {

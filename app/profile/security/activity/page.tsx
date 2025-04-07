@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import ActivityLogViewer from '@/components/security/ActivityLogViewer';
-import { Button } from '@/components/ui/button';
+import ActivityLogViewer from '../../../../components/security/ActivityLogViewer';
+import { Button } from '../../../../components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 
 // For demo purposes - in a real app, this would come from authentication context

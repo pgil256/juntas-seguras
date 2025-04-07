@@ -10,9 +10,9 @@ import {
   Mail, 
   MessageSquare
 } from 'lucide-react';
-import PageLayout from '@/components/PageLayout';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import PageLayout from '../../components/PageLayout';
+import { Button } from '../../components/ui/button';
+import { Separator } from '../../components/ui/separator';
 
 export default function HelpLayout({
   children,

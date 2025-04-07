@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PoolMessage } from '@/types/pool';
+import { PoolMessage } from '../../../../../../types/pool';
 
 // In a real application, this would be stored in a database
 // For now, we'll use a simple in-memory store by pool ID + member ID pair

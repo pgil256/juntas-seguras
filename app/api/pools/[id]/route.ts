@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pool, UpdatePoolRequest } from '@/types/pool';
-import connectToDatabase from '@/lib/db/connect';
-import getPoolModel from '@/lib/db/models/pool';
-import getUserModel from '@/lib/db/models/user';
-import { handleApiRequest, ApiError } from '@/lib/api';
+import { Pool, UpdatePoolRequest } from '../../../../types/pool';
+import connectToDatabase from '../../../../lib/db/connect';
+import getPoolModel from '../../../../lib/db/models/pool';
+import getUserModel from '../../../../lib/db/models/user';
+import { handleApiRequest, ApiError } from '../../../../lib/api';
 
 // GET /api/pools/[id] - Get a specific pool by ID
 export async function GET(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TransactionStatus, TransactionType } from '@/types/payment';
-import { createPaymentIntent, getOrCreateCustomer } from '@/lib/stripe';
+import { TransactionStatus, TransactionType } from '../../../../types/payment';
+import { createPaymentIntent, getOrCreateCustomer } from '../../../../lib/stripe';
 import { v4 as uuidv4 } from 'uuid';
 
 // Simulate database collections
@@ -9,9 +9,9 @@ const mockUsers = new Map();
 const mockPools = new Map();
 
 // For a real app, this would use MongoDB models
-// import connectDB from '@/lib/db/connect';
-// import { getPoolModel } from '@/lib/db/models/pool';
-// import { getUserModel } from '@/lib/db/models/user';
+// import connectDB from '../../../../lib/db/connect';
+// import { getPoolModel } from '../../../../lib/db/models/pool';
+// import { getUserModel } from '../../../../lib/db/models/user';
 
 interface PaymentRequest {
   userId: string;

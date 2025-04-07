@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { getUserModel } from "@/lib/db/models/user";
-import connect from "@/lib/db/connect";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { getUserModel } from "../../../../lib/db/models/user";
+import connect from "../../../../lib/db/connect";
+import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
 
 // GET /api/users/settings - Get user settings
 export async function GET(req: NextRequest) {

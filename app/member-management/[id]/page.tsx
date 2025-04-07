@@ -25,11 +25,11 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +38,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../../../components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+} from "../../../components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -53,16 +53,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { usePool } from "@/lib/hooks/usePool";
-import { usePoolMembers } from "@/lib/hooks/usePoolMembers";
-import { usePoolInvitations } from "@/lib/hooks/usePoolInvitations";
-import { PoolMember, PoolMemberRole, PoolMemberStatus, InvitationStatus } from "@/types/pool";
-import { MemberMessageDialog } from "@/components/pools/MemberMessageDialog";
-import { InviteMembersDialog } from "@/components/pools/InviteMembersDialog";
+} from "../../../components/ui/table";
+import { Badge } from "../../../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
+import { usePool } from "../../../lib/hooks/usePool";
+import { usePoolMembers } from "../../../lib/hooks/usePoolMembers";
+import { usePoolInvitations } from "../../../lib/hooks/usePoolInvitations";
+import { PoolMember, PoolMemberRole, PoolMemberStatus, InvitationStatus } from "../../../types/pool";
+import { MemberMessageDialog } from "../../../components/pools/MemberMessageDialog";
+import { InviteMembersDialog } from "../../../components/pools/InviteMembersDialog";
 
 // For demo purposes - in a real app, this would come from authentication context
 const mockUserId = 'user123';

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TwoFactorMethod, ActivityType } from '@/types/security';
-import connectToDatabase from '@/lib/db/connect';
-import getUserModel from '@/lib/db/models/user';
-import { logServerActivity } from '@/lib/utils';
+import { TwoFactorMethod, ActivityType } from '../../../../../types/security';
+import connectToDatabase from '../../../../../lib/db/connect';
+import getUserModel from '../../../../../lib/db/models/user';
+import { logServerActivity } from '../../../../../lib/utils';
 
 export async function POST(request: NextRequest) {
   try {

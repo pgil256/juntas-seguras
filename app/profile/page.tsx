@@ -20,12 +20,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
 
-import { useUserProfile } from "@/lib/hooks/useUserProfile";
-import { usePools } from "@/lib/hooks/usePools";
-import { usePaymentMethods } from "@/lib/hooks/usePaymentMethods";
+import { useUserProfile } from "../../lib/hooks/useUserProfile";
+import { usePools } from "../../lib/hooks/usePools";
+import { usePaymentMethods } from "../../lib/hooks/usePaymentMethods";
 
 export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false);

@@ -3,9 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Users, Calendar, DollarSign, Shuffle, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '../../../../components/ui/button';
+import { Card } from '../../../../components/ui/card';
+import { Separator } from '../../../../components/ui/separator';
 
 export default function PoolsDocumentationPage() {
   return (

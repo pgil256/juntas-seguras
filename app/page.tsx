@@ -5,8 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Shield, Users, Wallet, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 
 export default function LandingPage() {
   const router = useRouter();

@@ -1,12 +1,12 @@
 'use client';
 
-import { SearchInput } from '@/components/search/SearchInput';
-import { SearchResults } from '@/components/search/SearchResults';
-import { SearchFilters } from '@/components/search/SearchFilters';
-import { SearchPagination } from '@/components/search/SearchPagination';
+import { SearchInput } from '../../components/search/SearchInput';
+import { SearchResults } from '../../components/search/SearchResults';
+import { SearchFilters } from '../../components/search/SearchFilters';
+import { SearchPagination } from '../../components/search/SearchPagination';
 import { Loader2, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useSearch } from '@/lib/hooks/useSearch';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { useSearch } from '../../lib/hooks/useSearch';
 
 export default function SearchPage() {
   const {

@@ -8,7 +8,7 @@ import {
   UpdateTicketRequest,
   AddResponseRequest,
   TicketStats
-} from '@/types/support';
+} from '../../../../types/support';
 
 // In-memory ticket store (would be a database in production)
 const ticketsStore = new Map<string, SupportTicket>();

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
-import ContactForm from '@/components/support/ContactForm';
-import { Button } from '@/components/ui/button';
+import Navbar from '../../../components/Navbar';
+import ContactForm from '../../../components/support/ContactForm';
+import { Button } from '../../../components/ui/button';
 import { Mail, Phone, MessageCircle, ChevronLeft, FileText, HelpCircle } from 'lucide-react';
 
 // Mock user data - in a real app, this would come from authentication context

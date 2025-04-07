@@ -9,19 +9,19 @@ import {
   DollarSign,
   PlusCircle
 } from 'lucide-react';
-import { PaymentProcessingModal } from '@/components/payments/PaymentProcessingModal';
-import { PaymentMethodDialog } from '@/components/payments/PaymentMethodDialog';
-import { PaymentMethodFormValues } from '@/components/payments/PaymentMethodForm';
+import { PaymentProcessingModal } from '../../components/payments/PaymentProcessingModal';
+import { PaymentMethodDialog } from '../../components/payments/PaymentMethodDialog';
+import { PaymentMethodFormValues } from '../../components/payments/PaymentMethodForm';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { usePaymentMethods } from '@/lib/hooks/usePaymentMethods';
-import { PaymentDetails } from '@/types/payment';
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { usePaymentMethods } from '../../lib/hooks/usePaymentMethods';
+import { PaymentDetails } from '../../types/payment';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 

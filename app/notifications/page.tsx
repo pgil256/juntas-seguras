@@ -20,22 +20,22 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { useNotifications } from "@/contexts/NotificationContext";
-import { NotificationIcon } from "@/components/notifications/NotificationIcon";
-import { NotificationType } from "@/types/notification";
-import { useCreateNotification } from "@/lib/hooks/useCreateNotification";
+} from "../../components/ui/dropdown-menu";
+import { Badge } from "../../components/ui/badge";
+import { Switch } from "../../components/ui/switch";
+import { Label } from "../../components/ui/label";
+import { useNotifications } from "../../contexts/NotificationContext";
+import { NotificationIcon } from "../../components/notifications/NotificationIcon";
+import { NotificationType } from "../../types/notification";
+import { useCreateNotification } from "../../lib/hooks/useCreateNotification";
 
 // Notification categories for filtering
 const categories = [

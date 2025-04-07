@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TwoFactorMethod } from "@/types/security";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
+import { TwoFactorMethod } from "../../../types/security";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
 import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle } from "lucide-react";
-import { VerificationType, VerificationMethod } from "@/types/identity";
+import { VerificationType, VerificationMethod } from "../../../types/identity";
 
 import ClientComponentBoundary from '../../ClientComponentBoundary';
 

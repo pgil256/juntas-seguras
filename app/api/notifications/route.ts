@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { getUserModel } from '@/lib/db/models/user';
-import connect from '@/lib/db/connect';
+import { authOptions } from '../../../app/api/auth/[...nextauth]/options';
+import { getUserModel } from '../../../lib/db/models/user';
+import connect from '../../../lib/db/connect';
 import mongoose from 'mongoose';
-import { Notification, NotificationPreference } from '@/types/notification';
+import { Notification, NotificationPreference } from '../../../types/notification';
 
 // Default notification preferences
 const defaultPreferences: NotificationPreference[] = [

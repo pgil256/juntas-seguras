@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ActivityType } from '@/types/security';
-import { logServerActivity, getActivityLogs } from '@/lib/utils';
+import { ActivityType } from '../../../../types/security';
+import { logServerActivity, getActivityLogs } from '../../../../lib/utils';
 
 export async function POST(request: NextRequest) {
   try {

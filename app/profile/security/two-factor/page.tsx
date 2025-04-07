@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
-import TwoFactorSetup from '@/components/security/TwoFactorSetup';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Navbar from '../../../../components/Navbar';
+import TwoFactorSetup from '../../../../components/security/TwoFactorSetup';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { ChevronLeft, Shield, CheckCircle, AlertTriangle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
 
 // For demo purposes - in a real app, this would come from authentication context
 const mockUserId = 'user123';

@@ -18,9 +18,9 @@ import {
   CardDescription, 
   CardHeader, 
   CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+} from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
 import { 
   Table, 
   TableBody, 
@@ -28,15 +28,15 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+} from '../../../components/ui/table';
+import { Badge } from '../../../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { Avatar, AvatarFallback } from '../../../components/ui/avatar';
 import { format } from 'date-fns';
-import { SupportTicket, TicketStatus } from '@/types/support';
-import { useTickets } from '@/lib/hooks/useTickets';
-import ContactForm from '@/components/support/ContactForm';
-import TicketViewer from '@/components/support/TicketViewer';
+import { SupportTicket, TicketStatus } from '../../../types/support';
+import { useTickets } from '../../../lib/hooks/useTickets';
+import ContactForm from '../../../components/support/ContactForm';
+import TicketViewer from '../../../components/support/TicketViewer';
 
 // Mock user data (would come from authentication in a real app)
 const mockUser = {

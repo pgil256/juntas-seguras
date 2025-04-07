@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Shield, Lock, Smartphone, AlertCircle, EyeOff, Key, CheckCircle, XCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '../../../../components/ui/button';
+import { Card } from '../../../../components/ui/card';
+import { Separator } from '../../../../components/ui/separator';
+import { Badge } from '../../../../components/ui/badge';
 
 export default function SecurityDocumentationPage() {
   return (

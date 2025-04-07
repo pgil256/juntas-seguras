@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { getUserModel } from "@/lib/db/models/user";
-import connect from "@/lib/db/connect";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
-import { logServerActivity } from "@/lib/utils";
-import { ActivityType } from "@/types/security";
+import { getUserModel } from "../../../../lib/db/models/user";
+import connect from "../../../../lib/db/connect";
+import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
+import { logServerActivity } from "../../../../lib/utils";
+import { ActivityType } from "../../../../types/security";
 
 // GET /api/users/profile - Get current user profile
 export async function GET(req: NextRequest) {

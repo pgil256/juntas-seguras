@@ -18,23 +18,23 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
+import Navbar from "../../../components/Navbar";
+import { Button } from "../../../components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "../../../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar";
 import { format } from "date-fns";
-import { InviteMembersDialog } from "@/components/pools/InviteMembersDialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { usePool } from "@/lib/hooks/usePool";
-import { usePoolMessages } from "@/lib/hooks/usePoolMessages";
-import { TransactionType } from "@/types/pool";
+import { InviteMembersDialog } from "../../../components/pools/InviteMembersDialog";
+import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
+import { usePool } from "../../../lib/hooks/usePool";
+import { usePoolMessages } from "../../../lib/hooks/usePoolMessages";
+import { TransactionType } from "../../../types/pool";
 
 // For demo purposes - in a real app, this would come from authentication context
 const mockUserId = 'user123';

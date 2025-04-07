@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SearchResponse, PaginationInfo, SearchResult } from '@/types/search';
-import { handleApiRequest } from '@/lib/api';
-import connectToDatabase from '@/lib/db/connect';
-import getPoolModel from '@/lib/db/models/pool';
-import getUserModel from '@/lib/db/models/user';
+import { SearchResponse, PaginationInfo, SearchResult } from '../../../types/search';
+import { handleApiRequest } from '../../../lib/api';
+import connectToDatabase from '../../../lib/db/connect';
+import getPoolModel from '../../../lib/db/models/pool';
+import getUserModel from '../../../lib/db/models/user';
 
 /**
  * Create a paginated subset of search results

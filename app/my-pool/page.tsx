@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { usePools } from "@/lib/hooks/usePools";
+import { usePools } from "../../lib/hooks/usePools";
 import {
   Calendar,
   DollarSign,
@@ -19,10 +19,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import CreatePoolModal from "@/components/pools/CreatePoolModal";
-import { Button } from "@/components/ui/button";
-import { Pool } from "@/types/pool";
+} from "../../components/ui/card";
+import CreatePoolModal from "../../components/pools/CreatePoolModal";
+import { Button } from "../../components/ui/button";
+import { Pool } from "../../types/pool";
 
 // Function to format dates from ISO string
 const formatDate = (dateString?: string) => {

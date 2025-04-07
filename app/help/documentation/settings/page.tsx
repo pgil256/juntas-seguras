@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Globe, Bell, Clock, Lock, Eye, Bookmark, Cloud, ToggleLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent } from '../../../../components/ui/card';
+import { Separator } from '../../../../components/ui/separator';
+import { Switch } from '../../../../components/ui/switch';
 
 export default function SettingsDocumentationPage() {
   return (

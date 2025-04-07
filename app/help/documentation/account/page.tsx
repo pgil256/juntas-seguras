@@ -4,9 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Download, User, Mail, Lock, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent } from '../../../../components/ui/card';
+import { Separator } from '../../../../components/ui/separator';
 
 export default function AccountDocumentationPage() {
   return (

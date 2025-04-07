@@ -25,8 +25,8 @@ import {
   Plus,
   Building,
 } from "lucide-react";
-import { PaymentMethodDialog } from "@/components/payments/PaymentMethodDialog";
-import { PaymentMethodFormValues } from "@/components/payments/PaymentMethodForm";
+import { PaymentMethodDialog } from "../../components/payments/PaymentMethodDialog";
+import { PaymentMethodFormValues } from "../../components/payments/PaymentMethodForm";
 import {
   Card,
   CardContent,
@@ -34,19 +34,19 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Switch } from "../../components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +55,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,12 +66,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUserProfile } from "@/lib/hooks/useUserProfile";
-import { useUserSettings } from "@/lib/hooks/useUserSettings";
-import { usePaymentMethods } from "@/lib/hooks/usePaymentMethods";
-import { formatDate } from "@/lib/utils";
+} from "../../components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { useUserProfile } from "../../lib/hooks/useUserProfile";
+import { useUserSettings } from "../../lib/hooks/useUserSettings";
+import { usePaymentMethods } from "../../lib/hooks/usePaymentMethods";
+import { formatDate } from "../../lib/utils";
 
 export default function SettingsPage() {
   const router = useRouter();

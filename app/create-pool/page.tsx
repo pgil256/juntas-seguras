@@ -3,8 +3,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCreatePool } from "@/lib/hooks/useCreatePool";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useCreatePool } from "../../lib/hooks/useCreatePool";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import {
   Calendar,
   Users,
@@ -14,17 +14,17 @@ import {
   Check,
   Info,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../../components/ui/select";
 import {
   Card,
   CardContent,
@@ -32,7 +32,7 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from "@/components/ui/card";
+} from "../../components/ui/card";
 
 // Mock user ID - in a real app, this would come from authentication context
 const mockUserId = 'user123';

@@ -1,7 +1,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 import { ReactNode } from "react";
 
 interface ProvidersProps {

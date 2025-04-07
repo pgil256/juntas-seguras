@@ -1,8 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import * as bcrypt from 'bcrypt';
-import connectToDatabase from '@/lib/db/connect';
-import getUserModel from '@/lib/db/models/user';
+import connectToDatabase from '../../../../lib/db/connect';
+import getUserModel from '../../../../lib/db/models/user';
 import { v4 as uuidv4 } from 'uuid';
 
 // Authenticate user with secure password comparison

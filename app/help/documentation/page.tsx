@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientComponentBoundary from '../../ClientComponentBoundary';
-import { Button } from '@/components/ui/button';
+import { Button } from '../../../components/ui/button';
 import { ChevronLeft, ChevronRight, FileText, Book, Search, Download } from 'lucide-react';
 import {
   Card,
@@ -11,8 +11,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+} from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
 
 // Help categories for sidebar
 const helpCategories = [

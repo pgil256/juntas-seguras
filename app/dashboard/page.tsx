@@ -12,17 +12,17 @@ import {
   Wallet,
   PlusCircle
 } from "lucide-react";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { usePools } from "@/lib/hooks/usePools";
-import { formatDate } from "@/lib/utils";
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { usePools } from "../../lib/hooks/usePools";
+import { formatDate } from "../../lib/utils";
 
 export default function Dashboard() {
   const router = useRouter();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/connect';
+import connectToDatabase from '../../../../lib/db/connect';
 import mongoose from 'mongoose';
 
 // WARNING: This is a DEVELOPMENT-ONLY endpoint

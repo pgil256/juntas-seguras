@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import connectToDatabase from '@/lib/db/connect';
-import getUserModel from '@/lib/db/models/user';
-import { createIdentityVerification, getOrCreateCustomer } from '@/lib/stripe';
-import { VerificationStatus, VerificationType, VerificationMethod } from '@/types/identity';
+import connectToDatabase from '../../../../lib/db/connect';
+import getUserModel from '../../../../lib/db/models/user';
+import { createIdentityVerification, getOrCreateCustomer } from '../../../../lib/stripe';
+import { VerificationStatus, VerificationType, VerificationMethod } from '../../../../types/identity';
 
 // POST /api/identity/verification - Start a new identity verification process
 export async function POST(request: NextRequest) {

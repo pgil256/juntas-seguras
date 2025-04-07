@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AddMemberRequest, RemoveMemberRequest, UpdateMemberRequest, UpdatePositionsRequest } from '@/types/pool';
-import { handleApiRequest, ApiError } from '@/lib/api';
-import getPoolModel from '@/lib/db/models/pool';
-import getUserModel from '@/lib/db/models/user';
+import { AddMemberRequest, RemoveMemberRequest, UpdateMemberRequest, UpdatePositionsRequest } from '../../../../../types/pool';
+import { handleApiRequest, ApiError } from '../../../../../lib/api';
+import getPoolModel from '../../../../../lib/db/models/pool';
+import getUserModel from '../../../../../lib/db/models/user';
 
 // GET /api/pools/[id]/members - Get all members for a pool
 export async function GET(

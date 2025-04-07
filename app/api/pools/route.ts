@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { Pool, CreatePoolRequest } from '@/types/pool';
-import connectToDatabase from '@/lib/db/connect';
-import getPoolModel from '@/lib/db/models/pool';
-import getUserModel from '@/lib/db/models/user';
-import { handleApiRequest, ApiError } from '@/lib/api';
+import { Pool, CreatePoolRequest } from '../../../types/pool';
+import connectToDatabase from '../../../lib/db/connect';
+import getPoolModel from '../../../lib/db/models/pool';
+import getUserModel from '../../../lib/db/models/user';
+import { handleApiRequest, ApiError } from '../../../lib/api';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TransactionStatus, TransactionType } from '@/types/payment';
-import { capturePayment } from '@/lib/stripe';
+import { TransactionStatus, TransactionType } from '../../../../../types/payment';
+import { capturePayment } from '../../../../../lib/stripe';
 
 // Simulate database collections
 const mockPayments = new Map();
 const mockPools = new Map();
 
 // For a real app, this would use MongoDB models
-// import connectDB from '@/lib/db/connect';
-// import { getPoolModel } from '@/lib/db/models/pool';
+// import connectDB from '../../../../../lib/db/connect';
+// import { getPoolModel } from '../../../../../lib/db/models/pool';
 
 interface EscrowReleaseRequest {
   paymentId: string;
