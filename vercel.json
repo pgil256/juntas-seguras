@@ -7,14 +7,16 @@
     "NODE_ENV": "production",
     "SKIP_TYPE_CHECK": "1",
     "NEXT_DISABLE_ESLINT": "1",
-    "DISABLE_ESLINT_PLUGIN": "true"
+    "DISABLE_ESLINT_PLUGIN": "true",
+    "DEPLOY_FULL_APP": "true"
   },
   "build": {
     "env": {
       "NODE_ENV": "production",
       "SKIP_TYPE_CHECK": "1",
       "NEXT_DISABLE_ESLINT": "1",
-      "DISABLE_ESLINT_PLUGIN": "true"
+      "DISABLE_ESLINT_PLUGIN": "true",
+      "DEPLOY_FULL_APP": "true"
     }
   },
   "git": {
