@@ -141,6 +141,67 @@ function createMinimalNextOutput() {
     JSON.stringify({}, null, 2)
   );
   
+  // Create basic serverless pages
+  const serverlessDir = path.join(nextDir, 'serverless/pages');
+  fs.mkdirSync(serverlessDir, { recursive: true });
+  
+  // Create a basic index.js page
+  const basicIndexJs = `
+    module.exports = {
+      render: (req, res) => {
+        res.status(200).send("<!DOCTYPE html><html><head><title>Juntas Seguras</title></head><body><h1>Juntas Seguras App</h1></body></html>");
+      }
+    };
+  `;
+  
+  fs.writeFileSync(path.join(serverlessDir, 'index.js'), basicIndexJs);
+  
+  // Create basic _app.js file
+  const basicAppJs = `
+    module.exports = {
+      render: (req, res) => {
+        res.status(200).send("App Page");
+      }
+    };
+  `;
+  
+  fs.writeFileSync(path.join(serverlessDir, '_app.js'), basicAppJs);
+  
+  // Create basic _document.js file
+  const basicDocumentJs = `
+    module.exports = {
+      render: (req, res) => {
+        res.status(200).send("Document Page");
+      }
+    };
+  `;
+  
+  fs.writeFileSync(path.join(serverlessDir, '_document.js'), basicDocumentJs);
+  
+  // Create basic _error.js file
+  const basicErrorJs = `
+    module.exports = {
+      render: (req, res) => {
+        res.status(500).send("Error Page");
+      }
+    };
+  `;
+  
+  fs.writeFileSync(path.join(serverlessDir, '_error.js'), basicErrorJs);
+  
+  // Update server/pages-manifest.json to include serverless entries
+  const updatedPagesManifest = {
+    "/": "serverless/pages/index.js",
+    "/_app": "serverless/pages/_app.js",
+    "/_document": "serverless/pages/_document.js",
+    "/_error": "serverless/pages/_error.js"
+  };
+  
+  fs.writeFileSync(
+    path.join(nextDir, 'server/pages-manifest.json'), 
+    JSON.stringify(updatedPagesManifest, null, 2)
+  );
+  
   console.log('Minimal Next.js output structure created successfully!');
 }
 
