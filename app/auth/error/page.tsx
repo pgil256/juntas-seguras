@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
+import ClientComponentBoundary from "../../ClientComponentBoundary";
 
 export default function AuthError() {
-  const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string>("An authentication error occurred");
   
   useEffect(() => {
-    const error = searchParams.get("error");
+    // Get error parameter from URL safely
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
     
     // Map error codes to user-friendly messages
     if (error === "CredentialsSignin") {
@@ -26,36 +27,38 @@ export default function AuthError() {
     } else if (error) {
       setErrorMessage(`Authentication error: ${error}`);
     }
-  }, [searchParams]);
+  }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Authentication Error</CardTitle>
-          <CardDescription className="text-center">
-            There was a problem with your sign in attempt
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-            {errorMessage}
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-center space-x-4">
-          <Button
-            variant="outline"
-            onClick={() => window.history.back()}
-          >
-            Go Back
-          </Button>
-          <Button
-            onClick={() => window.location.href = "/auth/signin"}
-          >
-            Try Again
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+    <ClientComponentBoundary>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Authentication Error</CardTitle>
+            <CardDescription className="text-center">
+              There was a problem with your sign in attempt
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+              {errorMessage}
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-center space-x-4">
+            <Button
+              variant="outline"
+              onClick={() => window.history.back()}
+            >
+              Go Back
+            </Button>
+            <Button
+              onClick={() => window.location.href = "/auth/signin"}
+            >
+              Try Again
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </ClientComponentBoundary>
   );
 }
