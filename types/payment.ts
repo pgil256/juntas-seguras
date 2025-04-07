@@ -26,6 +26,8 @@ export enum TransactionType {
   WITHDRAWAL = 'withdrawal',
   REFUND = 'refund',
   FEE = 'fee',
+  ESCROW = 'escrow',
+  ESCROW_RELEASE = 'escrow_release',
 }
 
 export enum TransactionStatus {
@@ -35,6 +37,8 @@ export enum TransactionStatus {
   FAILED = 'failed',
   SCHEDULED = 'scheduled',
   CANCELLED = 'cancelled',
+  ESCROWED = 'escrowed',
+  RELEASED = 'released',
 }
 
 export interface Transaction {
@@ -51,6 +55,10 @@ export interface Transaction {
   scheduledDate?: string;
   processedAt?: string;
   failureReason?: string;
+  escrowId?: string;
+  releaseDate?: string;
+  stripePaymentIntentId?: string;
+  stripeTransferId?: string;
 }
 
 // Payment processing types
@@ -68,6 +76,8 @@ export interface PaymentProcessRequest {
   paymentMethodId: number;
   scheduleForLater: boolean;
   scheduledDate?: string;
+  useEscrow: boolean;
+  escrowReleaseDate?: string;
 }
 
 export interface PaymentProcessResponse {

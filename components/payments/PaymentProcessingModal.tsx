@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Building, DollarSign, Loader2, AlertCircle, Check } from 'lucide-react';
+import { CreditCard, Building, DollarSign, Loader2, AlertCircle, Check, LockIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,8 @@ export function PaymentProcessingModal({
   const [selectedMethodId, setSelectedMethodId] = useState<number | null>(null);
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [useEscrow, setUseEscrow] = useState(false);
+  const [escrowReleaseDate, setEscrowReleaseDate] = useState<string>('');
   const [processingState, setProcessingState] = useState<ProcessingState>('initial');
   const [errorMessage, setErrorMessage] = useState<string>('');
   
@@ -66,6 +68,13 @@ export function PaymentProcessingModal({
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  };
+
+  // Calculate default escrow release date (7 days from now)
+  const getDefaultEscrowReleaseDate = () => {
+    const releaseDate = new Date();
+    releaseDate.setDate(releaseDate.getDate() + 7);
+    return releaseDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   };
 
   const formatCurrency = (amount: number) => {
@@ -104,7 +113,9 @@ export function PaymentProcessingModal({
         paymentDetails.amount,
         selectedMethodId,
         scheduleForLater,
-        scheduleForLater ? scheduledDate : undefined
+        scheduleForLater ? scheduledDate : undefined,
+        useEscrow,
+        useEscrow ? escrowReleaseDate : undefined
       );
       
       if (result.success) {
@@ -134,6 +145,8 @@ export function PaymentProcessingModal({
     setErrorMessage('');
     setScheduleForLater(false);
     setScheduledDate('');
+    setUseEscrow(false);
+    setEscrowReleaseDate('');
     onClose();
   };
 
@@ -218,8 +231,55 @@ export function PaymentProcessingModal({
                 )}
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex items-center mb-3">
+              <div className="border-t pt-4 space-y-4">
+                {/* Escrow option */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="useEscrow"
+                    checked={useEscrow}
+                    onChange={() => {
+                      setUseEscrow(!useEscrow);
+                      if (!useEscrow && !escrowReleaseDate) {
+                        setEscrowReleaseDate(getDefaultEscrowReleaseDate());
+                      }
+                    }}
+                    className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                  />
+                  <Label htmlFor="useEscrow" className="ml-2 flex items-center">
+                    <LockIcon className="h-4 w-4 mr-1" />
+                    Use secure escrow payment
+                  </Label>
+                </div>
+                
+                {useEscrow && (
+                  <div className="pl-6">
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <AlertTitle className="text-blue-800">Secure Payment Protection</AlertTitle>
+                      <AlertDescription className="text-blue-700">
+                        Your payment will be held in escrow until the release date. This provides 
+                        security for all members and ensures funds are only released at the 
+                        appropriate time.
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <div className="mt-3">
+                      <Label htmlFor="escrowReleaseDate">Funds Release Date</Label>
+                      <input
+                        type="date"
+                        id="escrowReleaseDate"
+                        value={escrowReleaseDate}
+                        onChange={(e) => setEscrowReleaseDate(e.target.value)}
+                        min={getMinScheduledDate()}
+                        className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Schedule for later option */}
+                <div className="flex items-center mt-3">
                   <input
                     type="checkbox"
                     id="scheduleForLater"
@@ -233,7 +293,7 @@ export function PaymentProcessingModal({
                 </div>
                 
                 {scheduleForLater && (
-                  <div className="mt-2">
+                  <div className="mt-2 pl-6">
                     <Label htmlFor="scheduledDate">Payment Date</Label>
                     <input
                       type="date"
@@ -256,10 +316,18 @@ export function PaymentProcessingModal({
               </Button>
               <Button 
                 onClick={handlePaymentSubmit}
-                disabled={!selectedMethodId || (scheduleForLater && !scheduledDate)}
+                disabled={!selectedMethodId || 
+                  (scheduleForLater && !scheduledDate) || 
+                  (useEscrow && !escrowReleaseDate)}
               >
-                <DollarSign className="h-4 w-4 mr-2" />
-                {scheduleForLater ? 'Schedule Payment' : 'Pay Now'}
+                {useEscrow ? (
+                  <LockIcon className="h-4 w-4 mr-2" />
+                ) : (
+                  <DollarSign className="h-4 w-4 mr-2" />
+                )}
+                {scheduleForLater 
+                  ? 'Schedule Payment' 
+                  : (useEscrow ? 'Pay with Escrow' : 'Pay Now')}
               </Button>
             </DialogFooter>
           </>
@@ -280,9 +348,11 @@ export function PaymentProcessingModal({
             </div>
             <p className="text-xl font-medium text-gray-900">Payment Successful!</p>
             <p className="text-gray-500 mt-2">
-              {scheduleForLater 
-                ? `Your payment has been scheduled for ${formatDate(scheduledDate)}.`
-                : 'Your payment has been processed successfully.'}
+              {useEscrow 
+                ? `Your payment has been placed in escrow until ${formatDate(escrowReleaseDate)}.`
+                : (scheduleForLater 
+                  ? `Your payment has been scheduled for ${formatDate(scheduledDate)}.`
+                  : 'Your payment has been processed successfully.')}
             </p>
             <Button className="mt-6" onClick={handleClose}>
               Close

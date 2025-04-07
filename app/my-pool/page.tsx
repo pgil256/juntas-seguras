@@ -20,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
 import CreatePoolModal from "@/components/pools/CreatePoolModal";
 import { Button } from "@/components/ui/button";
 import { Pool } from "@/types/pool";
@@ -99,8 +98,7 @@ export default function MyPoolPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+      <div>
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -113,8 +111,7 @@ export default function MyPoolPage() {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+      <div>
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="rounded-md bg-red-50 p-4">
             <div className="flex">
@@ -134,8 +131,7 @@ export default function MyPoolPage() {
   // Show empty state / create pool prompt
   if (!pools || pools.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+      <div>
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl font-semibold text-gray-800">No Pools Found</h2>
@@ -165,8 +161,7 @@ export default function MyPoolPage() {
   // If no pool is selected (which shouldn't happen at this point, but just in case)
   if (!selectedPool) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+      <div>
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl font-semibold text-gray-800">Select a Pool</h2>
@@ -190,9 +185,7 @@ export default function MyPoolPage() {
     .find(m => m.status === 'upcoming');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
+    <div>
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Header */}
@@ -338,43 +331,43 @@ export default function MyPoolPage() {
               <CardDescription>All participants in this pool</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Name
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Position
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Status
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Paid This Round
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Payout Date
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
                         Total Contributed
                       </th>
@@ -388,17 +381,17 @@ export default function MyPoolPage() {
                           key={member.id}
                           className={member.email === currentUser?.email ? "bg-blue-50" : ""}
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-full">
                               {member.email === currentUser?.email ? "You" : member.name}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-500">
                               {member.position}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
                                 member.status
@@ -407,23 +400,30 @@ export default function MyPoolPage() {
                               {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
                             {member.paymentsOnTime > member.paymentsMissed ? (
                               <span className="text-green-600">Yes</span>
                             ) : (
                               <span className="text-red-600">No</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="hidden lg:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(member.payoutDate)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             ${member.totalContributed}
                           </td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
+                
+                {/* Mobile view for hidden columns */}
+                <div className="block sm:hidden mt-4 px-4">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                    Note: Swipe table to see more details
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

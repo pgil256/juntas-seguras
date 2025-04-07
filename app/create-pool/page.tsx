@@ -14,7 +14,6 @@ import {
   Check,
   Info,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -462,7 +461,6 @@ export default function CreatePoolPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
 
       <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6">
         <div className="mb-8">

@@ -7,6 +7,7 @@ export interface Notification {
   date: string;
   read: boolean;
   isImportant?: boolean;
+  userId?: string; // Owner of the notification
 }
 
 export interface NotificationPreference {

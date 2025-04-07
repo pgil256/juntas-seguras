@@ -1,320 +1,220 @@
 // app/page.tsx
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import {
-  CreditCard,
-  Users,
-  Calendar,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Wallet,
-} from "lucide-react";
-import Navbar from "@/components/Navbar";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Shield, Users, Wallet, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
-// Sample data for pools
-const pools = [
-  {
-    id: "123",
-    name: "Family Savings Pool",
-    totalAmount: "$950",
-    members: 8,
-    nextPayoutDate: "Mar 15, 2025",
-    nextPayoutMember: "You",
-    yourPosition: 3,
-    yourContribution: "$50 weekly",
-  },
-  {
-    id: "456",
-    name: "Vacation Fund",
-    totalAmount: "$600",
-    members: 6,
-    nextPayoutDate: "Apr 10, 2025",
-    nextPayoutMember: "Maria Rodriguez",
-    yourPosition: 4,
-    yourContribution: "$25 weekly",
-  },
-];
-
-// Sample data for transactions
-const recentTransactions = [
-  {
-    id: 1,
-    type: "deposit",
-    amount: "$50",
-    date: "Feb 20, 2025",
-    status: "Completed",
-    pool: "Family Savings Pool",
-  },
-  {
-    id: 2,
-    type: "withdrawal",
-    amount: "$400",
-    date: "Feb 15, 2025",
-    status: "Completed",
-    pool: "Vacation Fund",
-  },
-  {
-    id: 3,
-    type: "deposit",
-    amount: "$50",
-    date: "Feb 13, 2025",
-    status: "Completed",
-    pool: "Family Savings Pool",
-  },
-  {
-    id: 4,
-    type: "deposit",
-    amount: "$25",
-    date: "Feb 10, 2025",
-    status: "Completed",
-    pool: "Vacation Fund",
-  },
-];
-
-export default function Home() {
+export default function LandingPage() {
   const router = useRouter();
 
-  const handleViewPool = (poolId: string) => {
-    router.push(`/pools/${poolId}`);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <DashboardHeader
-          title="My Dashboard"
-          subtitle="Welcome to Juntas Seguras"
-        />
-
-        {/* Stats Grid */}
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Wallet className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Savings
-                  </p>
-                  <p className="text-2xl font-semibold">$1,550</p>
-                </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <Link href="/" className="text-2xl font-bold text-blue-600">
+                  Juntas Seguras
+                </Link>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CreditCard className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Active Pools
-                  </p>
-                  <p className="text-2xl font-semibold">2</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Next Payout
-                  </p>
-                  <p className="text-2xl font-semibold">Mar 15</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Users className="h-6 w-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Members
-                  </p>
-                  <p className="text-2xl font-semibold">14</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/help">
+                <Button variant="ghost">Help</Button>
+              </Link>
+              <Link href="/auth/signin">
+                <Button variant="outline">Log in</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button>Sign up</Button>
+              </Link>
+            </div>
+          </div>
         </div>
+      </nav>
 
-        {/* Active Pools */}
-        <div className="mt-8">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Active Pools
-          </h3>
+      {/* Hero section */}
+      <div className="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="lg:grid lg:grid-cols-2 lg:gap-8 items-center">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 sm:tracking-tight lg:text-5xl xl:text-6xl leading-tight">
+              Secure community savings pools
+            </h1>
+            <p className="mt-4 sm:mt-5 text-lg sm:text-xl text-gray-500">
+              Juntas Seguras helps you create and manage trusted savings pools
+              with friends, family, and community members. Save together, build
+              wealth, and achieve financial goals.
+            </p>
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+              <Button 
+                size="lg" 
+                onClick={() => router.push("/auth/signup")}
+                className="w-full sm:w-auto justify-center text-base"
+              >
+                Get Started
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => router.push("/help/documentation")}
+                className="w-full sm:w-auto justify-center text-base"
+              >
+                Learn More
+              </Button>
+            </div>
+          </div>
+          <div className="mt-8 sm:mt-10 lg:mt-0">
+            <div className="rounded-lg shadow-xl overflow-hidden bg-gradient-to-b from-blue-50 to-white h-64 sm:h-80 md:h-96">
+              <div className="relative w-full h-full flex items-center justify-center">
+                <Image
+                  src="/images/js-logo.png"
+                  alt="Juntas Seguras platform"
+                  width={600}
+                  height={300}
+                  className="w-[90%] h-auto transform scale-105 sm:scale-110"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {pools.map((pool) => (
-              <Card key={pool.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle>{pool.name}</CardTitle>
-                  <CardDescription>
-                    Your position: {pool.yourPosition} • {pool.yourContribution}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Total Amount</p>
-                      <p className="font-semibold">{pool.totalAmount}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Members</p>
-                      <p className="font-semibold">{pool.members}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Next Payout</p>
-                      <p className="font-semibold">{pool.nextPayoutDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">To</p>
-                      <p className="font-semibold">{pool.nextPayoutMember}</p>
-                    </div>
-                  </div>
+      {/* Features section */}
+      <div className="bg-white py-10 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
+              Why Choose Juntas Seguras
+            </h2>
+            <p className="mt-3 sm:mt-4 text-base sm:text-lg text-gray-500 max-w-2xl mx-auto">
+              Our platform offers a secure and transparent way to manage
+              community savings pools.
+            </p>
+          </div>
 
-                  <div className="flex justify-between">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewPool(pool.id)}
-                    >
-                      View Details
-                    </Button>
-                    <Button size="sm">Make Payment</Button>
+          <div className="mt-8 sm:mt-10">
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-blue-100 rounded-full">
+                      <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    </div>
+                    <h3 className="mt-4 text-base sm:text-lg font-medium text-gray-900">
+                      Secure Transactions
+                    </h3>
+                    <p className="mt-2 text-center text-sm sm:text-base text-gray-500">
+                      All transactions are secured with state-of-the-art
+                      encryption and security protocols.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+
+              <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-green-100 rounded-full">
+                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                    </div>
+                    <h3 className="mt-4 text-base sm:text-lg font-medium text-gray-900">
+                      Community Building
+                    </h3>
+                    <p className="mt-2 text-center text-sm sm:text-base text-gray-500">
+                      Build financial resilience within your community through
+                      trust and transparency.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-purple-100 rounded-full">
+                      <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                    </div>
+                    <h3 className="mt-4 text-base sm:text-lg font-medium text-gray-900">
+                      Flexible Pools
+                    </h3>
+                    <p className="mt-2 text-center text-sm sm:text-base text-gray-500">
+                      Create pools with customizable terms to match your
+                      community's needs and financial goals.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-orange-100 rounded-full">
+                      <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+                    </div>
+                    <h3 className="mt-4 text-base sm:text-lg font-medium text-gray-900">
+                      Transparent Process
+                    </h3>
+                    <p className="mt-2 text-center text-sm sm:text-base text-gray-500">
+                      Everyone can see payment schedules, contribution history,
+                      and upcoming payouts.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Recent Transactions */}
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>Your latest pool activity</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Type
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Pool
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Amount
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Date
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {recentTransactions.map((transaction) => (
-                      <tr key={transaction.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {transaction.type === "deposit" ? (
-                              <ArrowUpCircle className="h-5 w-5 text-blue-500 mr-2" />
-                            ) : (
-                              <ArrowDownCircle className="h-5 w-5 text-green-500 mr-2" />
-                            )}
-                            <span className="text-sm font-medium text-gray-900 capitalize">
-                              {transaction.type}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {transaction.pool}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`text-sm font-medium ${
-                              transaction.type === "deposit"
-                                ? "text-blue-600"
-                                : "text-green-600"
-                            }`}
-                          >
-                            {transaction.amount}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {transaction.date}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            {transaction.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/payments")}
-                >
-                  View All Transactions
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      {/* CTA section */}
+      <div className="bg-blue-600">
+        <div className="max-w-7xl mx-auto py-10 sm:py-12 px-4 sm:px-6 lg:py-16 lg:px-8 flex flex-col lg:flex-row lg:items-center lg:justify-between">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white sm:text-4xl max-w-xl">
+            <span className="block">Ready to get started?</span>
+            <span className="block text-blue-200 mt-1">
+              Create your first savings pool today.
+            </span>
+          </h2>
+          <div className="mt-6 sm:mt-8 lg:mt-0 lg:flex-shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-0">
+            <div className="inline-flex rounded-md shadow w-full sm:w-auto">
+              <Button
+                size="lg"
+                className="bg-white text-blue-600 hover:bg-blue-50 w-full sm:w-auto justify-center"
+                onClick={() => router.push("/auth/signup")}
+              >
+                Sign up
+              </Button>
+            </div>
+            <div className="sm:ml-3 inline-flex rounded-md shadow w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="lg"
+                className="bg-white/10 text-white border-white hover:bg-blue-700 w-full sm:w-auto justify-center"
+                onClick={() => router.push("/auth/signin")}
+              >
+                Log in
+              </Button>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Simple Footer */}
+      <footer className="bg-white py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-gray-500">
+            &copy; 2025 Juntas Seguras. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

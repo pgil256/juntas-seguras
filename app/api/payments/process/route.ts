@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { TransactionStatus, TransactionType } from '@/types/payment';
+import { createPaymentIntent, getOrCreateCustomer } from '@/lib/stripe';
+import { v4 as uuidv4 } from 'uuid';
 
-// In a real application, this would use a proper payment gateway and database
 // Simulate database collections
 const mockPayments = new Map();
 const mockUsers = new Map();
 const mockPools = new Map();
+
+// For a real app, this would use MongoDB models
+// import connectDB from '@/lib/db/connect';
+// import { getPoolModel } from '@/lib/db/models/pool';
+// import { getUserModel } from '@/lib/db/models/user';
 
 interface PaymentRequest {
   userId: string;
@@ -13,12 +20,23 @@ interface PaymentRequest {
   paymentMethodId: number;
   scheduleForLater: boolean;
   scheduledDate?: string;
+  useEscrow: boolean;
+  escrowReleaseDate?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as PaymentRequest;
-    const { userId, poolId, amount, paymentMethodId, scheduleForLater, scheduledDate } = body;
+    const { 
+      userId, 
+      poolId, 
+      amount, 
+      paymentMethodId, 
+      scheduleForLater, 
+      scheduledDate,
+      useEscrow,
+      escrowReleaseDate 
+    } = body;
 
     // Validate required fields
     if (!userId || !poolId || !amount || !paymentMethodId) {
@@ -36,8 +54,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // For escrow payments, validate release date
+    if (useEscrow && !escrowReleaseDate) {
+      return NextResponse.json(
+        { error: 'Release date is required for escrow payments' },
+        { status: 400 }
+      );
+    }
+
     // Validate payment method exists and belongs to user
-    // In a real app, this would query from a database
     const userPaymentMethods = getUserPaymentMethods(userId);
     const paymentMethod = userPaymentMethods.find(method => method.id === paymentMethodId);
     
@@ -48,14 +73,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process the payment with payment gateway 
-    // In a real app, this would use Stripe, PayPal, etc.
-    const paymentResult = await processPaymentWithGateway({
+    // Get user info for Stripe customer creation
+    // In a real app, this would query the database
+    const user = {
+      id: userId,
+      email: `user${userId}@example.com`,
+      name: `User ${userId}`
+    };
+
+    // Get or create Stripe customer
+    const customerResult = await getOrCreateCustomer(
+      userId,
+      user.email,
+      user.name
+    );
+
+    if (!customerResult.success) {
+      return NextResponse.json(
+        { error: customerResult.error || 'Failed to create payment customer' },
+        { status: 400 }
+      );
+    }
+
+    // Get pool name for the payment description
+    // In a real app, this would query from a database
+    const poolName = `Pool ${poolId}`;
+
+    // Create payment intent with Stripe
+    const paymentResult = await createPaymentIntent(
       amount,
-      paymentMethod,
-      scheduleForLater,
-      scheduledDate,
-    });
+      'usd',
+      customerResult.customerId,
+      `Contribution to ${poolName}`,
+      {
+        userId,
+        poolId,
+        isEscrow: useEscrow ? 'true' : 'false',
+      }
+    );
 
     if (!paymentResult.success) {
       return NextResponse.json(
@@ -66,38 +121,66 @@ export async function POST(request: NextRequest) {
 
     // Create payment record
     const paymentId = generatePaymentId();
+    const transactionType = useEscrow ? TransactionType.ESCROW : TransactionType.DEPOSIT;
+    const status = scheduleForLater 
+      ? TransactionStatus.SCHEDULED 
+      : (useEscrow ? TransactionStatus.ESCROWED : TransactionStatus.COMPLETED);
+
     const paymentRecord = {
       id: paymentId,
       userId,
       poolId,
       amount,
       paymentMethodId,
-      status: scheduleForLater ? 'scheduled' : 'completed',
-      transactionId: paymentResult.transactionId,
+      status,
+      type: transactionType,
+      stripePaymentIntentId: paymentResult.paymentIntentId,
+      description: `${useEscrow ? 'Escrow payment' : 'Contribution'} to ${poolName}`,
+      date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       scheduledDate: scheduleForLater ? scheduledDate : null,
       processedAt: scheduleForLater ? null : new Date().toISOString(),
+      escrowId: useEscrow ? uuidv4() : null,
+      releaseDate: useEscrow ? escrowReleaseDate : null,
+      member: user.name,
     };
 
     // In a real app, this would save to a database
     mockPayments.set(paymentId, paymentRecord);
 
-    // Update pool balance
-    updatePoolBalance(poolId, amount);
+    // Update pool balance if not in escrow
+    if (!useEscrow && !scheduleForLater) {
+      updatePoolBalance(poolId, amount);
+    }
 
     // Log activity
-    await logActivity(userId, scheduleForLater ? 'payment_scheduled' : 'payment_processed', {
-      poolId,
-      amount,
-      paymentId,
-    });
+    await logActivity(userId, 
+      useEscrow 
+        ? 'payment_escrowed' 
+        : (scheduleForLater ? 'payment_scheduled' : 'payment_processed'), 
+      {
+        poolId,
+        amount,
+        paymentId,
+      }
+    );
+
+    let successMessage = '';
+    if (useEscrow) {
+      successMessage = scheduleForLater 
+        ? 'Escrow payment scheduled successfully' 
+        : 'Payment placed in escrow successfully';
+    } else {
+      successMessage = scheduleForLater 
+        ? 'Payment scheduled successfully' 
+        : 'Payment processed successfully';
+    }
 
     return NextResponse.json({
       success: true,
       payment: paymentRecord,
-      message: scheduleForLater 
-        ? 'Payment scheduled successfully' 
-        : 'Payment processed successfully',
+      clientSecret: paymentResult.clientSecret,
+      message: successMessage,
     });
     
   } catch (error) {
@@ -129,40 +212,6 @@ function getUserPaymentMethods(userId: string) {
       isDefault: false,
     },
   ];
-}
-
-// Helper function to process payment with payment gateway
-async function processPaymentWithGateway({ 
-  amount, 
-  paymentMethod, 
-  scheduleForLater, 
-  scheduledDate 
-}: { 
-  amount: number; 
-  paymentMethod: any; 
-  scheduleForLater: boolean; 
-  scheduledDate?: string;
-}) {
-  // In a real app, this would use a payment gateway API like Stripe
-  // For mock purposes, simulate processing with 90% success rate
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Simulate success/failure
-  const success = Math.random() < 0.9;
-  
-  if (success) {
-    return {
-      success: true,
-      transactionId: `tr_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-    };
-  } else {
-    return {
-      success: false,
-      error: 'Payment could not be processed. Please try again.',
-    };
-  }
 }
 
 // Helper function to update pool balance

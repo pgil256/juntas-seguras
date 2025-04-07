@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import ClientComponentBoundary from '@/app/ClientComponentBoundary';
 
 export default function SignIn() {
   const router = useRouter();
@@ -40,18 +41,29 @@ export default function SignIn() {
     setSuccess("");
     
     try {
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password,
+        callbackUrl,
       });
       
       if (result?.error) {
         setError("Invalid email or password");
       } else {
-        // Redirect to dashboard on successful login
-        router.push("/");
-        router.refresh();
+        // Check if MFA verification is required
+        // The user might be redirected to the MFA verification page
+        // based on the token's requiresMfa property
+        
+        // Simplify the redirect flow to make it more reliable:
+        // In all cases, redirect to the dashboard after successful sign-in
+        console.log('Sign-in successful, redirecting to dashboard');
+        setTimeout(() => {
+          router.push('/dashboard');
+          router.refresh();
+        }, 100);
       }
     } catch (error) {
       setError("An error occurred during sign in. Please try again.");
@@ -62,30 +74,31 @@ export default function SignIn() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert className="mb-4 bg-green-50 border-green-200">
-              <AlertTitle className="text-green-800">Success</AlertTitle>
-              <AlertDescription className="text-green-700">{success}</AlertDescription>
-            </Alert>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <ClientComponentBoundary>
+      <div className="flex items-center justify-center py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to access your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {success && (
+              <Alert className="mb-4 bg-green-50 border-green-200">
+                <AlertTitle className="text-green-800">Success</AlertTitle>
+                <AlertDescription className="text-green-700">{success}</AlertDescription>
+              </Alert>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -124,14 +137,7 @@ export default function SignIn() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          
-          <div className="mt-4 text-center text-sm">
-            <p>
-              For demo purposes, use: <br />
-              Email: <span className="font-semibold">demo@example.com</span><br />
-              Password: <span className="font-semibold">demo123</span>
-            </p>
-          </div>
+
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-center text-sm text-gray-600">
@@ -143,5 +149,6 @@ export default function SignIn() {
         </CardFooter>
       </Card>
     </div>
+    </ClientComponentBoundary>
   );
 }

@@ -1,12 +1,10 @@
-// app/help/page.tsx
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ClientComponentBoundary from '@/app/ClientComponentBoundary';
 import {
   Search,
   HelpCircle,
-  ChevronDown,
   Mail,
   Phone,
   MessageCircle,
@@ -16,8 +14,9 @@ import {
   CreditCard,
   AlertCircle,
   ExternalLink,
+  BookOpen,
+  ChevronRight,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import {
   Card,
   CardContent,
@@ -35,7 +34,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// At the top of app/help/page.tsx, just after imports
+// Some SVG icons
 const Users = ({ className }: { className?: string }) => {
   return (
     <svg
@@ -199,61 +198,53 @@ const faqData = {
   ],
 };
 
-// Help categories for sidebar
-const helpCategories = [
+// Help topics with detailed documentation
+const helpTopics = [
   {
     id: "getting-started",
-    label: "Getting Started",
-    icon: <User className="h-5 w-5 mr-2" />,
+    title: "Getting Started",
+    description: "Learn the basics of using Juntas Seguras",
+    icon: <User className="h-8 w-8 text-blue-500" />,
   },
   {
     id: "managing-pools",
-    label: "Managing Pools",
-    icon: <Users className="h-5 w-5 mr-2" />,
+    title: "Managing Pools",
+    description: "Creating and managing your savings pools",
+    icon: <Users className="h-8 w-8 text-green-500" />,
   },
   {
     id: "payments",
-    label: "Payments & Finances",
-    icon: <DollarSign className="h-5 w-5 mr-2" />,
+    title: "Payments & Finances",
+    description: "Contribution methods, payouts, and financial management",
+    icon: <DollarSign className="h-8 w-8 text-purple-500" />,
   },
   {
     id: "invitations",
-    label: "Invitations & Members",
-    icon: <Mail className="h-5 w-5 mr-2" />,
+    title: "Invitations & Members",
+    description: "Adding and managing pool participants",
+    icon: <Mail className="h-8 w-8 text-yellow-500" />,
   },
   {
     id: "troubleshooting",
-    label: "Troubleshooting",
-    icon: <AlertCircle className="h-5 w-5 mr-2" />,
+    title: "Troubleshooting",
+    description: "Solutions for common issues",
+    icon: <AlertCircle className="h-8 w-8 text-red-500" />,
   },
   {
     id: "account",
-    label: "Account Settings",
-    icon: <Settings className="h-5 w-5 mr-2" />,
+    title: "Account Settings",
+    description: "Managing your profile and preferences",
+    icon: <Settings className="h-8 w-8 text-indigo-500" />,
   },
 ];
 
 export default function HelpPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("getting-started");
-
-  // Filter FAQs based on search query
-  const filteredFaqs = searchQuery
-    ? Object.values(faqData)
-        .flat()
-        .filter(
-          (faq) =>
-            faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-    : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <ClientComponentBoundary>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-4 sm:px-0">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
@@ -291,292 +282,163 @@ export default function HelpPage() {
             type="text"
             placeholder="Search for answers..."
             className="pl-10 py-6 text-lg w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            key="search-input"
           />
         </div>
 
-        {searchQuery ? (
-          <div className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Search Results</CardTitle>
-                <CardDescription>
-                  Found {filteredFaqs.length} results for "{searchQuery}"
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {filteredFaqs.length > 0 ? (
-                  <Accordion type="single" collapsible className="space-y-4">
-                    {filteredFaqs.map((faq, index) => (
-                      <AccordionItem
-                        key={index}
-                        value={`search-result-${index}`}
-                      >
-                        <AccordionTrigger className="text-left">
-                          {faq.question}
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <p className="text-gray-700">{faq.answer}</p>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                ) : (
-                  <div className="text-center py-8">
-                    <HelpCircle className="h-12 w-12 text-gray-300 mx-auto" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      No results found
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Try searching with different keywords or browse our help
-                      categories
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <>
-            {/* Quick Links */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <FileText className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-medium">
-                      Beginner's Guide
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      New to Juntas Seguras? Start here to learn the basics
-                    </p>
-                    <Button 
-                      variant="link" 
-                      className="mt-2"
-                      onClick={() => router.push('/help/documentation')}
-                    >
-                      Read the guide
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-green-100 rounded-full">
-                      <MessageCircle className="h-6 w-6 text-green-600" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-medium">
-                      Support Tickets
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Create a ticket or check the status of your existing tickets
-                    </p>
-                    <Button 
-                      variant="link" 
-                      className="mt-2"
-                      onClick={() => router.push('/help/support')}
-                    >
-                      Manage tickets
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-purple-100 rounded-full">
-                      <CreditCard className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-medium">Payment Help</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Learn about payment methods, schedules, and
-                      troubleshooting
-                    </p>
-                    <Button 
-                      variant="link" 
-                      className="mt-2"
-                      onClick={() => router.push('/help/documentation?section=payments')}
-                    >
-                      Payment guide
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* FAQ Tabs */}
-            <div className="mt-12">
-              <h3 className="text-xl font-semibold text-gray-800 mb-6">
-                Frequently Asked Questions
-              </h3>
-
-              <Tabs defaultValue="general">
-                <TabsList className="mb-6">
-                  <TabsTrigger value="general">General</TabsTrigger>
-                  <TabsTrigger value="account">Account</TabsTrigger>
-                  <TabsTrigger value="pools">Pools</TabsTrigger>
-                  <TabsTrigger value="payments">Payments</TabsTrigger>
-                  <TabsTrigger value="security">Security</TabsTrigger>
-                </TabsList>
-
-                {Object.entries(faqData).map(([category, questions]) => (
-                  <TabsContent key={category} value={category}>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <Accordion
-                          type="single"
-                          collapsible
-                          className="space-y-4"
-                        >
-                          {questions.map((faq, index) => (
-                            <AccordionItem key={index} value={`faq-${index}`}>
-                              <AccordionTrigger className="text-left">
-                                {faq.question}
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <p className="text-gray-700">{faq.answer}</p>
-                              </AccordionContent>
-                            </AccordionItem>
-                          ))}
-                        </Accordion>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </div>
-
-            {/* Help Center Section */}
-            <div className="mt-12">
-              <h3 className="text-xl font-semibold text-gray-800 mb-6">
-                Help Center
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                {/* Sidebar */}
-                <div className="md:col-span-3">
-                  <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="p-4 border-b">
-                      <h4 className="font-medium text-gray-900">
-                        Help Categories
-                      </h4>
-                    </div>
-                    <ul>
-                      {helpCategories.map((category) => (
-                        <li key={category.id}>
-                          <button
-                            className={`w-full text-left px-4 py-3 flex items-center hover:bg-gray-50 ${
-                              selectedCategory === category.id
-                                ? "bg-blue-50 text-blue-700"
-                                : ""
-                            }`}
-                            onClick={() => setSelectedCategory(category.id)}
-                          >
-                            {category.icon}
-                            {category.label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="md:col-span-9">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>
-                        {
-                          helpCategories.find((c) => c.id === selectedCategory)
-                            ?.label
-                        }
-                      </CardTitle>
-                      <CardDescription>
-                        Detailed guides and tutorials to help you get the most
-                        out of Juntas Seguras
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-6">
-                        {selectedCategory === "getting-started" && (
-                          <>
-                            <h3 className="text-lg font-medium text-gray-900">
-                              Welcome to Juntas Seguras
-                            </h3>
-                            <p className="text-gray-700">
-                              Juntas Seguras makes it easy to create and manage
-                              savings pools with people you trust. This guide
-                              will help you get started with the platform and
-                              understand how it works.
-                            </p>
-
-                            <h4 className="text-md font-medium text-gray-900 mt-4">
-                              Step 1: Create Your Account
-                            </h4>
-                            <p className="text-gray-700">
-                              Sign up with your email address and set up your
-                              profile. We recommend adding a profile picture and
-                              verifying your phone number to build trust with
-                              other members.
-                            </p>
-
-                            <h4 className="text-md font-medium text-gray-900 mt-4">
-                              Step 2: Create or Join a Pool
-                            </h4>
-                            <p className="text-gray-700">
-                              You can create your own pool and invite members,
-                              or join an existing pool if you've received an
-                              invitation. When creating a pool, you'll need to
-                              set the contribution amount, frequency, and
-                              duration.
-                            </p>
-
-                            <h4 className="text-md font-medium text-gray-900 mt-4">
-                              Step 3: Set Up Your Payment Method
-                            </h4>
-                            <p className="text-gray-700">
-                              Add a payment method to your account to make
-                              regular contributions. We support bank transfers,
-                              debit cards, and various digital payment
-                              platforms.
-                            </p>
-
-                            <div className="mt-6">
-                              <Button className="flex items-center">
-                                <FileText className="h-4 w-4 mr-2" />
-                                Download Full Guide (PDF)
-                              </Button>
-                            </div>
-                          </>
-                        )}
-
-                        {selectedCategory !== "getting-started" && (
-                          <div className="text-center py-8">
-                            <FileText className="h-12 w-12 text-gray-300 mx-auto" />
-                            <h3 className="mt-4 text-lg font-medium text-gray-900">
-                              Help Guide
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                              Detailed help content for this category is being
-                              developed. Please check back soon or contact our
-                              support team for assistance.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+        {/* Comprehensive Documentation Section */}
+        <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="p-6 bg-blue-50 border-b border-blue-100">
+            <div className="flex items-center">
+              <BookOpen className="h-10 w-10 text-blue-600 mr-4" />
+              <div>
+                <h3 className="text-xl font-semibold text-blue-900">Complete Documentation</h3>
+                <p className="text-blue-700">
+                  We've created comprehensive guides for all aspects of Juntas Seguras
+                </p>
               </div>
             </div>
-          </>
-        )}
+            <Button 
+              className="mt-4 bg-blue-600 hover:bg-blue-700"
+              onClick={() => router.push('/help/documentation')}
+            >
+              Browse All Documentation
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+            {helpTopics.map((topic) => (
+              <div 
+                key={topic.id}
+                className="border rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/help/documentation?section=${topic.id}`)}
+              >
+                <div className="flex items-center mb-3">
+                  {topic.icon}
+                  <h4 className="ml-3 text-lg font-medium">{topic.title}</h4>
+                </div>
+                <p className="text-gray-600 text-sm">{topic.description}</p>
+                <div className="mt-4 text-blue-600 text-sm flex items-center">
+                  View documentation
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ Tabs */}
+        <div className="mt-12">
+          <h3 className="text-xl font-semibold text-gray-800 mb-6">
+            Frequently Asked Questions
+          </h3>
+
+          <Tabs defaultValue="general">
+            <TabsList className="mb-6">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="account">Account</TabsTrigger>
+              <TabsTrigger value="pools">Pools</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+            </TabsList>
+
+            {Object.entries(faqData).map(([category, questions]) => (
+              <TabsContent key={category} value={category}>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Accordion
+                      type="single"
+                      collapsible
+                      className="space-y-4"
+                    >
+                      {questions.map((faq, index) => (
+                        <AccordionItem key={index} value={`faq-${index}`}>
+                          <AccordionTrigger className="text-left">
+                            {faq.question}
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-gray-700">{faq.answer}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium">
+                  Beginner's Guide
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  New to Juntas Seguras? Start here to learn the basics
+                </p>
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={() => router.push('/help/documentation?section=getting-started')}
+                >
+                  Read the guide
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <MessageCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium">
+                  Support Tickets
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Create a ticket or check the status of your existing tickets
+                </p>
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={() => router.push('/help/support')}
+                >
+                  Manage tickets
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <CreditCard className="h-6 w-6 text-purple-600" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium">Payment Help</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Learn about payment methods, schedules, and
+                  troubleshooting
+                </p>
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={() => router.push('/help/documentation?section=payments')}
+                >
+                  Payment guide
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Contact section */}
         <div className="mt-12 bg-blue-50 rounded-lg p-6">
@@ -628,7 +490,9 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ClientComponentBoundary>
   );
 }
 
+// We're now using ChevronRight from lucide-react

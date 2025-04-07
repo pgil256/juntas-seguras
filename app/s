@@ -1,0 +1,36 @@
+Use a Payment Processor with Escrow Features
+
+Instead of relying on direct peer-to-peer transfer, use a provider (like Stripe Connect, PayPal for Platforms, etc.) that can hold funds in escrow or a managed balance.
+
+Each user contributes to a pooled balance that’s actually managed by your payment provider.
+
+KYC (Know Your Customer) and Identity Verification
+
+At signup, require identity checks for all participants. This helps reduce fraudulent signups or fake identities.
+
+Payment processors often handle this for you if you integrate their “marketplace” or “connect” features.
+
+Controlled Disbursements
+
+Don’t release funds directly from user to user. Instead, once the contribution window closes for a given round (say Week 1), your system initiates a single payout to that round’s designated recipient from the pooled account.
+
+This keeps a clear audit trail of exactly who paid in and who got the payout.
+
+Robust Ledger & Audit Logging
+
+Maintain an internal ledger (a database table) that records every transaction: who contributed, date/time, and how much.
+
+Track total amounts in your escrow account and match them to the sum of each user’s contributions.
+
+Have an audit log of every event (user signed up, user contributed, user received payout) for dispute resolution.
+
+Automated Notifications & Time Windows
+
+Automate “round start” and “round end” notifications so contributors know exactly when to send money.
+
+Disburse funds only after all contributions have been received (or after a cutoff date), and only to the designated recipient for that period.
+
+
+
+
+

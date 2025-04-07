@@ -1,7 +1,7 @@
 // app/profile/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -12,6 +12,7 @@ import {
   Edit,
   Save,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Card,
@@ -20,42 +21,42 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
 
-// Sample user data
-const userData = {
-  name: "Maria Gonzalez",
-  email: "maria.gonzalez@example.com",
-  phone: "(555) 123-4567",
-  joinDate: "January 12, 2025",
-  totalSaved: "$160",
-  activePools: 1,
-  completedPools: 2,
-  preferredPaymentMethod: "Zelle",
-  profilePicture: "",
-  notificationPreferences: {
+import { useUserProfile } from "@/lib/hooks/useUserProfile";
+import { usePools } from "@/lib/hooks/usePools";
+import { usePaymentMethods } from "@/lib/hooks/usePaymentMethods";
+
+export default function ProfilePage() {
+  const [editMode, setEditMode] = useState(false);
+  const { profile, isLoading: profileLoading, error: profileError, updateProfile } = useUserProfile();
+  const { pools, isLoading: poolsLoading } = usePools();
+  const { paymentMethods, isLoading: paymentsLoading } = usePaymentMethods({ userId: profile?.id || '' });
+  
+  const [userInfo, setUserInfo] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  
+  const [notificationSettings, setNotificationSettings] = useState({
     email: true,
     sms: true,
     paymentReminders: true,
     poolUpdates: true,
     newMembers: false,
-  },
-  securitySettings: {
-    twoFactorAuth: true,
-    lastPasswordChange: "December 28, 2024",
-  },
-};
+  });
 
-export default function ProfilePage() {
-  const [editMode, setEditMode] = useState(false);
-  const [userInfo, setUserInfo] = useState({
-    name: userData.name,
-    email: userData.email,
-    phone: userData.phone,
-  });
-  const [notificationSettings, setNotificationSettings] = useState({
-    ...userData.notificationPreferences,
-  });
+  // Update local state when profile data is loaded
+  useEffect(() => {
+    if (profile) {
+      setUserInfo({
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone || '',
+      });
+    }
+  }, [profile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -73,20 +74,73 @@ export default function ProfilePage() {
     });
   };
 
-  const saveProfile = () => {
-    // In a real application, this would save to the backend
-    setEditMode(false);
-    // For demonstration purposes we'd update the user data here
-    // userData.name = userInfo.name;
-    // userData.email = userInfo.email;
-    // userData.phone = userInfo.phone;
-    // userData.notificationPreferences = notificationSettings;
+  const saveProfile = async () => {
+    const result = await updateProfile({
+      name: userInfo.name,
+      phone: userInfo.phone,
+    });
+    
+    if (result.success) {
+      setEditMode(false);
+    } else {
+      // Show error notification
+      alert(result.error || "Failed to update profile");
+    }
   };
+  
+  // Calculate stats from real data
+  const activePools = pools?.filter(pool => pool.status === 'active')?.length || 0;
+  const completedPools = pools?.filter(pool => pool.status === 'completed')?.length || 0;
+  
+  const totalSaved = pools?.reduce((total, pool) => {
+    // Sum contributions across all pools
+    return total + (pool.contributionAmount * pool.currentRound);
+  }, 0) || 0;
+  
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  
+  const preferredPaymentMethod = paymentMethods?.find(method => method.isDefault)?.name || 'None';
+
+  // Show loading state
+  if (profileLoading || poolsLoading || paymentsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600 text-center">Loading profile data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (profileError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white shadow-lg rounded-lg p-8 max-w-md">
+          <div className="text-red-500 text-center mb-4">
+            <AlertTriangle className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-xl font-medium text-center">Error Loading Profile</h3>
+          <p className="mt-2 text-gray-600 text-center">{profileError}</p>
+          <div className="mt-6 text-center">
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Header */}
@@ -131,10 +185,10 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="flex flex-col items-center">
                   <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center mb-4 overflow-hidden">
-                    {userData.profilePicture ? (
+                    {profile?.avatar ? (
                       <img
-                        src={userData.profilePicture}
-                        alt={userData.name}
+                        src={profile.avatar}
+                        alt={profile.name}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -142,9 +196,9 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <h3 className="text-lg font-medium">{userData.name}</h3>
+                  <h3 className="text-lg font-medium">{profile?.name}</h3>
                   <p className="text-sm text-gray-500">
-                    Member since {userData.joinDate}
+                    Member since {formatDate(profile?.createdAt)}
                   </p>
 
                   <div className="mt-6 w-full space-y-4">
@@ -178,9 +232,12 @@ export default function ProfilePage() {
                             id="email"
                             name="email"
                             value={userInfo.email}
-                            onChange={handleInputChange}
-                            className="w-full p-2 border border-gray-300 rounded-md"
+                            disabled
+                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
                           />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Email cannot be changed
+                          </p>
                         </div>
                         <div>
                           <label
@@ -204,19 +261,19 @@ export default function ProfilePage() {
                         <div className="flex items-center">
                           <Mail className="h-5 w-5 text-gray-400 mr-3" />
                           <span className="text-sm text-gray-700">
-                            {userData.email}
+                            {profile?.email}
                           </span>
                         </div>
                         <div className="flex items-center">
                           <Phone className="h-5 w-5 text-gray-400 mr-3" />
                           <span className="text-sm text-gray-700">
-                            {userData.phone}
+                            {profile?.phone || 'Not set'}
                           </span>
                         </div>
                         <div className="flex items-center">
                           <CreditCard className="h-5 w-5 text-gray-400 mr-3" />
                           <span className="text-sm text-gray-700">
-                            Preferred payment: {userData.preferredPaymentMethod}
+                            Preferred payment: {preferredPaymentMethod}
                           </span>
                         </div>
                       </>
@@ -243,7 +300,7 @@ export default function ProfilePage() {
                       Total Saved
                     </p>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      {userData.totalSaved}
+                      ${totalSaved}
                     </p>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg text-center">
@@ -251,7 +308,7 @@ export default function ProfilePage() {
                       Active Pools
                     </p>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      {userData.activePools}
+                      {activePools}
                     </p>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg text-center">
@@ -259,7 +316,7 @@ export default function ProfilePage() {
                       Completed Pools
                     </p>
                     <p className="mt-2 text-3xl font-semibold text-gray-900">
-                      {userData.completedPools}
+                      {completedPools}
                     </p>
                   </div>
                 </div>
@@ -369,26 +426,13 @@ export default function ProfilePage() {
                           Two-Factor Authentication
                         </p>
                         <p className="text-xs text-gray-500">
-                          {userData.securitySettings.twoFactorAuth
-                            ? "Enabled - Your account is secure"
-                            : "Disabled - Enable for increased security"}
+                          Not enabled - Enable for increased security
                         </p>
                       </div>
                     </div>
-                    {userData.securitySettings.twoFactorAuth ? (
-                      <div className="flex items-center space-x-3">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Enabled
-                        </span>
-                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                          Manage
-                        </button>
-                      </div>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => window.location.href = '/profile/security/two-factor'}>
-                        Enable
-                      </Button>
-                    )}
+                    <Button variant="outline" size="sm" onClick={() => window.location.href = '/profile/security/two-factor'}>
+                      Enable
+                    </Button>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -399,8 +443,7 @@ export default function ProfilePage() {
                           Password
                         </p>
                         <p className="text-xs text-gray-500">
-                          Last changed:{" "}
-                          {userData.securitySettings.lastPasswordChange}
+                          Last changed: {formatDate(profile?.createdAt)}
                         </p>
                       </div>
                     </div>

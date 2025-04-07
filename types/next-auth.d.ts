@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { TwoFactorMethod } from "@/types/security";
 
 declare module "next-auth" {
   /**
@@ -11,6 +12,10 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
     };
+    /** Indicates if MFA verification is required */
+    requiresMfa?: boolean;
+    /** The MFA method to use */
+    mfaMethod?: TwoFactorMethod;
   }
   
   /**
@@ -21,6 +26,10 @@ declare module "next-auth" {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    /** Indicates if MFA verification is required */
+    requiresMfa?: boolean;
+    /** The MFA method to use */
+    mfaMethod?: TwoFactorMethod;
   }
 }
 
@@ -28,5 +37,9 @@ declare module "next-auth/jwt" {
   /** Extend the JWT token types */
   interface JWT {
     id: string;
+    /** Indicates if MFA verification is required */
+    requiresMfa?: boolean;
+    /** The MFA method to use */
+    mfaMethod?: TwoFactorMethod;
   }
 }

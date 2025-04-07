@@ -50,198 +50,33 @@ const upcomingPayments = [
   { id: 3, member: "Ana Garcia", date: "Mar 5, 2025", amount: "$5" },
 ];
 
-const DashboardLayout = () => {
+const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Use our new Navbar component */}
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-
+      
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="px-4 py-4 sm:px-0">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              Pool Dashboard
-            </h2>
-            <div className="relative">
-              <div className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg">
-                Search...
-              </div>
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Stats cards */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CreditCard className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Saved
-                    </dt>
-                    <dd className="text-lg font-semibold text-gray-900">
-                      {poolStats.totalSaved}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Users className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Active Members
-                    </dt>
-                    <dd className="text-lg font-semibold text-gray-900">
-                      {poolStats.activeMembers}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Next Payout
-                    </dt>
-                    <dd className="text-lg font-semibold text-gray-900">
-                      {poolStats.nextPayout}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <PieChart className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Completed Cycles
-                    </dt>
-                    <dd className="text-lg font-semibold text-gray-900">
-                      {poolStats.completedCycles}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {/* Recent Transactions */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">
-                Recent Transactions
-              </h3>
-              <div className="mt-5">
-                <div className="flow-root">
-                  <ul className="divide-y divide-gray-200">
-                    {recentTransactions.map((transaction) => (
-                      <li key={transaction.id} className="py-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {transaction.type}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {transaction.date}
-                            </p>
-                          </div>
-                          <div className="inline-flex items-center text-sm font-semibold text-gray-900">
-                            {transaction.amount}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Upcoming Payments */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">
-                Upcoming Payments
-              </h3>
-              <div className="mt-5">
-                <div className="flow-root">
-                  <ul className="divide-y divide-gray-200">
-                    {upcomingPayments.map((payment) => (
-                      <li key={payment.id} className="py-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {payment.member}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {payment.date}
-                            </p>
-                          </div>
-                          <div className="inline-flex items-center text-sm font-semibold text-gray-900">
-                            {payment.amount}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex-grow">
+        {children}
       </div>
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-8">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex justify-center space-x-6 md:order-2">
-              <span className="text-gray-400 hover:text-gray-500">
-                <Settings className="h-6 w-6" />
-              </span>
-              <span className="text-gray-400 hover:text-gray-500">
-                <HelpCircle className="h-6 w-6" />
-              </span>
-              <span className="text-gray-400 hover:text-gray-500">
-                <LogOut className="h-6 w-6" />
-              </span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div className="flex justify-center space-x-6 order-1 md:order-2">
+              <button className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+              <button className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <HelpCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+              <button className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
             </div>
-            <div className="mt-8 md:mt-0 md:order-1">
-              <p className="text-center text-sm text-gray-400">
+            <div className="mt-6 md:mt-0 order-2 md:order-1">
+              <p className="text-center md:text-left text-sm text-gray-500">
                 &copy; 2025 Juntas Seguras. All rights reserved.
               </p>
             </div>

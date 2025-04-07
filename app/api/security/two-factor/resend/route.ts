@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TwoFactorMethod } from '@/types/security';
+import { TwoFactorMethod, ActivityType } from '@/types/security';
+import connectToDatabase from '@/lib/db/connect';
+import getUserModel from '@/lib/db/models/user';
+import { logServerActivity } from '@/lib/utils';
 
-// In a real application, this would use a proper auth system and database
-const mockUsers = new Map();
+// Function to generate a 6-digit verification code
+function generateVerificationCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,27 +28,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In a real app, this would fetch from a database
-    const user = mockUsers.get(userId);
+    // Connect to the database and get the user
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    const user = await UserModel.findOne({ id: userId });
     
-    if (!user || !user.twoFactorSetup || !user.twoFactorSetup.enabled) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Two-factor authentication is not enabled for this user' },
-        { status: 400 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
-
-    // In a real app, this would generate a new code and send it via the appropriate channel
-    // Here we'll simulate that the code was sent successfully
+    
+    // Initialize twoFactorAuth if it doesn't exist
+    if (!user.twoFactorAuth) {
+      user.twoFactorAuth = {
+        enabled: true,
+        method: method as TwoFactorMethod,
+        verified: false,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
+    // Generate a new verification code
+    const verificationCode = generateVerificationCode();
+    
+    // In a real app, we would send the verification code via the appropriate channel
+    // For email method, send an email
+    // For SMS method, send a text message
+    // For app method, no code needs to be sent
+    
+    // For development purposes, we'll store the code in user.twoFactorAuth.temporaryCode
+    // In a real app, this would be encrypted and time-limited
+    if (!user.twoFactorAuth) {
+      user.twoFactorAuth = {};
+    }
+    
+    user.twoFactorAuth.enabled = true;
+    user.twoFactorAuth.method = method as TwoFactorMethod;
+    user.twoFactorAuth.temporaryCode = verificationCode;
+    user.twoFactorAuth.codeGeneratedAt = new Date().toISOString();
+    await user.save();
     
     // Log the activity
-    await logActivity(userId, 'two_factor_code_resent', { 
-      method: method as TwoFactorMethod
+    logServerActivity(userId, ActivityType.TWO_FACTOR_SETUP, { 
+      method: method as TwoFactorMethod,
+      action: 'code_resent'
     });
+
+    // IMPORTANT SECURITY NOTE:
+    // In a production environment, you would:
+    // 1. Never return the actual verification code in the response
+    // 2. Send the code via the selected method (email/SMS) using a service like SendGrid or Twilio
+    // 3. Store a salted and hashed version of the code, not plaintext
+    
+    // For development only - return the code for testing (REMOVE IN PRODUCTION!)
+    const developmentResponse = process.env.NODE_ENV === 'development' ? 
+      { verificationCode } : {};
 
     return NextResponse.json({
       success: true,
-      message: `Verification code sent via ${method}`
+      message: `Verification code sent via ${method}`,
+      sentTo: method === 'email' ? user.email : (method === 'sms' ? user.phone : 'authenticator app'),
+      ...developmentResponse
     });
     
   } catch (error) {
@@ -55,19 +102,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function logActivity(userId: string, type: string, metadata: any) {
-  // In a real app, this would log to a dedicated activity log database
-  try {
-    await fetch('/api/security/activity-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        type,
-        metadata
-      })
-    });
-  } catch (error) {
-    console.error('Failed to log activity:', error);
-  }
-}

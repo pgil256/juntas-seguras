@@ -19,10 +19,27 @@ export async function GET(request: NextRequest) {
       throw new ApiError('User not found', 404);
     }
     
-    // Get all pools that this user is a member of
-    const pools = await PoolModel.find({ id: { $in: user.pools } });
+    // Handle the case where user has no pools yet or pools array doesn't exist
+    if (!user.pools || !Array.isArray(user.pools) || user.pools.length === 0) {
+      return { 
+        success: true, 
+        pools: []
+      };
+    }
     
-    return { pools };
+    try {
+      // Get all pools that this user is a member of
+      const pools = await PoolModel.find({ id: { $in: user.pools } });
+      
+      // Ensure we always return an array even if find() returns null or undefined
+      return { 
+        success: true,
+        pools: Array.isArray(pools) ? pools : [] 
+      };
+    } catch (error) {
+      console.error('Error fetching pools:', error);
+      throw new ApiError('Failed to fetch pools', 500);
+    }
   }, {
     requireAuth: true,
     methods: ['GET']

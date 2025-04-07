@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Loader,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import {
   Card,
   CardContent,
@@ -353,7 +352,6 @@ export default function MemberManagementPage({
   if (isLoadingPool || isLoadingMembers || isLoadingInvitations) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center h-64">
             <Loader className="h-8 w-8 text-blue-500 animate-spin mb-4" />
@@ -368,7 +366,6 @@ export default function MemberManagementPage({
   if (poolError || membersError || invitationsError) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Alert variant="destructive">
             <AlertTitle>Error</AlertTitle>
@@ -388,7 +385,6 @@ export default function MemberManagementPage({
   if (!pool) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Alert>
             <AlertTitle>Pool Not Found</AlertTitle>
@@ -406,7 +402,6 @@ export default function MemberManagementPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
 
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Header */}

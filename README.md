@@ -14,10 +14,9 @@ Juntas Seguras allows groups of people to create and manage savings pools. Membe
 - In-app messaging for pool communication
 - Transaction history and analytics
 - Mobile-friendly interface
+- Secure escrow payments with Stripe integration
 
-## Demo Instructions
-
-This is a simplified demo version of the application. To try it out:
+## Setup Instructions
 
 1. Clone the repository
 2. Install dependencies:
@@ -38,6 +37,11 @@ This is a simplified demo version of the application. To try it out:
    # MONGODB_URI=mongodb://localhost:27017/juntas-app
    NEXTAUTH_URL=http://localhost:3000
    NEXTAUTH_SECRET=your-random-secret-key
+   
+   # For Stripe escrow payments
+   STRIPE_SECRET_KEY=sk_test_your_test_key
+   STRIPE_PUBLISHABLE_KEY=pk_test_your_test_key
+   STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
    ```
    
 5. Test your database connection:
@@ -50,14 +54,7 @@ This is a simplified demo version of the application. To try it out:
    npm run dev
    ```
 
-7. Seed the database with initial data:
-   ```
-   curl -X POST http://localhost:3000/api/seed
-   ```
-
-8. Login with demo credentials:
-   - Email: `demo@example.com`
-   - Password: `demo123`
+7. Register a new user account to begin using the application
 
 ## Tech Stack
 
@@ -68,18 +65,32 @@ This is a simplified demo version of the application. To try it out:
 - NextAuth.js for authentication
 - Tailwind CSS for styling
 - shadcn/ui components
+- Stripe Connect for payment processing and escrow
 
-## Working Demo Features
+## Core Features
 
-The current demo focuses on core functionality:
-
-- User authentication (simplified)
-- Pool creation
+- User authentication
+- Pool creation and management
 - Viewing pool details
 - Member management
 - Pool messaging
-
-Peripheral features like advanced payment processing, two-factor authentication, and the support system are currently stubbed or mocked.
+- Payment tracking
+- Escrow payments with Stripe Connect
+  - Secure funds holding
+  - Scheduled automatic release
+  - Administrator-controlled manual release
+- KYC & Identity Verification
+  - Mandatory identity verification for all members
+  - Document verification via Stripe Identity
+  - Fraud prevention and trust building
+- Controlled Disbursements
+  - Funds released only after all contributions received
+  - Pool admin approval required for payouts
+  - Transparent payout process with audit trails
+- Comprehensive Audit Logging
+  - Detailed tracking of all system activity
+  - Complete audit trails for financial actions
+  - Rich querying for monitoring and compliance
 
 ## Development
 
@@ -106,6 +117,9 @@ To deploy this application to Vercel:
    - `MONGODB_URI` (your MongoDB Atlas connection string)
    - `NEXTAUTH_SECRET` (see .env.production file)
    - `NEXTAUTH_URL` (your Vercel deployment URL)
+   - `STRIPE_SECRET_KEY` (your Stripe secret key)
+   - `STRIPE_PUBLISHABLE_KEY` (your Stripe publishable key)
+   - `STRIPE_WEBHOOK_SECRET` (your Stripe webhook secret)
 
 ## License
 

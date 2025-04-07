@@ -9,13 +9,22 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Shield, Loader2, X, KeyRound } from 'lucide-react';
 import { TwoFactorMethod } from '@/types/security';
+import { useSession, signIn } from 'next-auth/react';
+import ClientComponentBoundary from '@/app/ClientComponentBoundary';
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
-  const method = searchParams.get('method') as TwoFactorMethod || 'app';
-  const returnUrl = searchParams.get('returnUrl') || '/';
+  const { data: session } = useSession();
+  
+  // Get return URL from query parameters
+  const returnUrl = searchParams.get('returnUrl') || '/dashboard';
+  
+  // Get MFA method from session or query parameters
+  const method = (session?.mfaMethod || searchParams.get('method')) as TwoFactorMethod || 'app';
+  
+  // Get user ID from session
+  const userId = session?.user?.id || '';
   
   const [verificationCode, setVerificationCode] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
@@ -23,14 +32,29 @@ export default function TwoFactorVerifyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect to login if no user is authenticated
   useEffect(() => {
-    if (!userId) {
-      router.push('/login');
+    if (!session) {
+      // Delay redirection to avoid flickering and ensure session is fully checked
+      const timer = setTimeout(() => {
+        if (!session) {
+          router.push('/auth/signin');
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [userId, router]);
+  }, [session, router]);
 
   const handleVerifyCode = async () => {
-    if (!userId) return;
+    // Special case for missing userId - redirect back to login
+    if (!userId || !session?.user?.email) {
+      setError('Authentication required. Please sign in again.');
+      setTimeout(() => {
+        router.push('/auth/signin');
+      }, 2000);
+      return;
+    }
     
     if (recoveryMode && !recoveryCode) {
       setError('Please enter a recovery code');
@@ -46,6 +70,7 @@ export default function TwoFactorVerifyPage() {
     setError(null);
     
     try {
+      // First verify with the 2FA endpoint
       const response = await fetch('/api/security/two-factor/verify', {
         method: 'POST',
         headers: {
@@ -63,8 +88,22 @@ export default function TwoFactorVerifyPage() {
         throw new Error(data.error || 'Verification failed');
       }
       
-      // Successful verification
+      // Complete the authentication with the verified MFA code
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: session.user.email,
+        password: 'placeholder-not-used', // Not actually used for verification
+        mfaCode: recoveryMode ? recoveryCode : verificationCode,
+        callbackUrl: returnUrl
+      });
+      
+      if (result?.error) {
+        throw new Error('Authentication failed after MFA verification');
+      }
+      
+      // Successful verification - redirect to the return URL
       router.push(returnUrl);
+      router.refresh();
     } catch (error: any) {
       setError(error.message || 'Failed to verify code');
     } finally {
@@ -77,6 +116,7 @@ export default function TwoFactorVerifyPage() {
     
     setLoading(true);
     setError(null);
+    setVerificationCode(''); // Clear the current input
     
     try {
       const response = await fetch('/api/security/two-factor/resend', {
@@ -90,12 +130,19 @@ export default function TwoFactorVerifyPage() {
         })
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to resend code');
       }
       
-      // Show success message or notification
+      // If in development, display the code directly
+      if (process.env.NODE_ENV === 'development' && data.verificationCode) {
+        setError(`A new verification code has been sent: ${data.verificationCode}`);
+      } else {
+        // Show success notification for production
+        setError(`A new verification code has been sent to your ${method === 'email' ? 'email' : 'phone'}.`);
+      }
     } catch (error: any) {
       setError(error.message || 'Failed to resend verification code');
     } finally {
@@ -113,29 +160,32 @@ export default function TwoFactorVerifyPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-2">
-            <Shield className="h-12 w-12 text-blue-500" />
-          </div>
-          <CardTitle className="text-xl text-center">Two-Factor Verification</CardTitle>
-          <CardDescription className="text-center">
-            {recoveryMode 
-              ? 'Enter a recovery code to access your account'
-              : `Enter the verification code from your ${getMethodLabel()}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <X className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {recoveryMode ? (
+    <ClientComponentBoundary>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center justify-center mb-2">
+              <Shield className="h-12 w-12 text-blue-500" />
+            </div>
+            <CardTitle className="text-xl text-center">Two-Factor Verification</CardTitle>
+            <CardDescription className="text-center">
+              {recoveryMode 
+                ? 'Enter a recovery code to access your account'
+                : `Enter the verification code from your ${getMethodLabel()}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant={error.includes('new verification code') ? 'default' : 'destructive'} 
+                    className={error.includes('new verification code') ? 'bg-green-50 border-green-200' : ''}>
+                {error.includes('new verification code') 
+                  ? <><AlertTitle>Code sent</AlertTitle><AlertDescription>{error}</AlertDescription></>
+                  : <><X className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></>
+                }
+              </Alert>
+            )}
+            
+            {recoveryMode ? (
             <div className="space-y-2">
               <Label htmlFor="recovery-code">Recovery Code</Label>
               <Input
@@ -163,11 +213,25 @@ export default function TwoFactorVerifyPage() {
                 onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="123456"
                 className="text-center font-mono text-lg"
+                autoFocus
               />
               {method !== 'app' && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Didn't receive a code? <Button variant="link" className="h-auto p-0" onClick={handleResendCode}>Resend code</Button>
-                </p>
+                <div className="space-y-2 mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full" 
+                    onClick={handleResendCode}
+                  >
+                    Resend verification code
+                  </Button>
+                  
+                  {error && error.includes('new verification code') && (
+                    <div className="p-2 bg-green-50 border border-green-200 rounded">
+                      <p className="text-xs text-center text-green-700">Code sent successfully</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -193,5 +257,6 @@ export default function TwoFactorVerifyPage() {
         </CardFooter>
       </Card>
     </div>
+    </ClientComponentBoundary>
   );
 }

@@ -166,63 +166,63 @@ const CreatePoolModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md px-4 sm:px-6 py-5 sm:py-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
+          <DialogTitle className="text-xl font-semibold text-center sm:text-left">
             Create a New Savings Pool
           </DialogTitle>
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-gray-400 hover:text-gray-500"
+            className="absolute right-4 top-4 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded p-1 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </DialogHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 pt-2">
           {/* Step indicator */}
-          <div className="flex justify-between mb-8">
+          <div className="flex justify-between mb-8 px-4 sm:px-0">
             <div className="flex items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
                   step >= 1
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"
                 }`}
               >
-                {step > 1 ? <Check className="h-5 w-5" /> : "1"}
+                {step > 1 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "1"}
               </div>
               <div
-                className={`h-1 w-10 ${
+                className={`h-1 w-8 sm:w-10 transition-colors duration-300 ${
                   step > 1 ? "bg-blue-600" : "bg-gray-200"
                 }`}
               ></div>
             </div>
             <div className="flex items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
                   step >= 2
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"
                 }`}
               >
-                {step > 2 ? <Check className="h-5 w-5" /> : "2"}
+                {step > 2 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "2"}
               </div>
               <div
-                className={`h-1 w-10 ${
+                className={`h-1 w-8 sm:w-10 transition-colors duration-300 ${
                   step > 2 ? "bg-blue-600" : "bg-gray-200"
                 }`}
               ></div>
             </div>
             <div className="flex items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
                   step >= 3
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"
                 }`}
               >
-                {step > 3 ? <Check className="h-5 w-5" /> : "3"}
+                {step > 3 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "3"}
               </div>
             </div>
           </div>

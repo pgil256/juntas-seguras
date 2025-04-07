@@ -23,18 +23,19 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
 
   return (
     <>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between py-4 px-4 sm:px-0">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between py-6 px-4 sm:px-0">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-800">{title}</h2>
-          {subtitle && <p className="mt-1 text-gray-500">{subtitle}</p>}
+          <h2 className="text-3xl font-semibold text-gray-800">{title}</h2>
+          {subtitle && <p className="mt-2 text-gray-500 text-lg">{subtitle}</p>}
         </div>
 
-        <div className="mt-4 md:mt-0 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+        <div className="mt-6 md:mt-0 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
           <SearchInput />
 
           <Button
             onClick={() => setIsCreatePoolModalOpen(true)}
             className="flex items-center justify-center"
+            size="lg"
           >
             <Plus className="h-5 w-5 mr-2" />
             Create Pool

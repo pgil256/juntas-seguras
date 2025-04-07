@@ -14,7 +14,6 @@ import {
   Bell,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import Navbar from "@/components/Navbar";
 import {
   Card,
   CardContent,
@@ -170,8 +169,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-4 sm:px-0">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">

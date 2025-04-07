@@ -1,7 +1,7 @@
 // app/settings/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { PaymentMethodDialog } from "@/components/payments/PaymentMethodDialog";
 import { PaymentMethodFormValues } from "@/components/payments/PaymentMethodForm";
-import Navbar from "@/components/Navbar";
 import {
   Card,
   CardContent,
@@ -69,51 +68,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-// Sample user data
-const userData = {
-  name: "Maria Gonzalez",
-  email: "maria.gonzalez@example.com",
-  phone: "(555) 123-4567",
-  joinDate: "January 12, 2025",
-  profilePicture: "",
-  language: "en",
-  timezone: "America/New_York",
-  securitySettings: {
-    twoFactorAuth: true,
-    lastPasswordChange: "December 28, 2024",
-  },
-  notificationPreferences: {
-    email: {
-      paymentReminders: true,
-      poolUpdates: true,
-      memberActivity: false,
-      marketing: false,
-    },
-    push: {
-      paymentReminders: true,
-      poolUpdates: true,
-      memberActivity: true,
-      marketing: false,
-    },
-  },
-  paymentMethods: [
-    {
-      id: 1,
-      type: "bank",
-      name: "Chase Bank",
-      last4: "4567",
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: "card",
-      name: "Visa",
-      last4: "8901",
-      isDefault: false,
-    },
-  ],
-};
+import { useUserProfile } from "@/lib/hooks/useUserProfile";
+import { useUserSettings } from "@/lib/hooks/useUserSettings";
+import { usePaymentMethods } from "@/lib/hooks/usePaymentMethods";
+import { formatDate } from "@/lib/utils";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -122,13 +80,50 @@ export default function SettingsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [editingPaymentMethod, setEditingPaymentMethod] = useState<any>(null);
-  const [paymentMethods, setPaymentMethods] = useState(userData.paymentMethods);
-
+  
+  // Get user profile data
+  const { 
+    profile: userProfile, 
+    isLoading: profileLoading, 
+    error: profileError,
+    updateProfile
+  } = useUserProfile();
+  
+  // Get user settings data
+  const {
+    settings: userSettings,
+    isLoading: settingsLoading,
+    error: settingsError,
+    updateSettings
+  } = useUserSettings();
+  
+  // Get payment methods
+  const {
+    paymentMethods,
+    isLoading: paymentMethodsLoading,
+    addPaymentMethod,
+    updatePaymentMethod,
+    removePaymentMethod: deletePaymentMethod,
+    setDefaultPaymentMethod: setDefaultMethod
+  } = usePaymentMethods();
+  
+  // Local state for form data
   const [profile, setProfile] = useState({
-    name: userData.name,
-    email: userData.email,
-    phone: userData.phone,
+    name: '',
+    email: '',
+    phone: '',
   });
+  
+  // Update local profile state when data is loaded
+  useEffect(() => {
+    if (userProfile) {
+      setProfile({
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone || '',
+      });
+    }
+  }, [userProfile]);
 
   const [passwords, setPasswords] = useState({
     current: "",
@@ -136,14 +131,30 @@ export default function SettingsPage() {
     confirm: "",
   });
 
-  const [notifications, setNotifications] = useState(
-    userData.notificationPreferences
-  );
+  // Initialize notifications with null, to indicate loading state
+  const [notifications, setNotifications] = useState<any>(null);
+  
+  // Update notifications state when settings are loaded
+  useEffect(() => {
+    if (userSettings?.notificationPreferences) {
+      setNotifications(userSettings.notificationPreferences);
+    }
+  }, [userSettings]);
 
   const [preferences, setPreferences] = useState({
-    language: userData.language,
-    timezone: userData.timezone,
+    language: 'en',
+    timezone: 'America/New_York',
   });
+  
+  // Update preferences state when settings are loaded
+  useEffect(() => {
+    if (userSettings) {
+      setPreferences({
+        language: userSettings.language || 'en',
+        timezone: userSettings.timezone || 'America/New_York',
+      });
+    }
+  }, [userSettings]);
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -188,81 +199,49 @@ export default function SettingsPage() {
   const handlePaymentMethodSubmit = (values: PaymentMethodFormValues) => {
     if (editingPaymentMethod) {
       // Update existing payment method
-      const updatedMethods = paymentMethods.map(method => {
-        if (method.id === editingPaymentMethod.id) {
-          const last4 = values.type === 'card' 
-            ? values.cardNumber?.slice(-4) || method.last4
-            : values.accountNumber?.slice(-4) || method.last4;
-            
-          return {
-            ...method,
-            type: values.type,
-            name: values.type === 'card' ? `${values.cardholderName}'s Card` : `${values.accountHolderName}'s Bank`,
-            last4,
-            isDefault: values.isDefault,
-          };
-        }
-        
-        // If the edited method is now default, ensure others are not default
-        return values.isDefault ? { ...method, isDefault: false } : method;
+      updatePaymentMethod(editingPaymentMethod.id, {
+        type: values.type,
+        ...(values.type === 'card' 
+          ? {
+              cardholderName: values.cardholderName,
+              cardNumber: values.cardNumber,
+              expiryDate: values.expiryDate,
+              cvv: values.cvv
+            } 
+          : {
+              accountHolderName: values.accountHolderName,
+              accountNumber: values.accountNumber,
+              routingNumber: values.routingNumber,
+              bankName: values.bankName
+            }
+        ),
+        isDefault: values.isDefault
       });
-      
-      setPaymentMethods(updatedMethods);
     } else {
       // Add new payment method
-      const last4 = values.type === 'card' 
-        ? values.cardNumber?.slice(-4) || '****'
-        : values.accountNumber?.slice(-4) || '****';
-      
-      const newMethod = {
-        id: Math.max(...paymentMethods.map(m => m.id)) + 1,
+      addPaymentMethod({
         type: values.type,
-        name: values.type === 'card' ? `${values.cardholderName}'s Card` : `${values.accountHolderName}'s Bank`,
-        last4,
-        isDefault: values.isDefault,
-      };
-      
-      // If the new method is default, update other methods
-      let updatedMethods = paymentMethods.map(method => 
-        values.isDefault ? { ...method, isDefault: false } : method
-      );
-      
-      // Add the new method
-      updatedMethods = [...updatedMethods, newMethod];
-      setPaymentMethods(updatedMethods);
+        ...(values.type === 'card' 
+          ? {
+              cardholderName: values.cardholderName,
+              cardNumber: values.cardNumber,
+              expiryDate: values.expiryDate,
+              cvv: values.cvv
+            } 
+          : {
+              accountHolderName: values.accountHolderName,
+              accountNumber: values.accountNumber,
+              routingNumber: values.routingNumber,
+              bankName: values.bankName
+            }
+        ),
+        isDefault: values.isDefault
+      });
     }
     
     // Reset and close modal
     setEditingPaymentMethod(null);
     setShowPaymentMethodModal(false);
-  };
-  
-  // Set a payment method as default
-  const setDefaultPaymentMethod = (methodId: number) => {
-    const updatedMethods = paymentMethods.map(method => ({
-      ...method,
-      isDefault: method.id === methodId
-    }));
-    
-    setPaymentMethods(updatedMethods);
-  };
-  
-  // Remove a payment method
-  const removePaymentMethod = (methodId: number) => {
-    const methodToRemove = paymentMethods.find(m => m.id === methodId);
-    
-    // Filter out the method to remove
-    let updatedMethods = paymentMethods.filter(method => method.id !== methodId);
-    
-    // If the removed method was default, set the first remaining method as default
-    if (methodToRemove?.isDefault && updatedMethods.length > 0) {
-      updatedMethods = [
-        { ...updatedMethods[0], isDefault: true },
-        ...updatedMethods.slice(1)
-      ];
-    }
-    
-    setPaymentMethods(updatedMethods);
   };
   
   // Edit a payment method
@@ -271,36 +250,71 @@ export default function SettingsPage() {
     setShowPaymentMethodModal(true);
   };
 
-  const saveProfile = () => {
-    // In a real app, this would save to an API
-    console.log("Saving profile:", profile);
-    // Show success message or redirect
+  const saveProfile = async () => {
+    // Save to API
+    const result = await updateProfile({
+      name: profile.name,
+      phone: profile.phone,
+    });
+    
+    if (result.success) {
+      // Show success message (in a real app you would use a toast)
+      console.log("Profile updated successfully");
+    } else {
+      // Show error message
+      console.error("Failed to update profile:", result.error);
+    }
   };
 
-  const changePassword = () => {
+  const changePassword = async () => {
     // In a real app, this would call an API to change the password
+    // For now, just simulate it
     console.log("Changing password");
+    
     // Reset fields and hide the form
     setPasswords({ current: "", new: "", confirm: "" });
     setShowPasswordFields(false);
-    // Show success message
+    
+    // Show success message (in a real app you would use a toast)
+    console.log("Password changed successfully");
   };
 
-  const saveNotifications = () => {
-    // In a real app, this would save to an API
-    console.log("Saving notification preferences:", notifications);
-    // Show success message
+  const saveNotifications = async () => {
+    // Save notification preferences to API
+    const result = await updateSettings({
+      notificationPreferences: notifications
+    });
+    
+    if (result.success) {
+      // Show success message (in a real app you would use a toast)
+      console.log("Notification preferences updated successfully");
+    } else {
+      // Show error message
+      console.error("Failed to update notification preferences:", result.error);
+    }
   };
 
-  const savePreferences = () => {
-    // In a real app, this would save to an API
-    console.log("Saving preferences:", preferences);
-    // Show success message
+  const savePreferences = async () => {
+    // Save preferences to API
+    const result = await updateSettings({
+      language: preferences.language,
+      timezone: preferences.timezone
+    });
+    
+    if (result.success) {
+      // Show success message (in a real app you would use a toast)
+      console.log("Preferences updated successfully");
+    } else {
+      // Show error message
+      console.error("Failed to update preferences:", result.error);
+    }
   };
 
   const deleteAccount = () => {
     // In a real app, this would call an API to delete the account
+    // For now, just simulate it
     console.log("Deleting account");
+    
     // Redirect to login or home
     router.push("/");
   };
@@ -313,9 +327,14 @@ export default function SettingsPage() {
       .toUpperCase();
   };
 
+  // Show loading state if any data is loading
+  const isLoading = profileLoading || settingsLoading || paymentMethodsLoading;
+  
+  // Show error state if there are any errors
+  const hasError = profileError || settingsError;
+  
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
 
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-4 sm:px-0">
@@ -326,6 +345,18 @@ export default function SettingsPage() {
                 Manage your account and preferences
               </p>
             </div>
+            
+            {/* Loading and error states */}
+            {isLoading && (
+              <div className="mt-2 md:mt-0 px-4 py-2 bg-blue-50 text-blue-700 rounded-md">
+                Loading your settings...
+              </div>
+            )}
+            {hasError && (
+              <div className="mt-2 md:mt-0 px-4 py-2 bg-red-50 text-red-700 rounded-md">
+                Error loading settings
+              </div>
+            )}
           </div>
         </div>
 
@@ -368,11 +399,11 @@ export default function SettingsPage() {
                   <div className="relative">
                     <Avatar className="h-24 w-24">
                       <AvatarImage
-                        src={userData.profilePicture}
-                        alt={userData.name}
+                        src={userProfile?.avatar || ''}
+                        alt={profile.name}
                       />
                       <AvatarFallback className="bg-blue-200 text-blue-800 text-2xl">
-                        {getInitials(userData.name)}
+                        {getInitials(profile.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-2 -right-2">
@@ -453,7 +484,7 @@ export default function SettingsPage() {
                     <div>
                       <Label>Account Created</Label>
                       <div className="mt-1 text-gray-700 border border-gray-300 rounded-md p-2.5">
-                        {userData.joinDate}
+                        {userProfile?.createdAt ? formatDate(new Date(userProfile.createdAt)) : 'Loading...'}
                       </div>
                     </div>
                   </div>
@@ -483,7 +514,9 @@ export default function SettingsPage() {
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
                     Last changed on{" "}
-                    {userData.securitySettings.lastPasswordChange}
+                    {userSettings?.securitySettings?.lastPasswordChange 
+                      ? formatDate(new Date(userSettings.securitySettings.lastPasswordChange)) 
+                      : 'unknown'}
                   </p>
 
                   {!showPasswordFields ? (
@@ -593,7 +626,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <Switch
-                      checked={userData.securitySettings.twoFactorAuth}
+                      checked={userSettings?.securitySettings?.twoFactorAuth || false}
                       onCheckedChange={() => {}}
                     />
                   </div>
@@ -724,6 +757,23 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {settingsLoading ? (
+                  <div className="py-8 text-center">
+                    <p className="text-gray-500">Loading your notification preferences...</p>
+                  </div>
+                ) : !notifications ? (
+                  <div className="py-8 text-center">
+                    <p className="text-gray-500">Could not load notification preferences</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => window.location.reload()}
+                    >
+                      Refresh Page
+                    </Button>
+                  </div>
+                ) : (
+                <>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">
@@ -752,7 +802,11 @@ export default function SettingsPage() {
                     }}
                   />
                 </div>
+                </>
+                )}
 
+{notifications && (
+                <>
                 <div className="ml-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <Label
@@ -915,10 +969,19 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+                </>
+                )}
               </CardContent>
-              <CardFooter className="flex justify-end border-t pt-6">
-                <Button onClick={saveNotifications}>Save Preferences</Button>
-              </CardFooter>
+              {notifications && (
+                <CardFooter className="flex justify-end border-t pt-6">
+                  <Button 
+                    onClick={saveNotifications}
+                    disabled={settingsLoading}
+                  >
+                    {settingsLoading ? 'Saving...' : 'Save Preferences'}
+                  </Button>
+                </CardFooter>
+              )}
             </Card>
           </TabsContent>
 
@@ -933,7 +996,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex flex-col space-y-4">
-                  {userData.paymentMethods.map((method) => (
+                  {paymentMethods && paymentMethods.map((method) => (
                     <div
                       key={method.id}
                       className={`border rounded-lg p-4 ${
@@ -969,7 +1032,7 @@ export default function SettingsPage() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => setDefaultPaymentMethod(method.id)}
+                              onClick={() => setDefaultMethod(method.id)}
                             >
                               Set as Default
                             </Button>
@@ -985,7 +1048,7 @@ export default function SettingsPage() {
                             variant="outline"
                             size="sm"
                             className="text-red-600"
-                            onClick={() => removePaymentMethod(method.id)}
+                            onClick={() => deletePaymentMethod(method.id)}
                           >
                             Remove
                           </Button>
