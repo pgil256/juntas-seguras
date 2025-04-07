@@ -70,7 +70,12 @@ function createMinimalNextOutput() {
     "version": 4,
     "routes": {},
     "dynamicRoutes": {},
-    "notFoundRoutes": []
+    "notFoundRoutes": [],
+    "preview": {
+      "previewModeId": "previewModeId",
+      "previewModeSigningKey": "previewModeSigningKey",
+      "previewModeEncryptionKey": "previewModeEncryptionKey"
+    }
   };
   fs.writeFileSync(
     path.join(nextDir, 'prerender-manifest.json'), 
@@ -105,6 +110,36 @@ function createMinimalNextOutput() {
   // Create minimal page component
   const staticDir = path.join(nextDir, 'static/chunks/pages');
   fs.mkdirSync(staticDir, { recursive: true });
+  
+  // Create required server/chunks directory
+  const serverChunksDir = path.join(nextDir, 'server/chunks');
+  fs.mkdirSync(serverChunksDir, { recursive: true });
+  
+  // Create required server/middleware-manifest.json
+  const middlewareManifest = {
+    "version": 1,
+    "sortedMiddleware": [],
+    "middleware": {},
+    "functions": {},
+    "matchers": {}
+  };
+  fs.writeFileSync(
+    path.join(nextDir, 'server/middleware-manifest.json'), 
+    JSON.stringify(middlewareManifest, null, 2)
+  );
+  
+  // Create app-paths-manifest.json
+  const appPathsManifest = {};
+  fs.writeFileSync(
+    path.join(nextDir, 'server/app-paths-manifest.json'), 
+    JSON.stringify(appPathsManifest, null, 2)
+  );
+  
+  // Create server/app-paths-manifest.json
+  fs.writeFileSync(
+    path.join(nextDir, 'server/app-paths-manifest.json'), 
+    JSON.stringify({}, null, 2)
+  );
   
   console.log('Minimal Next.js output structure created successfully!');
 }
