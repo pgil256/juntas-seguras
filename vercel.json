@@ -1,6 +1,6 @@
 {
-  "buildCommand": "next build",
-  "installCommand": "npm install",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install --force",
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
