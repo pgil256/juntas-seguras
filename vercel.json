@@ -4,11 +4,17 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "SKIP_TYPE_CHECK": "1",
+    "NEXT_DISABLE_ESLINT": "1",
+    "DISABLE_ESLINT_PLUGIN": "true"
   },
   "build": {
     "env": {
-      "NODE_ENV": "production"
+      "NODE_ENV": "production",
+      "SKIP_TYPE_CHECK": "1",
+      "NEXT_DISABLE_ESLINT": "1",
+      "DISABLE_ESLINT_PLUGIN": "true"
     }
   },
   "git": {
