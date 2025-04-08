@@ -3,6 +3,8 @@ import qrcode from 'qrcode';
 import nodemailer from 'nodemailer';
 import connectToDatabase from '../db/connect';
 import getUserModel from '../db/models/user';
+import { generateVerificationCode } from '@/lib/utils/verification';
+import QRCode from 'qrcode';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -172,5 +174,94 @@ export async function verifyTotpCode(userObjectId: string, code: string): Promis
   } catch (error) {
     console.error('Error verifying TOTP code:', error);
     return false;
+  }
+}
+
+export async function sendVerificationEmail(email: string, code: string) {
+  try {
+    const response = await fetch('/api/email/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: email,
+        subject: 'Your Verification Code',
+        text: `Your verification code is: ${code}`,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send verification email');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    throw error;
+  }
+}
+
+export async function enableTOTP(userId: string, secret: string) {
+  const db = await connectToDatabase();
+  const User = getUserModel(db);
+  
+  try {
+    const user = await new User().findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    user.totpSecret = secret;
+    user.totpEnabled = true;
+    await user.save();
+
+    return true;
+  } catch (error) {
+    console.error('Error enabling TOTP:', error);
+    throw error;
+  }
+}
+
+export async function disableTOTP(userId: string) {
+  const db = await connectToDatabase();
+  const User = getUserModel(db);
+  
+  try {
+    const user = await new User().findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    user.totpSecret = null;
+    user.totpEnabled = false;
+    await user.save();
+
+    return true;
+  } catch (error) {
+    console.error('Error disabling TOTP:', error);
+    throw error;
+  }
+}
+
+export async function verifyTOTP(userId: string, token: string) {
+  const db = await connectToDatabase();
+  const User = getUserModel(db);
+  
+  try {
+    const user = await new User().findById(userId);
+    if (!user || !user.totpSecret) {
+      throw new Error('TOTP not enabled for user');
+    }
+
+    const isValid = authenticator.verify({
+      token,
+      secret: user.totpSecret
+    });
+
+    return isValid;
+  } catch (error) {
+    console.error('Error verifying TOTP:', error);
+    throw error;
   }
 } 
