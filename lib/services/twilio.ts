@@ -1,6 +1,7 @@
 import { Twilio } from 'twilio';
 import connectToDatabase from '../db/connect';
 import getUserModel from '../db/models/user';
+import { generateVerificationCode } from '@/lib/utils/verification';
 
 // Initialize Twilio client with credentials from environment variables
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -13,11 +14,6 @@ if (!accountSid || !authToken || !verifyServiceSid) {
 
 // Development mode flag
 const isDevelopment = process.env.NODE_ENV === 'development';
-
-// Generate a random 6-digit code for development
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 // Send MFA verification code
 export async function sendMfaVerificationCode(userId: string): Promise<boolean> {

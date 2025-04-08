@@ -330,17 +330,17 @@ export default function SignUp() {
   // Render either credentials form, MFA setup form, or identity verification form
   return (
     <ClientComponentBoundary>
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
+            <CardTitle className="text-2xl sm:text-3xl font-bold text-center">
               {registrationStep === 'credentials' 
                 ? 'Create an Account' 
                 : registrationStep === 'mfa-setup'
                   ? 'Set Up Two-Factor Authentication'
                   : 'Identity Verification'}
             </CardTitle>
-            <CardDescription className="text-center">
+            <CardDescription className="text-center text-sm sm:text-base">
               {registrationStep === 'credentials'
                 ? 'Enter your details to create your Juntas Seguras account'
                 : registrationStep === 'mfa-setup'
@@ -361,367 +361,392 @@ export default function SignUp() {
             
             {registrationStep === 'credentials' ? (
               <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number (Optional for SMS verification)</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="verificationMethod">Verification Method</Label>
-                <RadioGroup
-                  value={verificationMethod}
-                  onValueChange={(value: 'email' | 'app') => setVerificationMethod(value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="email" id="email" />
-                    <label htmlFor="email" className="flex items-center">
-                      <Mail className="w-4 h-4 mr-2" />
-                      Email
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="app" id="app" />
-                    <label htmlFor="app" className="flex items-center">
-                      <Shield className="w-4 h-4 mr-2" />
-                      Authenticator App
-                    </label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={isLoading || isVerified}
-              >
-                {isLoading ? "Creating account..." : isVerified ? "Account Created" : "Create Account"}
-              </Button>
-              
-              <div className="mt-4 text-center text-sm">
-                <p className="text-gray-500">
-                  By signing up, you agree to our Terms of Service and Privacy Policy.
-                </p>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <Shield className="h-8 w-8 text-blue-500 mr-3" />
-                <div>
-                  <h3 className="font-medium text-blue-800">Two-Factor Authentication Required</h3>
-                  <p className="text-sm text-blue-600">
-                    Adding 2FA provides an additional layer of security. This is required for all accounts.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Select Your Preferred Method</h3>
-                <RadioGroup 
-                  value={mfaMethod} 
-                  onValueChange={(v) => handleChangeMfaMethod(v as TwoFactorMethod)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                    <RadioGroupItem value="email" id="r1" />
-                    <Label htmlFor="r1" className="flex items-center cursor-pointer">
-                      <Mail className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">Email</span>
-                        <span className="block text-gray-500 text-sm">Receive verification codes via email</span>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className={`flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 ${!phone ? 'opacity-50' : ''}`}>
-                    <RadioGroupItem value="sms" id="r2" disabled={!phone} />
-                    <Label htmlFor="r2" className="flex items-center cursor-pointer">
-                      <Smartphone className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">SMS Text Message</span>
-                        <span className="block text-gray-500 text-sm">
-                          {phone ? `Receive codes via SMS to ${phone}` : 'Phone number required'}
-                        </span>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                    <RadioGroupItem value="app" id="r3" />
-                    <Label htmlFor="r3" className="flex items-center cursor-pointer">
-                      <Phone className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">Authentication App</span>
-                        <span className="block text-gray-500 text-sm">
-                          Use an app like Google Authenticator or Authy
-                        </span>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              {mfaMethod === 'app' && mfaData?.qrCodeUrl && (
-                <div className="p-4 border rounded-md bg-gray-50 space-y-4">
-                  <h3 className="font-medium">Set up Authentication App</h3>
-                  <ol className="space-y-2 text-sm text-gray-600">
-                    <li>1. Open your authentication app</li>
-                    <li>2. Scan this QR code or enter the code manually</li>
-                    <li>3. Enter the 6-digit verification code below</li>
-                  </ol>
-                  
-                  <div className="border p-2 bg-white rounded-md">
-                    <div className="text-center">QR code would be displayed here</div>
-                    <div className="mt-2 p-2 bg-gray-100 rounded font-mono text-sm text-center">
-                      {mfaData.secret}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {(mfaMethod === 'email' || mfaMethod === 'sms') && (
-                <div className="p-4 border rounded-md bg-gray-50">
-                  <p className="text-sm">
-                    {mfaMethod === 'email' 
-                      ? `A verification code has been sent to ${email}.` 
-                      : `A verification code has been sent to ${phone}.`}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Enter the 6-digit code below to verify.
-                  </p>
-                  {process.env.NODE_ENV === 'development' && mfaData?.verificationCode && (
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-center">
-                      <p className="text-xs text-yellow-800">Development code:</p>
-                      <p className="font-mono font-bold text-yellow-900">{mfaData.verificationCode}</p>
-                    </div>
-                  )}
-                  <div className="mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={handleResendCode}
-                    >
-                      Resend verification code
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              <form onSubmit={handleVerify} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="verification-code-input">Verification Code</Label>
+                  <Label htmlFor="name">Full Name</Label>
                   <Input
-                    id="verification-code-input"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    className="text-center font-mono text-lg"
-                    autoFocus
-                    disabled={isLoading || isVerified}
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name"
+                    required
+                    className="w-full"
                   />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    required
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number (Optional for SMS verification)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="verificationMethod">Verification Method</Label>
+                  <RadioGroup
+                    value={verificationMethod}
+                    onValueChange={(value: 'email' | 'app') => setVerificationMethod(value)}
+                    className="flex flex-col sm:flex-row gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="email" id="email" />
+                      <label htmlFor="email" className="flex items-center">
+                        <Mail className="w-4 h-4 mr-2" />
+                        Email
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="app" id="app" />
+                      <label htmlFor="app" className="flex items-center">
+                        <Shield className="w-4 h-4 mr-2" />
+                        Authenticator App
+                      </label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 
                 <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading || isVerified || verificationCode.length !== 6}
+                  disabled={isLoading || isVerified}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating account...
+                    </span>
+                  ) : isVerified ? (
+                    "Account Created"
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+                
+                <div className="mt-4 text-center text-sm">
+                  <p className="text-gray-500">
+                    By signing up, you agree to our{' '}
+                    <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <Shield className="h-8 w-8 text-blue-500 mr-3" />
+                  <div>
+                    <h3 className="font-medium text-blue-800">Two-Factor Authentication Required</h3>
+                    <p className="text-sm text-blue-600">
+                      Adding 2FA provides an additional layer of security. This is required for all accounts.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">Select Your Preferred Method</h3>
+                  <RadioGroup 
+                    value={mfaMethod} 
+                    onValueChange={(v) => handleChangeMfaMethod(v as TwoFactorMethod)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <RadioGroupItem value="email" id="r1" />
+                      <Label htmlFor="r1" className="flex items-center cursor-pointer">
+                        <Mail className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">Email</span>
+                          <span className="block text-gray-500 text-sm">Receive verification codes via email</span>
+                        </div>
+                      </Label>
+                    </div>
+                    
+                    <div className={`flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 ${!phone ? 'opacity-50' : ''}`}>
+                      <RadioGroupItem value="sms" id="r2" disabled={!phone} />
+                      <Label htmlFor="r2" className="flex items-center cursor-pointer">
+                        <Smartphone className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">SMS Text Message</span>
+                          <span className="block text-gray-500 text-sm">
+                            {phone ? `Receive codes via SMS to ${phone}` : 'Phone number required'}
+                          </span>
+                        </div>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <RadioGroupItem value="app" id="r3" />
+                      <Label htmlFor="r3" className="flex items-center cursor-pointer">
+                        <Phone className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">Authentication App</span>
+                          <span className="block text-gray-500 text-sm">
+                            Use an app like Google Authenticator or Authy
+                          </span>
+                        </div>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                
+                {mfaMethod === 'app' && mfaData?.qrCodeUrl && (
+                  <div className="p-4 border rounded-md bg-gray-50 space-y-4">
+                    <h3 className="font-medium">Set up Authentication App</h3>
+                    <ol className="space-y-2 text-sm text-gray-600">
+                      <li>1. Open your authentication app</li>
+                      <li>2. Scan this QR code or enter the code manually</li>
+                      <li>3. Enter the 6-digit verification code below</li>
+                    </ol>
+                    
+                    <div className="border p-2 bg-white rounded-md">
+                      <div className="text-center">QR code would be displayed here</div>
+                      <div className="mt-2 p-2 bg-gray-100 rounded font-mono text-sm text-center">
+                        {mfaData.secret}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {(mfaMethod === 'email' || mfaMethod === 'sms') && (
+                  <div className="p-4 border rounded-md bg-gray-50">
+                    <p className="text-sm">
+                      {mfaMethod === 'email' 
+                        ? `A verification code has been sent to ${email}.` 
+                        : `A verification code has been sent to ${phone}.`}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Enter the 6-digit code below to verify.
+                    </p>
+                    {process.env.NODE_ENV === 'development' && mfaData?.verificationCode && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-center">
+                        <p className="text-xs text-yellow-800">Development code:</p>
+                        <p className="font-mono font-bold text-yellow-900">{mfaData.verificationCode}</p>
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleResendCode}
+                      >
+                        Resend verification code
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                <form onSubmit={handleVerify} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="verification-code-input">Verification Code</Label>
+                    <Input
+                      id="verification-code-input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      className="text-center font-mono text-lg"
+                      autoFocus
+                      disabled={isLoading || isVerified}
+                    />
+                  </div>
+                  
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    disabled={isLoading || isVerified || verificationCode.length !== 6}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify'
+                    )}
+                  </Button>
+                </form>
+                
+                {mfaData?.backupCodes && (
+                  <div className="mt-4">
+                    <Button 
+                      variant="outline" 
+                      type="button" 
+                      onClick={() => setShowBackupCodes(!showBackupCodes)}
+                      className="w-full"
+                    >
+                      {showBackupCodes ? "Hide Backup Codes" : "Show Backup Codes"}
+                    </Button>
+                    
+                    {showBackupCodes && (
+                      <div className="mt-3 p-4 border rounded-md bg-yellow-50">
+                        <h4 className="font-medium text-amber-800">Backup Codes</h4>
+                        <p className="text-xs text-amber-700 mb-2">
+                          Save these backup codes in a secure place. You can use them to sign in if you lose access to your authentication method.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {mfaData.backupCodes.map((code: string, i: number) => (
+                            <div key={i} className="font-mono text-xs bg-white p-1 rounded border">
+                              {code}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {registrationStep === 'identity-verification' && (
+              <div className="space-y-6">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertTriangle className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-800">Identity Verification Required</AlertTitle>
+                  <AlertDescription className="text-blue-700">
+                    To ensure security for all members and comply with financial regulations,
+                    we need to verify your identity. This is a one-time process.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="space-y-4">
+                  <h3 className="text-base font-medium">Select ID Type</h3>
+                  <RadioGroup 
+                    value={verificationType} 
+                    onValueChange={(v) => setVerificationType(v as VerificationType)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <RadioGroupItem value={VerificationType.GOVERNMENT_ID} id="id-type-1" />
+                      <Label htmlFor="id-type-1" className="flex items-center cursor-pointer">
+                        <CreditCard className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">Government ID</span>
+                          <span className="block text-gray-500 text-sm">National ID, residence permit, etc.</span>
+                        </div>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <RadioGroupItem value={VerificationType.PASSPORT} id="id-type-2" />
+                      <Label htmlFor="id-type-2" className="flex items-center cursor-pointer">
+                        <FileText className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">Passport</span>
+                          <span className="block text-gray-500 text-sm">International passport document</span>
+                        </div>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <RadioGroupItem value={VerificationType.DRIVERS_LICENSE} id="id-type-3" />
+                      <Label htmlFor="id-type-3" className="flex items-center cursor-pointer">
+                        <FileText className="h-5 w-5 mr-2 text-gray-600" />
+                        <div>
+                          <span className="block font-medium">Driver's License</span>
+                          <span className="block text-gray-500 text-sm">Valid driver's license with photo</span>
+                        </div>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h3 className="text-sm text-gray-500 mb-2">What to expect:</h3>
+                  <ul className="text-sm space-y-1 text-gray-700 pl-5 list-disc">
+                    <li>You'll be redirected to our secure verification partner</li>
+                    <li>You'll need to upload photos of your ID document</li>
+                    <li>You'll take a quick selfie for face matching</li>
+                    <li>Verification usually takes 1-2 business days</li>
+                  </ul>
+                </div>
+                
+                <Button
+                  onClick={startIdentityVerification} 
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
+                      Processing...
                     </>
                   ) : (
-                    'Verify'
+                    'Continue to Verification'
                   )}
                 </Button>
-              </form>
-              
-              {mfaData?.backupCodes && (
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    type="button" 
-                    onClick={() => setShowBackupCodes(!showBackupCodes)}
-                    className="w-full"
-                  >
-                    {showBackupCodes ? "Hide Backup Codes" : "Show Backup Codes"}
-                  </Button>
-                  
-                  {showBackupCodes && (
-                    <div className="mt-3 p-4 border rounded-md bg-yellow-50">
-                      <h4 className="font-medium text-amber-800">Backup Codes</h4>
-                      <p className="text-xs text-amber-700 mb-2">
-                        Save these backup codes in a secure place. You can use them to sign in if you lose access to your authentication method.
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {mfaData.backupCodes.map((code: string, i: number) => (
-                          <div key={i} className="font-mono text-xs bg-white p-1 rounded border">
-                            {code}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {registrationStep === 'identity-verification' && (
-            <div className="space-y-6">
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertTriangle className="h-4 w-4 text-blue-600" />
-                <AlertTitle className="text-blue-800">Identity Verification Required</AlertTitle>
-                <AlertDescription className="text-blue-700">
-                  To ensure security for all members and comply with financial regulations,
-                  we need to verify your identity. This is a one-time process.
-                </AlertDescription>
-              </Alert>
-              
-              <div className="space-y-4">
-                <h3 className="text-base font-medium">Select ID Type</h3>
-                <RadioGroup 
-                  value={verificationType} 
-                  onValueChange={(v) => setVerificationType(v as VerificationType)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                    <RadioGroupItem value={VerificationType.GOVERNMENT_ID} id="id-type-1" />
-                    <Label htmlFor="id-type-1" className="flex items-center cursor-pointer">
-                      <CreditCard className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">Government ID</span>
-                        <span className="block text-gray-500 text-sm">National ID, residence permit, etc.</span>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                    <RadioGroupItem value={VerificationType.PASSPORT} id="id-type-2" />
-                    <Label htmlFor="id-type-2" className="flex items-center cursor-pointer">
-                      <FileText className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">Passport</span>
-                        <span className="block text-gray-500 text-sm">International passport document</span>
-                      </div>
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                    <RadioGroupItem value={VerificationType.DRIVERS_LICENSE} id="id-type-3" />
-                    <Label htmlFor="id-type-3" className="flex items-center cursor-pointer">
-                      <FileText className="h-5 w-5 mr-2 text-gray-600" />
-                      <div>
-                        <span className="block font-medium">Driver's License</span>
-                        <span className="block text-gray-500 text-sm">Valid driver's license with photo</span>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
+                
+                <p className="text-xs text-gray-500 text-center">
+                  By continuing, you agree to our <Link href="#" className="text-blue-600 hover:underline">Terms of Service</Link> and <Link href="#" className="text-blue-600 hover:underline">Privacy Policy</Link>.
+                </p>
               </div>
-              
-              <div className="pt-4 border-t">
-                <h3 className="text-sm text-gray-500 mb-2">What to expect:</h3>
-                <ul className="text-sm space-y-1 text-gray-700 pl-5 list-disc">
-                  <li>You'll be redirected to our secure verification partner</li>
-                  <li>You'll need to upload photos of your ID document</li>
-                  <li>You'll take a quick selfie for face matching</li>
-                  <li>Verification usually takes 1-2 business days</li>
-                </ul>
-              </div>
-              
-              <Button
-                onClick={startIdentityVerification} 
-                disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Continue to Verification'
-                )}
-              </Button>
-              
-              <p className="text-xs text-gray-500 text-center">
-                By continuing, you agree to our <Link href="#" className="text-blue-600 hover:underline">Terms of Service</Link> and <Link href="#" className="text-blue-600 hover:underline">Privacy Policy</Link>.
-              </p>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign in
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
-    </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <p className="text-center text-sm text-gray-600">
+              Already have an account?{" "}
+              <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </ClientComponentBoundary>
   );
 }
