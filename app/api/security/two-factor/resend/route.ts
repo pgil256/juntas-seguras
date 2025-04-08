@@ -3,11 +3,7 @@ import { TwoFactorMethod, ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import getUserModel from '../../../../../lib/db/models/user';
 import { logServerActivity } from '../../../../../lib/utils';
-
-// Function to generate a 6-digit verification code
-function generateVerificationCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
+import { generateVerificationCode } from '@/lib/utils/verification';
 
 export async function POST(request: NextRequest) {
   try {

@@ -104,10 +104,78 @@ const UserSchema = new Schema({
   versionKey: false // Disable the __v field
 });
 
-// Function to initialize the model with checking for existing models
-export function getUserModel(): Model<any> {
-  const modelName = 'User';
-  return mongoose.models[modelName] || mongoose.model(modelName, UserSchema);
+// Define the User document type
+export interface UserDocument extends Document {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  createdAt: Date;
+  lastLogin?: Date;
+  avatar?: string;
+  hashedPassword?: string;
+  pools: string[];
+  verificationCode?: string;
+  verificationExpiry?: Date;
+  verificationMethod: 'email' | 'app';
+  isVerified: boolean;
+  isTemporary: boolean;
+  twoFactorAuth: {
+    enabled: boolean;
+    method: TwoFactorMethod;
+    secret?: string;
+    backupCodes?: string[];
+    phone?: string;
+    email?: string;
+    lastUpdated?: string;
+    verified: boolean;
+    temporaryCode?: string;
+    codeGeneratedAt?: string;
+  };
+  pendingMfaVerification: boolean;
+  mfaSetupComplete: boolean;
+  mfaRequiredFor: {
+    paymentMethods: boolean;
+    profileChanges: boolean;
+  };
+  identityVerification?: {
+    status: VerificationStatus;
+    type?: VerificationType;
+    method?: VerificationMethod;
+    documentFrontId?: string;
+    documentBackId?: string;
+    selfieId?: string;
+    stripeVerificationId?: string;
+    stripeVerificationUrl?: string;
+    submittedAt?: string;
+    verifiedAt?: string;
+    rejectedAt?: string;
+    rejectionReason?: string;
+    expiresAt?: string;
+    lastUpdated: string;
+  };
+  identityVerified: boolean;
+  stripeCustomerId?: string;
+  stripeConnectAccountId?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  dateOfBirth?: string;
+  metadata?: Map<string, string>;
+  resetToken?: string;
+  resetTokenExpiry?: Date;
 }
 
-export default getUserModel;
+// Create and export the User model
+export const User = mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
+
+// Also export the getUserModel function for backward compatibility
+export function getUserModel(): Model<UserDocument> {
+  return User;
+}
+
+export default User;
