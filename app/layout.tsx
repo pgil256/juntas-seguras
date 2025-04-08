@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -12,6 +14,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const metadata: Metadata = {
+  title: "Juntas Seguras",
+  description: "Secure group management platform",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,11 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           {children}
+          <Toaster />
         </Providers>
       </body>
     </html>

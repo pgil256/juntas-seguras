@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
     const UserModel = getUserModel();
     const PoolModel = getPoolModel();
     
-    // Find the user
-    const user = await UserModel.findOne({ id: userId });
+    // Find the user by MongoDB _id
+    const user = await UserModel.findById(userId);
     
     if (!user) {
+      console.error(`User not found in /api/pools for provided userId: ${userId}`);
       throw new ApiError('User not found', 404);
     }
     
@@ -67,10 +68,11 @@ export async function POST(request: NextRequest) {
     const UserModel = getUserModel();
     const PoolModel = getPoolModel();
     
-    // Find the user
-    const user = await UserModel.findOne({ id: userId });
+    // Find the user by MongoDB _id
+    const user = await UserModel.findById(userId);
     
     if (!user) {
+      console.error(`User not found in POST /api/pools for provided userId: ${userId}`);
       throw new ApiError('User not found', 404);
     }
     
