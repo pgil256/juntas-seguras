@@ -4,9 +4,13 @@ import * as bcrypt from 'bcryptjs';
 import connectToDatabase from '../../../../lib/db/connect';
 import getUserModel from '../../../../lib/db/models/user';
 import { v4 as uuidv4 } from 'uuid';
+import { sendEmailVerificationCode, verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
 
 // Authenticate user with secure password comparison
 async function authenticateUser(email: string, password: string, mfaCode?: string) {
+  // Log the received mfaCode value and type
+  console.log(`authenticateUser called. email: ${email}, mfaCode value: '${mfaCode}', mfaCode type: ${typeof mfaCode}`);
+
   await connectToDatabase();
   const UserModel = getUserModel();
   
@@ -14,59 +18,88 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
   
   // No automatic user creation - users must register first
   if (!user) {
+    console.log('User not found:', email);
     return null;
   }
   
   // Securely compare the provided password with the stored hash
   let isValid = false;
   
-  // Handle both hashed and legacy non-hashed passwords
-  if (user.hashedPassword.startsWith('$2')) {
-    // This is a bcrypt hash (starts with $2a$, $2b$, etc.)
-    isValid = await bcrypt.compare(password, user.hashedPassword);
-  } else {
-    // Legacy plain text password - migrate to hashed on successful login
-    isValid = user.hashedPassword === password;
-    
-    if (isValid) {
-      // Update to hashed password for future logins
-      user.hashedPassword = await bcrypt.hash(password, 10);
-      await user.save();
-    }
-  }
+  // Use only hashedPassword
+  const hashedPassword = user.hashedPassword;
   
-  if (!isValid) {
+  console.log('Authenticating user:', {
+    email,
+    hasHashedPassword: !!hashedPassword
+  });
+
+  if (!hashedPassword) {
+    console.log('User has no password set:', email);
     return null;
   }
+
+  // Always use hashedPassword
+  isValid = await bcrypt.compare(password, hashedPassword);
+  console.log('Password validation result:', isValid);
   
-  // Check if MFA is enabled for this user
-  if (user.twoFactorAuth?.enabled) {
-    // If MFA is enabled and no code is provided, mark the user as pending MFA verification
-    if (!mfaCode) {
-      // Set the pendingMfaVerification flag to true
-      user.pendingMfaVerification = true;
-      await user.save();
-      
-      // Return a special response indicating MFA is required
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        requiresMfa: true,
-        mfaMethod: user.twoFactorAuth.method
+  if (!isValid) {
+    console.log('Password validation failed');
+    return null;
+  }
+
+  console.log('Password validation successful, proceeding with MFA check');
+
+  // Always require MFA - if no code is provided OR the provided code is the string "undefined"
+  if (!mfaCode || mfaCode === 'undefined') {
+    // Initialize 2FA settings if they don't exist
+    if (!user.twoFactorAuth) {
+      user.twoFactorAuth = {
+        enabled: true,
+        method: 'email', // Default to email for new users
+        temporaryCode: null,
+        codeGeneratedAt: null,
+        totpSecret: null
       };
+      await user.save();
     }
-    
-    // If MFA code is provided, verify it
-    // In a real app, this would call validateMfaCode with proper validation
-    // We're using a placeholder function here for now
-    const mfaValid = await validateMfaCode(user.id, mfaCode);
-    if (!mfaValid) {
+
+    // Log the user ID being passed to sendEmailVerificationCode
+    console.log(`Attempting to send MFA code for user.id: ${user.id}, user._id: ${user._id}`);
+
+    // Send email verification code using user._id
+    const userObjectIdString = user._id.toString();
+    const codeSent = await sendEmailVerificationCode(userObjectIdString);
+    if (!codeSent) {
+      console.error('sendEmailVerificationCode returned false for user _id:', userObjectIdString);
+      // Return null to indicate failure, triggering the 401 in authorize
       return null;
     }
     
-    // MFA is valid, clear the pending flag
-    user.pendingMfaVerification = false;
+    // Return a special response indicating MFA is required
+    console.log('MFA code sent. Returning requiresMfa=true signal.');
+    return {
+      // Return the MongoDB _id as the user identifier
+      id: userObjectIdString,
+      name: user.name,
+      email: user.email,
+      requiresMfa: true,
+      mfaMethod: user.twoFactorAuth.method
+    };
+    // Execution should absolutely stop here if mfaCode was not initially provided
+  }
+  
+  // If MFA code is provided (and is not the string "undefined"), verify it
+  console.log('Proceeding to MFA verification step with mfaCode:', mfaCode);
+  let mfaValid = false;
+  const userObjectIdString = user._id.toString(); // Use _id for verification too
+  if (user.twoFactorAuth.method === 'email') {
+    mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
+  } else if (user.twoFactorAuth.method === 'totp') {
+    mfaValid = await verifyTotpCode(userObjectIdString, mfaCode);
+  }
+  
+  if (!mfaValid) {
+    return null;
   }
   
   // Update last login time
@@ -74,7 +107,8 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
   await user.save();
   
   return {
-    id: user.id,
+    // Return the MongoDB _id as the user identifier
+    id: user._id.toString(),
     name: user.name,
     email: user.email
   };
@@ -147,21 +181,25 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error("Email and password are required");
         }
-        
-        try {
-          const user = await authenticateUser(
-            credentials.email,
-            credentials.password,
-            credentials.mfaCode || undefined
-          );
-          
-          return user;
-        } catch (error) {
-          console.error("Authentication error:", error);
-          return null;
+
+        const user = await authenticateUser(
+          credentials.email,
+          credentials.password,
+          credentials.mfaCode
+        );
+
+        if (!user) {
+          // If authenticateUser returns null (e.g., bad password, failed MFA send)
+          console.log('authenticateUser returned null, throwing Invalid email or password error.');
+          throw new Error("Invalid email or password");
         }
+
+        // Directly return the user object. 
+        // If requiresMfa is true, the jwt/session callbacks will handle it.
+        console.log('Authorize function returning user object:', JSON.stringify(user));
+        return user;
       }
     })
   ],
@@ -173,10 +211,12 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
         
-        // If MFA is required, add that to the token
-        if ('requiresMfa' in user && user.requiresMfa) {
-          token.requiresMfa = true;
+        // Add MFA status to token if applicable
+        if ('requiresMfa' in user) {
+          token.requiresMfa = user.requiresMfa;
           token.mfaMethod = user.mfaMethod;
         }
       }
@@ -186,7 +226,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         
-        // Add MFA status to the session if applicable
+        // Add MFA status to session if applicable
         if ('requiresMfa' in token) {
           session.requiresMfa = token.requiresMfa;
           session.mfaMethod = token.mfaMethod;

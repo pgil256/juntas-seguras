@@ -11,19 +11,22 @@ import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/aler
 import { TwoFactorMethod } from "../../../types/security";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
-import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle } from "lucide-react";
-import { VerificationType, VerificationMethod } from "../../../types/identity";
+import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle, Loader2 } from "lucide-react";
+import { VerificationType, VerificationMethod } from "@/types/identity";
+import VerificationPopup from '@/components/auth/VerificationPopup';
+import { useToast } from "@/hooks/use-toast";
 
 import ClientComponentBoundary from '../../ClientComponentBoundary';
 
 export default function SignUp() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [registrationStep, setRegistrationStep] = useState<'credentials' | 'mfa-setup' | 'identity-verification'>('credentials');
   const [userId, setUserId] = useState<string | null>(null);
@@ -33,6 +36,16 @@ export default function SignUp() {
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [verificationType, setVerificationType] = useState<VerificationType>(VerificationType.GOVERNMENT_ID);
   const [identityVerificationUrl, setIdentityVerificationUrl] = useState<string | null>(null);
+  const [verificationMethod, setVerificationMethod] = useState<'email' | 'app'>('email');
+  const [showVerificationPopup, setShowVerificationPopup] = useState(false);
+  const [verificationData, setVerificationData] = useState<any>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,47 +97,101 @@ export default function SignUp() {
           name,
           email,
           password,
-          phone: phone || undefined, // Only include if provided
+          phone: phone || undefined,
+          verificationMethod
         }),
       });
       
       const data = await response.json();
       
       if (!response.ok) {
+        if (data.error === 'User already exists') {
+          setError('An account with this email already exists. Please sign in or use a different email.');
+          return;
+        }
         throw new Error(data.error || 'Registration failed');
+      }
+
+      if (!data.user || !data.user.userId) {
+        throw new Error('Invalid response from server');
       }
       
       // Store user ID and MFA info for the next step
-      setUserId(data.user.id);
-      setMfaMethod(data.user.mfaMethod || 'email');
+      setUserId(data.user.userId);
+      setMfaMethod(data.user.mfaMethod);
+      setVerificationMethod(data.user.mfaMethod);
       setMfaData(data.mfaSetup || {});
       
-      // Move to MFA setup step
-      setRegistrationStep('mfa-setup');
+      if (data.user.mfaMethod === 'app') {
+        setVerificationData(data.mfaSetup);
+      }
+      
+      // Show verification popup
+      setShowVerificationPopup(true);
+      toast({ title: "Registration initiated", description: "Please check your email or authenticator app for the verification code." });
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'Failed to create account');
+      toast({ title: "Registration Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleResendCode = async () => {
-    if (!userId) return;
-    
+
+  const handleVerify = async (code: string) => {
     setIsLoading(true);
-    setError("");
-    
     try {
-      // Get a new verification code
-      const response = await fetch('/api/security/two-factor/resend', {
+      console.log("Verifying with:", { userId, code, email });
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code, email }),
+      });
+
+      const data = await response.json();
+      
+      console.log("Verification response:", data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Verification failed');
+      }
+
+      toast({
+        title: 'Success!',
+        description: 'Your account has been verified. Redirecting to login...',
+      });
+
+      // Redirect to login
+      router.push('/auth/signin');
+    } catch (error) {
+      console.error("Verification error:", error);
+      setMfaError(error.message || 'Failed to verify your account');
+      toast({
+        variant: "destructive",
+        title: "Verification failed",
+        description: error.message || 'Failed to verify your account',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!userId || !email) {
+      toast({ title: "Error", description: "Cannot resend code without User ID and Email.", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/register/resend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           userId,
-          method: mfaMethod,
+          email,
+          verificationMethod: mfaMethod
         }),
       });
       
@@ -133,106 +200,16 @@ export default function SignUp() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to resend verification code');
       }
-      
-      // Update the UI with success message
-      setVerificationCode(''); // Clear previous input
-      
-      // In development, store the verification code for display
-      if (process.env.NODE_ENV === 'development' && data.verificationCode) {
-        setMfaData({
-          ...mfaData,
-          verificationCode: data.verificationCode
-        });
-      }
-      
-      setError(`A new verification code has been sent to your ${mfaMethod === 'email' ? 'email' : 'phone'}.`);
+      toast({ title: "Code Resent", description: "A new verification code has been sent." });
     } catch (err: any) {
       console.error('Resend code error:', err);
       setError(err.message || 'Failed to resend verification code');
+      toast({ title: "Resend Failed", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMfaVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-    
-    if (!verificationCode || verificationCode.length !== 6) {
-      setError("Please enter a valid 6-digit verification code");
-      return;
-    }
-    
-    setIsLoading(true);
-    setError("");
-    
-    try {
-      // For development mode, we'll bypass verification entirely
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: bypassing MFA verification and marking as complete');
-        
-        // Mark MFA as set up in user profile
-        await fetch(`/api/users/profile?userId=${userId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            mfaSetupComplete: true
-          }),
-        });
-        
-        // Move to identity verification step
-        setRegistrationStep('identity-verification');
-        return;
-      }
-
-      // Normal verification flow for production
-      const response = await fetch('/api/security/two-factor/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          code: verificationCode,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        // Special handling for common errors
-        if (data.error === 'Two-factor authentication is not enabled for this user') {
-          throw new Error('MFA not enabled for this account. Please try resending the code or contact support.');
-        } else if (data.error === 'User not found') {
-          throw new Error('User account not found. Please try again or contact support.');
-        } else {
-          throw new Error(data.error || 'Verification failed');
-        }
-      }
-      
-      // Mark MFA as set up in user profile
-      await fetch(`/api/users/profile?userId=${userId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mfaSetupComplete: true
-        }),
-      });
-      
-      // Move to identity verification step
-      setRegistrationStep('identity-verification');
-    } catch (err: any) {
-      console.error('MFA verification error:', err);
-      setError(err.message || 'Failed to verify code');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   const startIdentityVerification = async () => {
     if (!userId) return;
     
@@ -329,6 +306,27 @@ export default function SignUp() {
     }
   }, [identityVerificationUrl]);
 
+  if (!mounted) {
+    return null;
+  }
+
+  if (showVerificationPopup) {
+    console.log('Rendering verification popup');
+    return (
+      <VerificationPopup
+        isOpen={showVerificationPopup}
+        onClose={() => setShowVerificationPopup(false)}
+        onVerify={handleVerify}
+        onResend={handleResendCode}
+        verificationMethod={verificationMethod}
+        verificationData={verificationData}
+        isLoading={isLoading}
+        error={error}
+        emailForDisplay={email}
+      />
+    );
+  }
+
   // Render either credentials form, MFA setup form, or identity verification form
   return (
     <ClientComponentBoundary>
@@ -421,12 +419,36 @@ export default function SignUp() {
                 />
               </div>
               
+              <div className="space-y-2">
+                <Label htmlFor="verificationMethod">Verification Method</Label>
+                <RadioGroup
+                  value={verificationMethod}
+                  onValueChange={(value: 'email' | 'app') => setVerificationMethod(value)}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="email" id="email" />
+                    <label htmlFor="email" className="flex items-center">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="app" id="app" />
+                    <label htmlFor="app" className="flex items-center">
+                      <Shield className="w-4 h-4 mr-2" />
+                      Authenticator App
+                    </label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={isLoading}
+                disabled={isLoading || isVerified}
               >
-                {isLoading ? "Creating account..." : "Continue to Security Setup"}
+                {isLoading ? "Creating account..." : isVerified ? "Account Created" : "Create Account"}
               </Button>
               
               <div className="mt-4 text-center text-sm">
@@ -541,11 +563,11 @@ export default function SignUp() {
                 </div>
               )}
               
-              <form onSubmit={handleMfaVerify} className="space-y-4">
+              <form onSubmit={handleVerify} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="verification-code">Verification Code</Label>
+                  <Label htmlFor="verification-code-input">Verification Code</Label>
                   <Input
-                    id="verification-code"
+                    id="verification-code-input"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -555,15 +577,23 @@ export default function SignUp() {
                     placeholder="123456"
                     className="text-center font-mono text-lg"
                     autoFocus
+                    disabled={isLoading || isVerified}
                   />
                 </div>
                 
                 <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading || verificationCode.length !== 6}
+                  disabled={isLoading || isVerified || verificationCode.length !== 6}
                 >
-                  {isLoading ? "Verifying..." : "Complete Registration"}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify'
+                  )}
                 </Button>
               </form>
               

@@ -48,7 +48,6 @@ const defaultPreferences: NotificationPreference[] = [
 // Get real notifications from the database
 async function getUserNotifications(userId: string): Promise<Notification[]> {
   try {
-    await connect();
     const db = mongoose.connection.db;
     const notificationsCollection = db.collection('notifications');
     
@@ -64,8 +63,6 @@ async function getUserNotifications(userId: string): Promise<Notification[]> {
   }
 }
 
-// No need for in-memory storage, we're using MongoDB directly
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -76,11 +73,13 @@ export async function GET(request: NextRequest) {
     
     const userId = session.user.id || session.user.email;
     
+    // Connect to database
+    await connect();
+    
     // Get real notifications from the database
     const userNotifications = await getUserNotifications(userId);
     
     // Get user preferences from user document
-    await connect();
     const UserModel = getUserModel();
     const user = await UserModel.findOne({ 
       $or: [{ id: userId }, { email: userId }]
@@ -111,8 +110,10 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id || session.user.email;
     const { action, id, type, preferences } = await request.json();
     
-    // Get user preferences from the database
+    // Connect to database
     await connect();
+    
+    // Get user preferences from the database
     const UserModel = getUserModel();
     const user = await UserModel.findOne({ 
       $or: [{ _id: userId }, { email: userId }]
@@ -125,7 +126,6 @@ export async function POST(request: NextRequest) {
       case 'markAsRead':
         if (id) {
           // Update the notification in MongoDB
-          await connect();
           const db = mongoose.connection.db;
           const notificationsCollection = db.collection('notifications');
           
@@ -140,7 +140,6 @@ export async function POST(request: NextRequest) {
         
       case 'markAllAsRead':
         // Update all user's notifications in MongoDB
-        await connect();
         const db = mongoose.connection.db;
         const notificationsCollection = db.collection('notifications');
         
@@ -154,7 +153,6 @@ export async function POST(request: NextRequest) {
       case 'deleteNotification':
         if (id) {
           // Delete the notification from MongoDB
-          await connect();
           const db = mongoose.connection.db;
           const notificationsCollection = db.collection('notifications');
           
@@ -167,7 +165,6 @@ export async function POST(request: NextRequest) {
       case 'togglePreference':
         if (id && type) {
           // Get current user and preferences
-          await connect();
           const UserModel = getUserModel();
           const user = await UserModel.findOne({ 
             $or: [{ id: userId }, { email: userId }]
@@ -197,7 +194,6 @@ export async function POST(request: NextRequest) {
       case 'savePreferences':
         if (preferences) {
           // Save preferences directly to the user document
-          await connect();
           const UserModel = getUserModel();
           await UserModel.findOneAndUpdate(
             { $or: [{ id: userId }, { email: userId }] },
@@ -231,6 +227,9 @@ export async function PUT(request: NextRequest) {
     const userId = session.user.id || session.user.email;
     const notificationData = await request.json();
     
+    // Connect to database
+    await connect();
+    
     // Create new notification object
     const newNotification: Notification = {
       id: Date.now(), // Generate a unique ID
@@ -241,7 +240,6 @@ export async function PUT(request: NextRequest) {
     };
     
     // Insert into MongoDB
-    await connect();
     const db = mongoose.connection.db;
     const notificationsCollection = db.collection('notifications');
     

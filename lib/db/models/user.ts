@@ -12,7 +12,7 @@ const TwoFactorSchema = new Schema({
   email: { type: String },
   lastUpdated: { type: String },
   verified: { type: Boolean, default: false },
-  temporaryCode: { type: String },
+  temporaryCode: { type: String }, // Used for verification during signup
   codeGeneratedAt: { type: String }
 });
 
@@ -47,16 +47,21 @@ const IdentityVerificationSchema = new Schema({
 
 // User schema for basic authentication and user management
 const UserSchema = new Schema({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, unique: true, sparse: true }, // Make id optional and sparse
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String },
-  createdAt: { type: String, required: true },
-  lastLogin: { type: String },
+  createdAt: { type: Date, required: true, default: Date.now },
+  lastLogin: { type: Date },
   avatar: { type: String },
-  // Simple password hash - in a production app, use a proper password hashing library
   hashedPassword: { type: String },
   pools: [{ type: String }], // Array of pool IDs the user belongs to
+  // Verification fields
+  verificationCode: { type: String },
+  verificationExpiry: { type: Date },
+  verificationMethod: { type: String, enum: ['email', 'app'], required: true },
+  isVerified: { type: Boolean, default: false },
+  isTemporary: { type: Boolean, default: false },
   twoFactorAuth: { type: TwoFactorSchema, default: () => ({
     enabled: true, // MFA is required for all users
     method: 'email', // Default to email method
@@ -91,7 +96,12 @@ const UserSchema = new Schema({
   // Date of birth for KYC verification
   dateOfBirth: { type: String },
   // Additional user metadata for KYC
-  metadata: { type: Map, of: String }
+  metadata: { type: Map, of: String },
+  resetToken: String,
+  resetTokenExpiry: Date
+}, {
+  timestamps: true, // This will automatically manage createdAt and updatedAt
+  versionKey: false // Disable the __v field
 });
 
 // Function to initialize the model with checking for existing models

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import { Notification, NotificationPreference, NotificationContextType } from '../types/notification';
 
 export const NotificationContext = createContext<NotificationContextType>({
@@ -24,11 +25,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
 
   const getNotifications = async () => {
     try {
       setLoading(true);
+      
+      // Don't fetch if not authenticated
+      if (status !== 'authenticated') {
+        setNotifications([]);
+        setUnreadCount(0);
+        setPreferences([]);
+        return;
+      }
+
       const response = await fetch('/api/notifications');
+      
+      // Handle redirect responses
+      if (response.redirected) {
+        window.location.href = response.url;
+        return;
+      }
+
       const data = await response.json();
       
       if (response.ok) {
@@ -45,6 +63,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   };
 
+  // Fetch notifications when authentication status changes
+  useEffect(() => {
+    getNotifications();
+  }, [status]);
+
   const markAsRead = async (id: number) => {
     try {
       const response = await fetch('/api/notifications', {
@@ -56,7 +79,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const data = await response.json();
       
       if (response.ok) {
-        // Update local state
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => 
             notification.id === id ? { ...notification, read: true } : notification
@@ -82,7 +104,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const data = await response.json();
       
       if (response.ok) {
-        // Update local state
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => ({ ...notification, read: true }))
         );
@@ -106,13 +127,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const data = await response.json();
       
       if (response.ok) {
-        // Update local state
         const notificationToDelete = notifications.find(n => n.id === id);
         setNotifications(prevNotifications => 
           prevNotifications.filter(notification => notification.id !== id)
         );
         
-        // Update unread count if the deleted notification was unread
         if (notificationToDelete && !notificationToDelete.read) {
           setUnreadCount(prev => Math.max(prev - 1, 0));
         }
@@ -135,7 +154,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const data = await response.json();
       
       if (response.ok) {
-        // Update local state
         setPreferences(prevPreferences => 
           prevPreferences.map(pref => 
             pref.id === id ? { ...pref, [type]: !pref[type] } : pref
@@ -169,11 +187,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       return false;
     }
   };
-
-  // Fetch notifications when component mounts
-  useEffect(() => {
-    getNotifications();
-  }, []);
 
   const value = {
     notifications,
