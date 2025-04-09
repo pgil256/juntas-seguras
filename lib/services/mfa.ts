@@ -231,18 +231,26 @@ export async function sendVerificationEmail(email: string, code: string) {
 }
 
 export async function enableTOTP(userId: string, secret: string) {
-  const db = await connectToDatabase();
-  const User = getUserModel(db);
-  
   try {
-    const user = await new User().findById(userId);
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    
+    const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    user.totpSecret = secret;
-    user.totpEnabled = true;
-    await user.save();
+    // Update the user with TOTP settings
+    await UserModel.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          'twoFactorAuth.totpSecret': secret,
+          'twoFactorAuth.method': 'totp',
+          'twoFactorAuth.enabled': true
+        }
+      }
+    );
 
     return true;
   } catch (error) {
@@ -252,18 +260,28 @@ export async function enableTOTP(userId: string, secret: string) {
 }
 
 export async function disableTOTP(userId: string) {
-  const db = await connectToDatabase();
-  const User = getUserModel(db);
-  
   try {
-    const user = await new User().findById(userId);
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    
+    const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    user.totpSecret = null;
-    user.totpEnabled = false;
-    await user.save();
+    // Update the user to disable TOTP
+    await UserModel.findByIdAndUpdate(
+      userId,
+      {
+        $unset: {
+          'twoFactorAuth.totpSecret': ""
+        },
+        $set: {
+          'twoFactorAuth.method': 'email',
+          'twoFactorAuth.enabled': true // keep MFA enabled, just switch to email
+        }
+      }
+    );
 
     return true;
   } catch (error) {
@@ -273,18 +291,21 @@ export async function disableTOTP(userId: string) {
 }
 
 export async function verifyTOTP(userId: string, token: string) {
-  const db = await connectToDatabase();
-  const User = getUserModel(db);
-  
   try {
-    const user = await new User().findById(userId);
-    if (!user || !user.totpSecret) {
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    
+    const user = await UserModel.findById(userId);
+    if (!user || !user.twoFactorAuth?.totpSecret) {
       throw new Error('TOTP not enabled for user');
     }
 
-    const isValid = authenticator.verify({
-      token,
-      secret: user.totpSecret
+    // Use speakeasy to verify the TOTP token
+    const isValid = speakeasy.totp.verify({
+      secret: user.twoFactorAuth.totpSecret,
+      encoding: 'base32',
+      token: token,
+      window: 1 // Allow 1 step before/after
     });
 
     return isValid;
