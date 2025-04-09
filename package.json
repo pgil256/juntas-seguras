@@ -10,6 +10,8 @@
     "build:no-lint": "NEXT_DISABLE_ESLINT=1 next build",
     "build:static": "STATIC_EXPORT=true next build",
     "start": "next start",
+    "clean": "rimraf .next",
+    "clean:build": "rimraf .next && next build",
     "lint": "next lint",
     "test-db": "node lib/db/test-connection.js",
     "pre-deploy-check": "bash scripts/pre-deploy-check.sh",
@@ -69,6 +71,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "postcss": "^8",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.3.0"
   }
 }

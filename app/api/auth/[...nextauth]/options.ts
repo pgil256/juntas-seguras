@@ -238,6 +238,23 @@ export const authOptions: NextAuthOptions = {
     },
     // Fix redirect logic to be more reliable
     async redirect({ url, baseUrl }) {
+      console.log('NextAuth redirect called with:', { url, baseUrl });
+      
+      // IMPORTANT: NEVER redirect to any MFA verification or auth pages
+      // The MFA popup will handle verification
+      const shouldSkipRedirect = [
+        '/mfa/verify', 
+        '/auth/mfa', 
+        '/profile/security/two-factor',
+        '/verify-mfa',
+        '/auth/verify'
+      ].some(path => url.includes(path));
+      
+      if (shouldSkipRedirect) {
+        console.log('Intercepted MFA redirect attempt, redirecting to dashboard instead');
+        return `${baseUrl}/dashboard`;
+      }
+
       // Handle absolute URLs that should be allowed
       if (url && url.startsWith('http')) {
         // Only allow redirects to same host or localhost for safety
@@ -245,21 +262,12 @@ export const authOptions: NextAuthOptions = {
         const baseUrlObj = new URL(baseUrl);
         
         if (urlObj.host === baseUrlObj.host || urlObj.host.includes('localhost')) {
-          // If the URL includes /mfa/verify, redirect to dashboard instead
-          // The MFA verification will happen in a popup
-          if (url.includes('/mfa/verify') || url.includes('/profile/security/two-factor/verify')) {
-            return `${baseUrl}/dashboard`;
-          }
           return url;
         }
       }
       
       // For relative URLs, prepend baseUrl 
       if (url && url.startsWith('/')) {
-        // If the URL includes /mfa/verify, redirect to dashboard instead
-        if (url.includes('/mfa/verify') || url.includes('/profile/security/two-factor/verify')) {
-          return `${baseUrl}/dashboard`;
-        }
         return `${baseUrl}${url}`;
       }
       

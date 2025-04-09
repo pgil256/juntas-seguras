@@ -7,17 +7,17 @@ import { verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
 
 export async function POST(req: NextRequest) {
   try {
+    // Verify authentication
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
     const { code } = await req.json();
-    
+
     if (!code) {
       return NextResponse.json(
         { error: 'Verification code is required' },
@@ -25,54 +25,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await connectToDatabase();
-    const UserModel = getUserModel();
-    
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+    // Verify MFA code based on session method
+    let mfaValid = false;
+    if (session.mfaMethod === 'email') {
+      mfaValid = await verifyEmailCode(session.user.id, code);
+    } else if (session.mfaMethod === 'totp' || session.mfaMethod === 'app') {
+      mfaValid = await verifyTotpCode(session.user.id, code);
     }
 
-    if (!user.twoFactorAuth?.enabled) {
-      return NextResponse.json(
-        { error: 'Two-factor authentication is not enabled' },
-        { status: 400 }
-      );
-    }
-
-    // Check if the code matches the temporary code
-    if (user.twoFactorAuth.temporaryCode !== code) {
+    if (!mfaValid) {
       return NextResponse.json(
         { error: 'Invalid verification code' },
         { status: 400 }
       );
     }
 
-    // Check if the code is expired (10 minutes)
-    const codeGeneratedAt = new Date(user.twoFactorAuth.codeGeneratedAt || 0);
-    const now = new Date();
-    const codeAgeInMinutes = (now.getTime() - codeGeneratedAt.getTime()) / (1000 * 60);
-    
-    if (codeAgeInMinutes > 10) {
-      return NextResponse.json(
-        { error: 'Verification code has expired' },
-        { status: 400 }
-      );
-    }
-
-    // Clear the temporary code and update the user
-    user.twoFactorAuth.temporaryCode = null;
-    user.twoFactorAuth.codeGeneratedAt = null;
-    user.pendingMfaVerification = false;
-    await user.save();
-
-    return NextResponse.json({ success: true });
+    // MFA verification successful
+    return NextResponse.json({
+      success: true,
+      message: 'MFA verification successful' 
+    });
   } catch (error) {
-    console.error('MFA verification error:', error);
+    console.error('Error in MFA verification:', error);
     return NextResponse.json(
       { error: 'An error occurred during verification' },
       { status: 500 }
