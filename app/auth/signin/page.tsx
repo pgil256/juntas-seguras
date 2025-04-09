@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -47,13 +47,21 @@ function SignInForm() {
       console.log('Initial signIn result:', result);
 
       if (result?.error) {
-        setError(result.error);
+        if (!result.error.toLowerCase().includes('verification required')) {
+          setError(result.error);
+        }
       } else if (result?.ok) {
-        // Success - the global MFA handler will take care of MFA if needed
-        console.log('Sign-in successful');
-        
-        // We don't need to redirect here - the useEffect will handle it
-        // if MFA isn't required, or the global handler will manage MFA flow
+        console.log('Initial sign-in OK. Forcing session update...');
+        const updatedSession = await update();
+        console.log('Updated session:', updatedSession);
+
+        if (updatedSession && !updatedSession.requiresMfa) {
+          console.log('MFA not required, redirecting...');
+          const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+          router.push(callbackUrl);
+        } else {
+          console.log('MFA is required, global modal should appear.');
+        }
       } else {
         setError("An unexpected error occurred during sign in.");
       }

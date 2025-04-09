@@ -27,7 +27,7 @@ function generateEmailCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send verification code via email
+// Send verification code via email (Modified for dummy code)
 export async function sendEmailVerificationCode(userObjectId: string): Promise<boolean> {
   try {
     await connectToDatabase();
@@ -37,17 +37,18 @@ export async function sendEmailVerificationCode(userObjectId: string): Promise<b
     const user = await UserModel.findById(userObjectId);
     if (!user || !user.email) {
       console.error('User not found or email not set for _id:', userObjectId);
-      return false; // Return false instead of throwing
+      return false;
     }
 
-    const verificationCode = generateEmailCode();
-    
-    // Use findByIdAndUpdate instead of save() to avoid validation errors
+    const dummyVerificationCode = "123456";
+    console.log(`*** DEV MODE: Setting dummy MFA code ${dummyVerificationCode} for user ${user.email} ***`);
+
+    // Use findByIdAndUpdate to set the dummy code and timestamp
     const updateResult = await UserModel.findByIdAndUpdate(
       userObjectId,
       {
         $set: {
-          'twoFactorAuth.temporaryCode': verificationCode,
+          'twoFactorAuth.temporaryCode': dummyVerificationCode,
           'twoFactorAuth.codeGeneratedAt': new Date().toISOString(),
           'pendingMfaVerification': true
         }
@@ -56,29 +57,16 @@ export async function sendEmailVerificationCode(userObjectId: string): Promise<b
     );
 
     if (!updateResult) {
-      console.error('Failed to update user with verification code');
+      console.error('Failed to update user with dummy verification code');
       return false;
     }
 
-    // Send email
-    await transporter.sendMail({
-      from: 'juntassegurasservice@gmail.com',
-      to: user.email,
-      subject: 'Your Juntas Seguras Verification Code',
-      text: `Your verification code is: ${verificationCode}. This code will expire in 10 minutes.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Your Juntas Seguras Verification Code</h2>
-          <p>Your verification code is: <strong>${verificationCode}</strong></p>
-          <p>This code will expire in 10 minutes.</p>
-          <p>If you didn't request this code, please ignore this email.</p>
-        </div>
-      `
-    });
+    // Skip sending actual email
+    console.log(`*** DEV MODE: Skipped sending actual email to ${user.email} ***`);
 
     return true;
   } catch (error) {
-    console.error('Error sending email verification code:', error);
+    console.error('Error setting dummy email verification code:', error);
     return false;
   }
 }
