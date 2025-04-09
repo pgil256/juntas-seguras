@@ -24,9 +24,10 @@ export default withAuth(
       // Requests to MFA verification page or API should be allowed
       const isMfaPath = req.nextUrl.pathname.includes('/profile/security/two-factor/verify');
       const isMfaApi = req.nextUrl.pathname.includes('/api/security/two-factor');
+      const isSignInPath = req.nextUrl.pathname === '/auth/signin';
       
-      // Allow requests to MFA verification page and API
-      if (isMfaPath || isMfaApi) {
+      // Allow requests to MFA verification page, API, and sign-in page
+      if (isMfaPath || isMfaApi || isSignInPath) {
         return NextResponse.next();
       }
       
