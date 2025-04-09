@@ -10,7 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from '../../../../../components/u
 import { Shield, Loader2, X, KeyRound } from 'lucide-react';
 import { TwoFactorMethod } from '../../../../../types/security';
 import { useSession, signIn } from 'next-auth/react';
-import ClientComponentBoundary from '../../../../ClientComponentBoundary';
 
 // Separate component that uses useSearchParams
 function TwoFactorVerifyContent() {
@@ -32,6 +31,12 @@ function TwoFactorVerifyContent() {
   const [recoveryCode, setRecoveryCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Handle mounting for client-side only
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Redirect to login if no user is authenticated
   useEffect(() => {
@@ -160,105 +165,108 @@ function TwoFactorVerifyContent() {
     }
   };
 
+  // Handle loading state
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <ClientComponentBoundary>
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-2">
-              <Shield className="h-12 w-12 text-blue-500" />
-            </div>
-            <CardTitle className="text-xl text-center">Two-Factor Verification</CardTitle>
-            <CardDescription className="text-center">
-              {recoveryMode 
-                ? 'Enter a recovery code to access your account'
-                : `Enter the verification code from your ${getMethodLabel()}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant={error.includes('new verification code') ? 'default' : 'destructive'} 
-                    className={error.includes('new verification code') ? 'bg-green-50 border-green-200' : ''}>
-                {error.includes('new verification code') 
-                  ? <><AlertTitle>Code sent</AlertTitle><AlertDescription>{error}</AlertDescription></>
-                  : <><X className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></>
-                }
-              </Alert>
-            )}
-            
-            {recoveryMode ? (
-            <div className="space-y-2">
-              <Label htmlFor="recovery-code">Recovery Code</Label>
-              <Input
-                id="recovery-code"
-                type="text"
-                value={recoveryCode}
-                onChange={(e) => setRecoveryCode(e.target.value.trim())}
-                placeholder="Enter recovery code"
-                className="font-mono"
-              />
-              <p className="text-xs text-gray-500">
-                Enter one of the recovery codes you saved when setting up two-factor authentication.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="verification-code">Verification Code</Label>
-              <Input
-                id="verification-code"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-                className="text-center font-mono text-lg"
-                autoFocus
-              />
-              {method !== 'app' && (
-                <div className="space-y-2 mt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full" 
-                    onClick={handleResendCode}
-                  >
-                    Resend verification code
-                  </Button>
-                  
-                  {error && error.includes('new verification code') && (
-                    <div className="p-2 bg-green-50 border border-green-200 rounded">
-                      <p className="text-xs text-center text-green-700">Code sent successfully</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-center mb-2">
+            <Shield className="h-12 w-12 text-blue-500" />
+          </div>
+          <CardTitle className="text-xl text-center">Two-Factor Verification</CardTitle>
+          <CardDescription className="text-center">
+            {recoveryMode 
+              ? 'Enter a recovery code to access your account'
+              : `Enter the verification code from your ${getMethodLabel()}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant={error.includes('new verification code') ? 'default' : 'destructive'} 
+                  className={error.includes('new verification code') ? 'bg-green-50 border-green-200' : ''}>
+              {error.includes('new verification code') 
+                ? <><AlertTitle>Code sent</AlertTitle><AlertDescription>{error}</AlertDescription></>
+                : <><X className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></>
+              }
+            </Alert>
           )}
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Button 
-            className="w-full" 
-            onClick={handleVerifyCode}
-            disabled={loading || (recoveryMode ? !recoveryCode : !verificationCode || verificationCode.length !== 6)}
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? 'Verifying...' : 'Verify'}
-          </Button>
           
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => setRecoveryMode(!recoveryMode)}
-          >
-            <KeyRound className="h-4 w-4 mr-2" />
-            {recoveryMode ? 'Use verification code instead' : 'Use a recovery code instead'}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
-    </ClientComponentBoundary>
+          {recoveryMode ? (
+          <div className="space-y-2">
+            <Label htmlFor="recovery-code">Recovery Code</Label>
+            <Input
+              id="recovery-code"
+              type="text"
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value.trim())}
+              placeholder="Enter recovery code"
+              className="font-mono"
+            />
+            <p className="text-xs text-gray-500">
+              Enter one of the recovery codes you saved when setting up two-factor authentication.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="verification-code">Verification Code</Label>
+            <Input
+              id="verification-code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+              className="text-center font-mono text-lg"
+              autoFocus
+            />
+            {method !== 'app' && (
+              <div className="space-y-2 mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full" 
+                  onClick={handleResendCode}
+                >
+                  Resend verification code
+                </Button>
+                
+                {error && error.includes('new verification code') && (
+                  <div className="p-2 bg-green-50 border border-green-200 rounded">
+                    <p className="text-xs text-center text-green-700">Code sent successfully</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex flex-col space-y-4">
+        <Button 
+          className="w-full" 
+          onClick={handleVerifyCode}
+          disabled={loading || (recoveryMode ? !recoveryCode : !verificationCode || verificationCode.length !== 6)}
+        >
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {loading ? 'Verifying...' : 'Verify'}
+        </Button>
+        
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={() => setRecoveryMode(!recoveryMode)}
+        >
+          <KeyRound className="h-4 w-4 mr-2" />
+          {recoveryMode ? 'Use verification code instead' : 'Use a recovery code instead'}
+        </Button>
+      </CardFooter>
+    </Card>
+  </div>
   );
 }
 

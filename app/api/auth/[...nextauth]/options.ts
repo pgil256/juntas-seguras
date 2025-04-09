@@ -245,12 +245,21 @@ export const authOptions: NextAuthOptions = {
         const baseUrlObj = new URL(baseUrl);
         
         if (urlObj.host === baseUrlObj.host || urlObj.host.includes('localhost')) {
+          // If the URL includes /mfa/verify, redirect to dashboard instead
+          // The MFA verification will happen in a popup
+          if (url.includes('/mfa/verify') || url.includes('/profile/security/two-factor/verify')) {
+            return `${baseUrl}/dashboard`;
+          }
           return url;
         }
       }
       
       // For relative URLs, prepend baseUrl 
       if (url && url.startsWith('/')) {
+        // If the URL includes /mfa/verify, redirect to dashboard instead
+        if (url.includes('/mfa/verify') || url.includes('/profile/security/two-factor/verify')) {
+          return `${baseUrl}/dashboard`;
+        }
         return `${baseUrl}${url}`;
       }
       
