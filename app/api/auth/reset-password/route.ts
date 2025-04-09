@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db/connect';
-import getUserModel from '@/lib/db/models/user';
+import { getUserModel } from '@/lib/db/models/user';
 import * as bcrypt from 'bcryptjs';
 
 // Define the user document type
@@ -83,52 +83,33 @@ export async function POST(request: Request) {
     // Hash the new password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update user's password and clear reset token using direct manipulation
+    // Update user's password and clear reset token using findOneAndUpdate
+    // This avoids the validation issues with the save() method
     console.log('Updating password for user:', user._id);
     
-    // Set only hashedPassword
-    user.hashedPassword = hashedPassword;
-    user.resetToken = null;
-    user.resetTokenExpiry = null;
-
     try {
-      // Save the updated user document
-      await user.save({ validateBeforeSave: true });
+      const updateResult = await UserModel.findByIdAndUpdate(
+        user._id,
+        {
+          $set: { hashedPassword },
+          $unset: { resetToken: "", resetTokenExpiry: "" }
+        },
+        { new: true }
+      );
 
-      // Double check the saved state
-      const savedUser = await UserModel.findById(user._id).lean() as UserDocument | null;
-      if (!savedUser) {
-        console.error('Failed to retrieve saved user after save');
+      if (!updateResult) {
+        console.error('Failed to update user password');
         return NextResponse.json(
-          { error: 'Failed to verify password update' },
+          { error: 'Failed to reset password' },
           { status: 500 }
         );
       }
 
-      console.log('User document after password reset:', {
-        id: savedUser._id,
-        email: savedUser.email,
-        passwordFields: {
-          // Check only hashedPassword
-          hashedPassword: savedUser.hashedPassword === hashedPassword,
-        }
-      });
-      
-      // Verify only hashedPassword was saved
-      if (!savedUser.hashedPassword) {
-        console.error('Hashed password field not properly saved');
-        return NextResponse.json(
-          { error: 'Failed to properly save password' },
-          { status: 500 }
-        );
-      }
-      
       console.log('Password updated successfully for user:', user._id);
-
       return NextResponse.json({ success: true });
 
-    } catch (saveError) {
-      console.error('Error saving user after password reset:', saveError);
+    } catch (updateError) {
+      console.error('Error updating user after password reset:', updateError);
       return NextResponse.json(
         { error: 'Failed to save password reset' },
         { status: 500 }

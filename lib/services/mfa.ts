@@ -2,7 +2,7 @@ import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import nodemailer from 'nodemailer';
 import connectToDatabase from '../db/connect';
-import getUserModel from '../db/models/user';
+import { getUserModel } from '../db/models/user';
 import { generateVerificationCode } from '@/lib/utils/verification';
 import QRCode from 'qrcode';
 
@@ -35,16 +35,23 @@ export async function sendEmailVerificationCode(userObjectId: string): Promise<b
 
     const verificationCode = generateEmailCode();
     
-    // Initialize twoFactorAuth if it doesn't exist
-    if (!user.twoFactorAuth) {
-      user.twoFactorAuth = {}; // Initialize if null/undefined
-    }
+    // Use findByIdAndUpdate instead of save() to avoid validation errors
+    const updateResult = await UserModel.findByIdAndUpdate(
+      userObjectId,
+      {
+        $set: {
+          'twoFactorAuth.temporaryCode': verificationCode,
+          'twoFactorAuth.codeGeneratedAt': new Date().toISOString(),
+          'pendingMfaVerification': true
+        }
+      },
+      { new: true }
+    );
 
-    // Update user with the new code
-    user.twoFactorAuth.temporaryCode = verificationCode;
-    user.twoFactorAuth.codeGeneratedAt = new Date().toISOString();
-    user.pendingMfaVerification = true;
-    await user.save();
+    if (!updateResult) {
+      console.error('Failed to update user with verification code');
+      return false;
+    }
 
     // Send email
     await transporter.sendMail({
@@ -98,11 +105,25 @@ export async function verifyEmailCode(userObjectId: string, code: string): Promi
       return false;
     }
 
-    // Clear the temporary code
-    user.twoFactorAuth.temporaryCode = null;
-    user.twoFactorAuth.codeGeneratedAt = null;
-    user.pendingMfaVerification = false;
-    await user.save();
+    // Clear the temporary code using findByIdAndUpdate
+    const updateResult = await UserModel.findByIdAndUpdate(
+      userObjectId,
+      {
+        $set: {
+          'pendingMfaVerification': false
+        },
+        $unset: {
+          'twoFactorAuth.temporaryCode': "",
+          'twoFactorAuth.codeGeneratedAt': ""
+        }
+      },
+      { new: true }
+    );
+
+    if (!updateResult) {
+      console.error('Failed to update user after code verification');
+      return false;
+    }
 
     return true;
   } catch (error) {

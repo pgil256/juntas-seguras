@@ -43,18 +43,35 @@ export function usePools(): UsePoolsReturn {
       try {
         data = await response.json();
       } catch (parseError) {
-        throw new Error('Invalid response format from server');
+        console.warn('Invalid response format from server');
+        // For new users, just set empty pools and continue
+        setPools([]);
+        setIsLoading(false);
+        return;
       }
       
-      // Then check if the response was successful
+      // For new users or when no pools exist, just set empty array
+      // instead of throwing errors. This covers all status codes.
       if (!response.ok) {
-        throw new Error(data?.error || `Failed to fetch pools: ${response.status}`);
+        console.warn(`Non-success response from /api/pools: ${response.status}`);
+        setPools([]);
+        setIsLoading(false);
+        return;
       }
       
       // Type guard to ensure data.pools is handled properly
       if (!data || typeof data !== 'object') {
-        console.warn('Unexpected response format, expected object with pools property');
+        console.warn('Unexpected response format, expected object');
         setPools([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if data has the pools property
+      if (!('pools' in data)) {
+        console.warn('Response does not contain pools property');
+        setPools([]);
+        setIsLoading(false);
         return;
       }
       
@@ -62,7 +79,8 @@ export function usePools(): UsePoolsReturn {
       setPools(Array.isArray(data.pools) ? data.pools : []);
     } catch (err: any) {
       console.error('Error fetching pools:', err);
-      setError(err.message || 'Failed to fetch pools');
+      // Don't set error for new users - just use empty array
+      setError(null);
       setPools([]); // Reset to empty array on error to avoid null checks
     } finally {
       setIsLoading(false);

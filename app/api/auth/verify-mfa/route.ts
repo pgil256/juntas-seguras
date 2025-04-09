@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import connectToDatabase from '../../../../lib/db/connect';
-import getUserModel from '../../../../lib/db/models/user';
+import { getUserModel } from '../../../../lib/db/models/user';
 import { authOptions } from '../[...nextauth]/options';
+import { verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
 
 export async function POST(req: NextRequest) {
   try {
