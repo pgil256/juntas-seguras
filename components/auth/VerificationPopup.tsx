@@ -86,80 +86,115 @@ export default function VerificationPopup({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Verify Your Account</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {verificationMethod === 'email' ? (
-            <p className="text-sm text-gray-600">
-              We've sent a verification code to {emailForDisplay ? <strong>{emailForDisplay}</strong> : 'your email'}. Please enter it below:
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Scan this QR code with your authenticator app:
-              </p>
-              {verificationData?.totpUrl && (
-                <div className="flex justify-center">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verificationData.totpUrl)}`}
-                    alt="QR Code"
-                    className="mx-auto"
-                  />
+    <>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="min-h-screen px-4 text-center">
+            {/* Background overlay */}
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+            
+            {/* Modal centered container */}
+            <div 
+              className="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all my-8 w-full max-w-md"
+              style={{ zIndex: 9999 }}
+            >
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium leading-6 text-gray-900">
+                    {verificationMethod === 'email' ? 'Verify Your Account' : 'Verify Your Authenticator App'}
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      {verificationMethod === 'email' ? (
+                        <>
+                          We've sent a verification code to {emailForDisplay ? <strong>{emailForDisplay}</strong> : 'your email'}. Please enter it below:
+                        </>
+                      ) : (
+                        <>
+                          Scan this QR code with your authenticator app:
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <p className="text-sm text-gray-600">
-                Or enter this secret key manually:
-              </p>
-              <code className="block bg-gray-100 p-2 rounded text-sm">
-                {verificationData?.totpSecret}
-              </code>
-            </div>
-          )}
+              </div>
 
-          {displayError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{displayError}</AlertDescription>
-            </Alert>
-          )}
+              {/* Content */}
+              <div className="px-6 pb-4">
+                {displayError && (
+                  <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">
+                          {displayError}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="verification-code">Verification Code</Label>
-              <Input
-                id="verification-code"
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                maxLength={6}
-                placeholder="Enter 6-digit code"
-                className="text-center text-lg tracking-widest"
-              />
+                <div className="space-y-4">
+                  {verificationMethod === 'email' ? (
+                    <input
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      maxLength={6}
+                      placeholder="Enter 6-digit code"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center font-mono text-lg"
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      {verificationData?.totpUrl && (
+                        <div className="flex justify-center">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verificationData.totpUrl)}`}
+                            alt="QR Code"
+                            className="mx-auto"
+                          />
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-600">
+                        Or enter this secret key manually:
+                      </p>
+                      <code className="block bg-gray-100 p-2 rounded text-sm">
+                        {verificationData?.totpSecret}
+                      </code>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={isResending || verificationMethod === 'app'}
+                      className="w-full sm:w-auto inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      {isResending ? 'Resending...' : 'Resend Code'}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || verificationCode.length !== 6}
+                      className="w-full sm:w-auto flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Verifying...' : 'Verify'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="flex justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleResend}
-                disabled={isResending || verificationMethod === 'app'}
-              >
-                {isResending ? 'Resending...' : 'Resend Code'}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || verificationCode.length !== 6}
-              >
-                {isSubmitting ? 'Verifying...' : 'Verify'}
-              </Button>
-            </div>
-          </form>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </>
   );
 } 

@@ -5,20 +5,16 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import VerificationPopup from '@/components/auth/VerificationPopup';
 import { useToast } from "@/hooks/use-toast";
-import { TwoFactorMethod } from "../../../types/security";
 
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [loginAttempted, setLoginAttempted] = useState(false);
-  const [showMfaModal, setShowMfaModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
 
@@ -26,39 +22,19 @@ function SignInForm() {
     setMounted(true);
   }, []);
 
+  // Handle simple redirect after authentication
   useEffect(() => {
-    if (loginAttempted && status === "authenticated") {
-      console.log('Session authenticated. Checking for MFA requirement:', session);
-      if (session?.requiresMfa) {
-        console.log('MFA required detected in authenticated session.');
-        setShowMfaModal(true);
-        setError("");
-        setLoginAttempted(false);
-      } else {
-        console.log('MFA not required in authenticated session. Redirecting...');
-        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-        router.push(callbackUrl);
-      }
+    if (status === "authenticated" && !session?.requiresMfa) {
+      console.log('User authenticated and MFA not required. Redirecting...');
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      router.push(callbackUrl);
     }
-  }, [status, session, loginAttempted, router, searchParams]);
-
-  // Add this effect to check for MFA on initial page load
-  // This handles the case where a user tries to access a protected page,
-  // gets redirected to signin, authenticates, but still needs MFA
-  useEffect(() => {
-    // Check if already authenticated but needs MFA
-    if (status === "authenticated" && session?.requiresMfa && !showMfaModal) {
-      console.log('User authenticated but MFA still required, showing popup');
-      setShowMfaModal(true);
-    }
-  }, [status, session, showMfaModal]);
+  }, [status, session, router, searchParams]);
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    setLoginAttempted(false);
-    setShowMfaModal(false);
 
     try {
       const result = await signIn("credentials", {
@@ -73,82 +49,16 @@ function SignInForm() {
       if (result?.error) {
         setError(result.error);
       } else if (result?.ok) {
-        console.log('Initial signIn call OK. Setting loginAttempted=true to check session.');
-        setLoginAttempted(true);
+        // Success - the global MFA handler will take care of MFA if needed
+        console.log('Sign-in successful');
+        
+        // We don't need to redirect here - the useEffect will handle it
+        // if MFA isn't required, or the global handler will manage MFA flow
       } else {
         setError("An unexpected error occurred during sign in.");
       }
     } catch (error: any) {
       setError(error.message || "An error occurred during sign in");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleMfaVerify = async (code: string) => {
-    setError("");
-    setIsLoading(true);
-    try {
-      console.log(`Submitting MFA code: ${code}`);
-      const result = await signIn("credentials", {
-        email,
-        password,
-        mfaCode: code,
-        redirect: false,
-      });
-
-      console.log('MFA verification signIn result:', result);
-
-      if (result?.error) {
-        setError(result.error);
-      } else if (result?.ok) {
-        setShowMfaModal(false);
-        toast({ title: "Sign in Successful", description: "Welcome back!" });
-        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-        router.push(callbackUrl);
-      } else {
-        setError("MFA verification failed unexpectedly.");
-      }
-    } catch (error: any) {
-      setError(error.message || "An error occurred during MFA verification");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!session?.user?.id || !email) {
-      toast({ title: "Error", description: "Cannot resend code. Session or email missing.", variant: "destructive" });
-      return;
-    }
-    setIsLoading(true);
-    setError("");
-    try {
-      const response = await fetch('/api/security/two-factor/resend', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: session.user.id,
-          method: session.mfaMethod || 'email',
-          email: email
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to resend verification code');
-      }
-      toast({ title: "Code Resent", description: "A new verification code has been sent." });
-      if (process.env.NODE_ENV === 'development' && data.verificationCode) {
-         setError(`Dev code: ${data.verificationCode}`);
-      }
-    } catch (err: any) {
-      console.error('Resend code error:', err);
-      setError(err.message || 'Failed to resend verification code');
-      toast({ title: "Resend Failed", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -281,20 +191,6 @@ function SignInForm() {
           </div>
         </div>
       </div>
-
-      <VerificationPopup
-        isOpen={showMfaModal}
-        onClose={() => {
-          setShowMfaModal(false);
-          setError("");
-        }}
-        onVerify={handleMfaVerify}
-        onResend={handleResendCode}
-        verificationMethod={session?.mfaMethod || 'email'}
-        isLoading={isLoading}
-        error={error}
-        emailForDisplay={email}
-      />
     </div>
   );
 }
