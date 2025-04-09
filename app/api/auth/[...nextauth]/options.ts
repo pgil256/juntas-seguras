@@ -238,39 +238,29 @@ export const authOptions: NextAuthOptions = {
     // Fix redirect logic to be more reliable
     async redirect({ url, baseUrl }) {
       console.log('NextAuth redirect called with:', { url, baseUrl });
-      
-      // IMPORTANT: NEVER redirect to any MFA verification or auth pages
-      // The MFA popup will handle verification
-      const shouldSkipRedirect = [
-        '/mfa/verify', 
-        '/auth/mfa', 
-        '/profile/security/two-factor',
-        '/verify-mfa',
-        '/auth/verify'
-      ].some(path => url.includes(path));
-      
-      if (shouldSkipRedirect) {
-        console.log('Intercepted MFA redirect attempt, redirecting to dashboard instead');
+
+      // IMPORTANT: Never redirect to any verification pages
+      // The email verification modal will handle everything
+      if (url.includes('/mfa') || 
+          url.includes('/auth/mfa') || 
+          url.includes('/verify') || 
+          url.includes('/verification') ||
+          url.includes('/two-factor')) {
+        console.log('Intercepted MFA redirect, going to dashboard instead');
         return `${baseUrl}/dashboard`;
       }
 
-      // Handle absolute URLs that should be allowed
-      if (url && url.startsWith('http')) {
-        // Only allow redirects to same host or localhost for safety
-        const urlObj = new URL(url);
-        const baseUrlObj = new URL(baseUrl);
-        
-        if (urlObj.host === baseUrlObj.host || urlObj.host.includes('localhost')) {
-          return url;
-        }
+      // For URLs starting with the base URL, use as-is
+      if (url.startsWith(baseUrl)) {
+        return url;
       }
       
-      // For relative URLs, prepend baseUrl 
-      if (url && url.startsWith('/')) {
+      // For relative URLs, prepend baseUrl
+      if (url.startsWith('/')) {
         return `${baseUrl}${url}`;
       }
       
-      // Default fallback route
+      // Default to dashboard
       return `${baseUrl}/dashboard`;
     }
   },
