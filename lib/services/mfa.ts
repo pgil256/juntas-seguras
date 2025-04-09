@@ -10,9 +10,16 @@ import QRCode from 'qrcode';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: '***REMOVED***',
-    pass: '***REMOVED***'
+    user: process.env.EMAIL_USER || '***REMOVED***',
+    pass: process.env.EMAIL_PASSWORD || '***REMOVED***'
   }
+});
+
+// Log email configuration for debugging
+console.log('Email configuration:', {
+  user: process.env.EMAIL_USER,
+  pass: process.env.EMAIL_PASSWORD ? '[REDACTED]' : undefined,
+  from: process.env.EMAIL_FROM
 });
 
 // Generate a random 6-digit code for email verification
