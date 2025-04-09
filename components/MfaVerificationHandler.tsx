@@ -18,27 +18,15 @@ export default function MfaVerificationHandler() {
   // Check if MFA is required on initial load or session change
   useEffect(() => {
     if (status === "authenticated" && session?.requiresMfa) {
-      console.log("MFA required globally, showing verification popup");
+      console.log("*** MFA REQUIRED ***", { session });
       setShowMfaModal(true);
       
       // Get the email from the session if available
       if (session.user?.email) {
         setEmail(session.user.email);
       }
-      
-      // IMPORTANT: Prevent any navigation attempts while MFA is required
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        e.preventDefault();
-        e.returnValue = "MFA verification is required to continue. Please complete verification.";
-        return "MFA verification is required to continue. Please complete verification.";
-      };
-      
-      // Add event listener to prevent navigation
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      
-      return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
+    } else {
+      console.log("No MFA required", { status, session });
     }
   }, [status, session]);
 
@@ -53,8 +41,7 @@ export default function MfaVerificationHandler() {
     }
     
     try {
-      console.log(`Submitting MFA code globally: ${code}`);
-      // We need to sign in again with the MFA code
+      console.log(`Submitting MFA code: ${code} for ${session.user.email}`);
       const result = await signIn("credentials", {
         email: session.user.email,
         password: "placeholder-not-used", // Not actually used for verification
@@ -62,19 +49,20 @@ export default function MfaVerificationHandler() {
         redirect: false,
       });
 
-      console.log('Global MFA verification signIn result:', result);
+      console.log('MFA verification result:', result);
 
       if (result?.error) {
         setError(result.error);
       } else if (result?.ok) {
         setShowMfaModal(false);
-        toast({ title: "Verification Successful", description: "You are now fully authenticated." });
+        toast({ title: "Verification Successful", description: "You are now signed in" });
         // Force a session update to remove requiresMfa flag
         await update();
       } else {
-        setError("Verification failed unexpectedly.");
+        setError("Verification failed. Please try again.");
       }
     } catch (error: any) {
+      console.error("MFA verification error:", error);
       setError(error.message || "An error occurred during verification");
     } finally {
       setIsLoading(false);
@@ -83,7 +71,7 @@ export default function MfaVerificationHandler() {
 
   const handleResendCode = async () => {
     if (!session?.user?.id || !email) {
-      toast({ title: "Error", description: "Cannot resend code. Session or email missing.", variant: "destructive" });
+      toast({ title: "Error", description: "Cannot resend code. Session or email missing." });
       return;
     }
     
@@ -91,67 +79,49 @@ export default function MfaVerificationHandler() {
     setError("");
     
     try {
-      const response = await fetch('/api/security/two-factor/resend', {
+      // Use a simpler API to resend code - direct to the MFA service
+      const response = await fetch('/api/auth/resend-mfa', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: session.user.id,
-          method: session.mfaMethod || 'email',
-          email: email
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
       });
       
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to resend verification code');
+        throw new Error(data.error || 'Failed to resend code');
       }
       
-      toast({ title: "Code Resent", description: "A new verification code has been sent." });
-      
-      if (process.env.NODE_ENV === 'development' && data.verificationCode) {
-        setError(`Dev code: ${data.verificationCode}`);
-      }
+      toast({ title: "Code Sent", description: "A new verification code has been sent to your email" });
     } catch (err: any) {
       console.error('Resend code error:', err);
       setError(err.message || 'Failed to resend verification code');
-      toast({ title: "Resend Failed", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Only render the popup if MFA is required
-  if (!session?.requiresMfa) {
+  // Don't render anything if MFA is not required
+  if (!session?.requiresMfa || !showMfaModal) {
     return null;
   }
 
+  // Render with highest possible z-index
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center" 
-      style={{ zIndex: 9999, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-    >
-      {/* Add a higher opacity overlay to prevent seeing content underneath */}
-      <div className="fixed inset-0 bg-black bg-opacity-50" />
-      
-      <div className="relative z-50">
+    <>
+      {session?.requiresMfa && showMfaModal && (
         <VerificationPopup
-          isOpen={showMfaModal}
+          isOpen={true}
           onClose={() => {
-            // Don't allow closing without verifying
-            // User must complete MFA verification
-            setError("Verification is required to continue.");
+            setError("Verification is required to continue");
           }}
           onVerify={handleMfaVerify}
           onResend={handleResendCode}
-          verificationMethod={session?.mfaMethod || 'email'}
           isLoading={isLoading}
           error={error}
           emailForDisplay={email}
         />
-      </div>
-    </div>
+      )}
+    </>
   );
 } 

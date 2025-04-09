@@ -55,52 +55,51 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
     if (!user.twoFactorAuth) {
       user.twoFactorAuth = {
         enabled: true,
-        method: 'email', // Default to email for new users
+        method: 'email', // Always use email for MFA
         temporaryCode: null,
-        codeGeneratedAt: null,
-        totpSecret: null
+        codeGeneratedAt: null
       };
       await user.save();
     }
 
     // Log the user ID being passed to sendEmailVerificationCode
-    console.log(`Attempting to send MFA code for user.id: ${user.id}, user._id: ${user._id}`);
+    console.log(`Starting email verification for ${email}, user ID: ${user._id}`);
 
     // Send email verification code using user._id
     const userObjectIdString = user._id.toString();
     const codeSent = await sendEmailVerificationCode(userObjectIdString);
     if (!codeSent) {
-      console.error('sendEmailVerificationCode returned false for user _id:', userObjectIdString);
+      console.error('Failed to send email verification code');
       // Return null to indicate failure, triggering the 401 in authorize
       return null;
     }
     
     // Return a special response indicating MFA is required
-    console.log('MFA code sent. Returning requiresMfa=true signal.');
+    console.log('Email verification code sent. Returning requiresMfa=true');
     return {
       // Return the MongoDB _id as the user identifier
       id: userObjectIdString,
       name: user.name,
       email: user.email,
       requiresMfa: true,
-      mfaMethod: user.twoFactorAuth.method
+      mfaMethod: 'email' // Always use email
     };
-    // Execution should absolutely stop here if mfaCode was not initially provided
   }
   
   // If MFA code is provided (and is not the string "undefined"), verify it
-  console.log('Proceeding to MFA verification step with mfaCode:', mfaCode);
+  console.log(`Verifying MFA code: ${mfaCode}`);
   let mfaValid = false;
-  const userObjectIdString = user._id.toString(); // Use _id for verification too
-  if (user.twoFactorAuth.method === 'email') {
-    mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
-  } else if (user.twoFactorAuth.method === 'totp') {
-    mfaValid = await verifyTotpCode(userObjectIdString, mfaCode);
-  }
+  const userObjectIdString = user._id.toString();
+  
+  // Always use email verification
+  mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
   
   if (!mfaValid) {
+    console.log('MFA validation failed');
     return null;
   }
+  
+  console.log('MFA validation successful');
   
   // Update last login time with findByIdAndUpdate to avoid validation errors
   await UserModel.findByIdAndUpdate(
