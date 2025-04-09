@@ -115,19 +115,22 @@ export default function MfaVerificationHandler() {
   }
 
   return (
-    <VerificationPopup
-      isOpen={showMfaModal}
-      onClose={() => {
-        // Don't allow closing without verifying
-        // User must complete MFA verification
-        setError("Verification is required to continue.");
-      }}
-      onVerify={handleMfaVerify}
-      onResend={handleResendCode}
-      verificationMethod={session?.mfaMethod || 'email'}
-      isLoading={isLoading}
-      error={error}
-      emailForDisplay={email}
-    />
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
+      <div className="absolute inset-0 bg-black bg-opacity-20" />
+      <VerificationPopup
+        isOpen={showMfaModal}
+        onClose={() => {
+          // Don't allow closing without verifying
+          // User must complete MFA verification
+          setError("Verification is required to continue.");
+        }}
+        onVerify={handleMfaVerify}
+        onResend={handleResendCode}
+        verificationMethod={session?.mfaMethod || 'email'}
+        isLoading={isLoading}
+        error={error}
+        emailForDisplay={email}
+      />
+    </div>
   );
 } 
