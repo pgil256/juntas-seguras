@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import * as bcrypt from 'bcryptjs';
 import connectToDatabase from '../../../../lib/db/connect';
-import getUserModel from '../../../../lib/db/models/user';
+import { getUserModel } from '../../../../lib/db/models/user';
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmailVerificationCode, verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
 
@@ -102,9 +102,11 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
     return null;
   }
   
-  // Update last login time
-  user.lastLogin = new Date().toISOString();
-  await user.save();
+  // Update last login time with findByIdAndUpdate to avoid validation errors
+  await UserModel.findByIdAndUpdate(
+    userObjectIdString,
+    { $set: { lastLogin: new Date().toISOString() } }
+  );
   
   return {
     // Return the MongoDB _id as the user identifier

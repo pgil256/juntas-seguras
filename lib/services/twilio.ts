@@ -1,6 +1,6 @@
 import { Twilio } from 'twilio';
+import { getUserModel } from '../db/models/user';
 import connectToDatabase from '../db/connect';
-import getUserModel from '../db/models/user';
 import { generateVerificationCode } from '@/lib/utils/verification';
 
 // Initialize Twilio client with credentials from environment variables
