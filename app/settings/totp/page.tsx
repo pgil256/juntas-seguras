@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { generateTotpSecret } from '@/lib/services/mfa';
 
 export default function TotpSetup() {
   const { data: session, status } = useSession();
@@ -14,6 +13,7 @@ export default function TotpSetup() {
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -23,24 +23,42 @@ export default function TotpSetup() {
 
   useEffect(() => {
     const setupTotp = async () => {
-      if (session?.user?.id) {
+      if (status === 'authenticated') {
         try {
-          const { secret, qrCode } = await generateTotpSecret(session.user.id);
-          setSecret(secret);
-          setQrCode(qrCode);
+          setIsLoading(true);
+          // Call the API route instead of directly using the function
+          const response = await fetch('/api/auth/totp-setup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to set up TOTP');
+          }
+          
+          const data = await response.json();
+          setSecret(data.secret);
+          setQrCode(data.qrCode);
         } catch (error) {
           setError('Failed to generate TOTP setup. Please try again.');
+          console.error('TOTP setup error:', error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
 
     setupTotp();
-  }, [session]);
+  }, [status, session]);
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsLoading(true);
 
     try {
       const response = await fetch('/api/auth/verify-totp', {
@@ -65,11 +83,20 @@ export default function TotpSetup() {
       }
     } catch (error) {
       setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (status === 'loading') {
-    return <div>Loading...</div>;
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className="mt-3 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -144,8 +171,9 @@ export default function TotpSetup() {
               <button
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={isLoading}
               >
-                Verify and Enable TOTP
+                {isLoading ? 'Verifying...' : 'Verify and Enable TOTP'}
               </button>
             </div>
           </form>
