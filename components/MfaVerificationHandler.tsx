@@ -25,6 +25,20 @@ export default function MfaVerificationHandler() {
       if (session.user?.email) {
         setEmail(session.user.email);
       }
+      
+      // IMPORTANT: Prevent any navigation attempts while MFA is required
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = "MFA verification is required to continue. Please complete verification.";
+        return "MFA verification is required to continue. Please complete verification.";
+      };
+      
+      // Add event listener to prevent navigation
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
     }
   }, [status, session]);
 
@@ -115,22 +129,29 @@ export default function MfaVerificationHandler() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
-      <div className="absolute inset-0 bg-black bg-opacity-20" />
-      <VerificationPopup
-        isOpen={showMfaModal}
-        onClose={() => {
-          // Don't allow closing without verifying
-          // User must complete MFA verification
-          setError("Verification is required to continue.");
-        }}
-        onVerify={handleMfaVerify}
-        onResend={handleResendCode}
-        verificationMethod={session?.mfaMethod || 'email'}
-        isLoading={isLoading}
-        error={error}
-        emailForDisplay={email}
-      />
+    <div 
+      className="fixed inset-0 flex items-center justify-center" 
+      style={{ zIndex: 9999, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      {/* Add a higher opacity overlay to prevent seeing content underneath */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" />
+      
+      <div className="relative z-50">
+        <VerificationPopup
+          isOpen={showMfaModal}
+          onClose={() => {
+            // Don't allow closing without verifying
+            // User must complete MFA verification
+            setError("Verification is required to continue.");
+          }}
+          onVerify={handleMfaVerify}
+          onResend={handleResendCode}
+          verificationMethod={session?.mfaMethod || 'email'}
+          isLoading={isLoading}
+          error={error}
+          emailForDisplay={email}
+        />
+      </div>
     </div>
   );
 } 
