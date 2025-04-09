@@ -17,17 +17,25 @@ export default function EmailVerificationModal() {
 
   // Check if MFA is required on session change
   useEffect(() => {
-    if (status === 'authenticated' && session?.requiresMfa) {
-      console.log('Email verification required');
+    // ONLY show modal if status is definitively known, user is authenticated, AND requires MFA
+    if (status !== 'loading' && status === 'authenticated' && session?.requiresMfa) {
+      console.log('*** EmailVerificationModal: MFA Required - Showing Modal ***');
       setShowModal(true);
       if (session.user?.email) {
         setEmail(session.user.email);
       }
+    } else {
+      // Otherwise, ensure the modal is hidden
+      // This covers loading, unauthenticated, or authenticated-but-MFA-not-required states
+      if (showModal) { // Only log/set if it was previously shown
+        console.log(`*** EmailVerificationModal: Hiding Modal (Status: ${status}, Requires MFA: ${session?.requiresMfa}) ***`);
+        setShowModal(false);
+      }
     }
-  }, [session, status]);
+  }, [session, status, showModal]); // Add showModal to dependencies
 
-  // Don't show anything if no MFA required
-  if (!session?.requiresMfa || !showModal) {
+  // Don't show anything if modal state is false
+  if (!showModal) {
     return null;
   }
 
@@ -54,19 +62,18 @@ export default function EmailVerificationModal() {
       if (result?.error) {
         setError(result.error);
       } else if (result?.ok) {
-        console.log('MFA verification OK. Forcing session update...');
+        console.log('MFA verification OK. Session should update automatically.');
         // Force update session to remove MFA requirement
-        const updatedSession = await update();
-        console.log('Updated session after MFA verify:', updatedSession);
-        if (updatedSession && !updatedSession.requiresMfa) {
+        // const updatedSession = await update(); // Temporarily removed for testing
+        // console.log('Updated session after MFA verify:', updatedSession);
+        // if (updatedSession && !updatedSession.requiresMfa) {
             setShowModal(false); // Close the modal
             // The user should now be on the correct page (likely /dashboard)
             // due to the initial redirect logic or previous state.
-            // We might force a refresh if needed, but usually NextAuth handles this.
             console.log('MFA complete, modal closed.');
-        } else {
-            setError('MFA verification succeeded but session still requires MFA. Please try again or contact support.');
-        }
+        // } else {
+        //     setError('MFA verification succeeded but session still requires MFA. Please try again or contact support.');
+        // }
       }
     } catch (error: any) {
       setError(error.message || 'Verification failed');
