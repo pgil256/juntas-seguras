@@ -8,110 +8,85 @@ import { sendEmailVerificationCode, verifyEmailCode, verifyTotpCode } from '../.
 
 // Authenticate user with secure password comparison
 async function authenticateUser(email: string, password: string, mfaCode?: string) {
-  // Log the received mfaCode value and type
-  console.log(`authenticateUser called. email: ${email}, mfaCode value: '${mfaCode}', mfaCode type: ${typeof mfaCode}`);
+  console.log(`authenticateUser called. email: ${email}, mfaCode provided: ${!!mfaCode}`);
 
   await connectToDatabase();
   const UserModel = getUserModel();
-  
   let user = await UserModel.findOne({ email });
-  
-  // No automatic user creation - users must register first
+
   if (!user) {
     console.log('User not found:', email);
     return null;
   }
-  
-  // Securely compare the provided password with the stored hash
-  let isValid = false;
-  
-  // Use only hashedPassword
-  const hashedPassword = user.hashedPassword;
-  
-  console.log('Authenticating user:', {
-    email,
-    hasHashedPassword: !!hashedPassword
-  });
 
+  // If MFA code is provided, skip password check and verify MFA directly
+  if (mfaCode && mfaCode !== 'undefined') {
+    console.log(`Proceeding directly to MFA verification for ${email} with code: ${mfaCode}`);
+    const userObjectIdString = user._id.toString();
+    const mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
+
+    if (!mfaValid) {
+      console.log('MFA validation failed for code:', mfaCode);
+      return null; // Indicate MFA failure
+    }
+
+    console.log('MFA validation successful');
+    // Update last login time
+    await UserModel.findByIdAndUpdate(userObjectIdString, { $set: { lastLogin: new Date().toISOString() } });
+    
+    // Return user details without requiresMfa flag
+    return {
+      id: userObjectIdString,
+      name: user.name,
+      email: user.email,
+      // No requiresMfa here, verification is complete
+    };
+  }
+
+  // --- Original Flow: No MFA code provided, check password first ---
+  console.log(`Checking password for ${email}`);
+  const hashedPassword = user.hashedPassword;
   if (!hashedPassword) {
     console.log('User has no password set:', email);
     return null;
   }
 
-  // Always use hashedPassword
-  isValid = await bcrypt.compare(password, hashedPassword);
-  console.log('Password validation result:', isValid);
-  
-  if (!isValid) {
-    console.log('Password validation failed');
+  const passwordIsValid = await bcrypt.compare(password, hashedPassword);
+  if (!passwordIsValid) {
+    console.log('Password validation failed for:', email);
     return null;
   }
 
-  console.log('Password validation successful, proceeding with MFA check');
+  console.log('Password validation successful, proceeding to initiate MFA');
 
-  // Always require MFA - if no code is provided OR the provided code is the string "undefined"
-  if (!mfaCode || mfaCode === 'undefined') {
-    // Initialize 2FA settings if they don't exist
-    if (!user.twoFactorAuth) {
-      user.twoFactorAuth = {
-        enabled: true,
-        method: 'email', // Always use email for MFA
-        temporaryCode: null,
-        codeGeneratedAt: null
-      };
-      await user.save();
-    }
-
-    // Log the user ID being passed to sendEmailVerificationCode
-    console.log(`Starting email verification for ${email}, user ID: ${user._id}`);
-
-    // Send email verification code using user._id
-    const userObjectIdString = user._id.toString();
-    const codeSent = await sendEmailVerificationCode(userObjectIdString);
-    if (!codeSent) {
-      console.error('Failed to send email verification code');
-      // Return null to indicate failure, triggering the 401 in authorize
-      return null;
-    }
-    
-    // Return a special response indicating MFA is required
-    console.log('Email verification code sent. Returning requiresMfa=true');
-    return {
-      // Return the MongoDB _id as the user identifier
-      id: userObjectIdString,
-      name: user.name,
-      email: user.email,
-      requiresMfa: true,
-      mfaMethod: 'email' // Always use email
+  // --- Initiate MFA Flow (Send Code) ---
+  // Initialize 2FA settings if they don't exist (should always be email now)
+  if (!user.twoFactorAuth) {
+    user.twoFactorAuth = {
+      enabled: true,
+      method: 'email',
+      temporaryCode: null,
+      codeGeneratedAt: null
     };
+    await user.save(); // This save is fine here as it's before validation errors usually occur
   }
-  
-  // If MFA code is provided (and is not the string "undefined"), verify it
-  console.log(`Verifying MFA code: ${mfaCode}`);
-  let mfaValid = false;
+
+  console.log(`Sending MFA code for ${email}, user ID: ${user._id}`);
   const userObjectIdString = user._id.toString();
-  
-  // Always use email verification
-  mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
-  
-  if (!mfaValid) {
-    console.log('MFA validation failed');
-    return null;
+  const codeSent = await sendEmailVerificationCode(userObjectIdString);
+  if (!codeSent) {
+    console.error('Failed to send email verification code for:', email);
+    return null; // Indicate code sending failure
   }
-  
-  console.log('MFA validation successful');
-  
-  // Update last login time with findByIdAndUpdate to avoid validation errors
-  await UserModel.findByIdAndUpdate(
-    userObjectIdString,
-    { $set: { lastLogin: new Date().toISOString() } }
-  );
-  
+
+  // Return user details WITH requiresMfa flag
+  console.log('MFA code sent. Returning requiresMfa=true for:', email);
   return {
-    // Return the MongoDB _id as the user identifier
-    id: user._id.toString(),
+    id: userObjectIdString,
     name: user.name,
-    email: user.email
+    email: user.email,
+    requiresMfa: true,
+    mfaMethod: 'email' 
   };
 }
 
