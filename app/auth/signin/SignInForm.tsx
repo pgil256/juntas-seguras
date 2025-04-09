@@ -51,17 +51,11 @@ export default function SignInForm() {
           setError(result.error);
         }
       } else if (result?.ok) {
-        console.log('Initial sign-in OK. Forcing session update...');
-        const updatedSession = await update();
-        console.log('Updated session:', updatedSession);
-
-        if (updatedSession && !updatedSession.requiresMfa) {
-          console.log('MFA not required, redirecting...');
-          const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-          router.push(callbackUrl);
-        } else {
-          console.log('MFA is required, global modal should appear.');
-        }
+        console.log('Sign-in successful, redirecting to dashboard...');
+        
+        // Force redirect to dashboard regardless of MFA status
+        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+        router.push(callbackUrl);
       } else {
         setError("An unexpected error occurred during sign in.");
       }
