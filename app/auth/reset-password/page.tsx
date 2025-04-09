@@ -1,10 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function ResetPassword() {
+// Loading component to render while suspense is active
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Loading...
+          </h2>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The main content component that uses useSearchParams
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [token, setToken] = useState<string | null>(null);
@@ -83,17 +99,7 @@ export default function ResetPassword() {
 
   // Return a loading state until client-side code has executed
   if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Loading...
-            </h2>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (!token) {
@@ -199,5 +205,14 @@ export default function ResetPassword() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Main component wrapped with Suspense
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 } 
