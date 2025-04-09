@@ -51,3 +51,5 @@ convertToText.js
 /temp/
 /scripts/dev-only/
 /docs/internal/
+
+.vercel
