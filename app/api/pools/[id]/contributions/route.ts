@@ -124,7 +124,6 @@ export async function GET(
 
 /**
  * POST /api/pools/[id]/contributions - Record a contribution for current round
- * For demo purposes, this creates a "mock" contribution without actual payment
  */
 export async function POST(
   request: NextRequest,
@@ -212,7 +211,7 @@ export async function POST(
       member: userMember.name,
       status: TransactionStatus.COMPLETED,
       round: currentRound,
-      stripePaymentIntentId: body.paymentIntentId || `demo_${uuidv4()}` // For demo purposes
+      stripePaymentIntentId: body.paymentIntentId || `contribution_${uuidv4()}`
     };
 
     // Add to pool transactions

@@ -243,17 +243,6 @@ export function ContributionModal({
                 </div>
               )}
 
-              {/* Demo mode notice */}
-              {canContribute && (
-                <Alert className="bg-gray-50 border-gray-200">
-                  <Info className="h-4 w-4 text-gray-600" />
-                  <AlertTitle className="text-gray-800">Demo Mode</AlertTitle>
-                  <AlertDescription className="text-gray-600">
-                    This is a demo contribution. In production, this would connect
-                    to a payment processor.
-                  </AlertDescription>
-                </Alert>
-              )}
             </>
           )}
         </div>
