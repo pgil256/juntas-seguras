@@ -45,11 +45,10 @@ export function useCreatePool({ onSuccess }: UseCreatePoolProps = {}): UseCreate
       setError(null);
       
       // Process any invitations if they exist
-      let invitations = [];
-      if (data.invitations && Array.isArray(data.invitations)) {
-        invitations = data.invitations;
-      }
-      
+      const invitations: string[] = data.invitations && Array.isArray(data.invitations)
+        ? data.invitations
+        : [];
+
       const response = await fetch('/api/pools', {
         method: 'POST',
         headers: {

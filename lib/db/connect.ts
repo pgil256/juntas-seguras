@@ -18,19 +18,20 @@ interface MongooseCache {
 
 // Extend the global namespace to include our mongoose cache
 declare global {
-  var mongoose: MongooseCache | undefined;
+  // eslint-disable-next-line no-var
+  var mongooseCache: MongooseCache | undefined;
 }
 
-// Global variable to track connection status
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { 
-    conn: null, 
+// Global variable to track connection status - ensure it's always defined
+if (!global.mongooseCache) {
+  global.mongooseCache = {
+    conn: null,
     promise: null,
-    isConnected: false 
+    isConnected: false
   };
 }
+// We can safely assert non-null here since we just initialized it above
+const cached: MongooseCache = global.mongooseCache!;
 
 async function connectToDatabase() {
   if (cached.conn && cached.isConnected) {
@@ -63,8 +64,11 @@ async function connectToDatabase() {
     cached.conn = await cached.promise;
     
     // Test the connection by executing a simple query
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log(`MongoDB connection verified with ${collections.length} collections`);
+    const db = mongoose.connection.db;
+    if (db) {
+      const collections = await db.listCollections().toArray();
+      console.log(`MongoDB connection verified with ${collections.length} collections`);
+    }
     
     return cached.conn;
   } catch (e) {

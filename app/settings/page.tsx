@@ -192,6 +192,7 @@ export default function SettingsPage() {
     type: "email" | "push",
     setting: string
   ) => {
+    if (!notifications) return;
     setNotifications({
       ...notifications,
       [type]: {
@@ -217,18 +218,23 @@ export default function SettingsPage() {
       // Update existing payment method
       updatePaymentMethod(editingPaymentMethod.id, {
         type: values.type,
-        ...(values.type === 'card' 
+        ...(values.type === 'card'
           ? {
               cardholderName: values.cardholderName,
               cardNumber: values.cardNumber,
-              expiryDate: values.expiryDate,
+              expiryMonth: values.expiryMonth,
+              expiryYear: values.expiryYear,
               cvv: values.cvv
-            } 
-          : {
+            }
+          : values.type === 'bank'
+          ? {
               accountHolderName: values.accountHolderName,
               accountNumber: values.accountNumber,
               routingNumber: values.routingNumber,
-              bankName: values.bankName
+              accountType: values.accountType
+            }
+          : {
+              paypalEmail: values.paypalEmail
             }
         ),
         isDefault: values.isDefault
@@ -237,18 +243,23 @@ export default function SettingsPage() {
       // Add new payment method
       addPaymentMethod({
         type: values.type,
-        ...(values.type === 'card' 
+        ...(values.type === 'card'
           ? {
               cardholderName: values.cardholderName,
               cardNumber: values.cardNumber,
-              expiryDate: values.expiryDate,
+              expiryMonth: values.expiryMonth,
+              expiryYear: values.expiryYear,
               cvv: values.cvv
-            } 
-          : {
+            }
+          : values.type === 'bank'
+          ? {
               accountHolderName: values.accountHolderName,
               accountNumber: values.accountNumber,
               routingNumber: values.routingNumber,
-              bankName: values.bankName
+              accountType: values.accountType
+            }
+          : {
+              paypalEmail: values.paypalEmail
             }
         ),
         isDefault: values.isDefault
@@ -293,6 +304,7 @@ export default function SettingsPage() {
   };
 
   const saveNotifications = async () => {
+    if (!notifications) return;
     // Save notification preferences to API
     const result = await updateSettings({
       notificationPreferences: notifications
@@ -1226,11 +1238,11 @@ export default function SettingsPage() {
           setEditingPaymentMethod(null);
         }}
         onSubmit={handlePaymentMethodSubmit}
-        initialValues={editingPaymentMethod && {
+        initialValues={editingPaymentMethod ? {
           type: editingPaymentMethod.type,
           isDefault: editingPaymentMethod.isDefault,
           // In a real app, you'd retrieve the full payment details from an API
-        }}
+        } : undefined}
         isEditing={!!editingPaymentMethod}
       />
     </div>

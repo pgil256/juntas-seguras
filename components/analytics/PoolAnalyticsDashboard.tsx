@@ -38,9 +38,6 @@ import {
   Loader
 } from 'lucide-react';
 
-// Mock user ID - would come from auth context in a real app
-const mockUserId = 'user123';
-
 // For custom colors in charts
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
@@ -54,21 +51,20 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
   const [selectedPoolId, setSelectedPoolId] = useState(initialPoolId || '');
   
   // Fetch all pools for the selection dropdown
-  const { 
-    pools, 
-    isLoading: poolsLoading, 
-    error: poolsError 
-  } = usePools({ userId: mockUserId });
+  const {
+    pools,
+    isLoading: poolsLoading,
+    error: poolsError
+  } = usePools();
   
   // Fetch analytics data for the selected pool
-  const { 
-    analytics, 
-    isLoading: analyticsLoading, 
-    error: analyticsError 
-  } = usePoolAnalytics({ 
-    poolId: selectedPoolId, 
-    userId: mockUserId, 
-    timeframe 
+  const {
+    analytics,
+    isLoading: analyticsLoading,
+    error: analyticsError
+  } = usePoolAnalytics({
+    poolId: selectedPoolId,
+    timeframe
   });
   
   // Set the first pool as selected if none is provided and pools are loaded
@@ -721,7 +717,11 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
                       <div className="flex justify-between">
                         <span className="text-blue-700">Return on Contribution:</span>
                         <span className="font-medium">
-                          {(analytics.expectedReturn / (analytics.totalSaved / pools.find(p => p.id === selectedPoolId)?.memberCount || 1)).toFixed(1)}x
+                          {(() => {
+                            const selectedPool = pools.find(p => p.id === selectedPoolId);
+                            const memberCount = selectedPool?.memberCount ?? 1;
+                            return (analytics.expectedReturn / (analytics.totalSaved / memberCount)).toFixed(1);
+                          })()}x
                         </span>
                       </div>
                     </div>

@@ -1,22 +1,28 @@
-const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+import mongooseLib from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 async function clearDatabase() {
   try {
     // Connect to MongoDB using URI from environment
-    await mongoose.connect(process.env.MONGODB_URI);
-    
+    await mongooseLib.connect(process.env.MONGODB_URI as string);
+
     // Get all collections
-    const collections = await mongoose.connection.db.collections();
-    
+    const db = mongooseLib.connection.db;
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
+    const collections = await db.collections();
+
     // Drop each collection
     for (const collection of collections) {
       await collection.drop();
       console.log(`Dropped collection: ${collection.collectionName}`);
     }
-    
+
     console.log('Database cleared successfully');
-    await mongoose.connection.close();
+    await mongooseLib.connection.close();
     process.exit(0);
   } catch (error) {
     console.error('Error clearing database:', error);

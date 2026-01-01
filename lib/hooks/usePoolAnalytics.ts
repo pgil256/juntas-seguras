@@ -60,16 +60,15 @@ export interface PoolAnalyticsType {
 
 interface UsePoolAnalyticsProps {
   poolId: string;
-  userId: string;
   timeframe?: string;
 }
 
-export function usePoolAnalytics({ poolId, userId, timeframe = '3months' }: UsePoolAnalyticsProps) {
+export function usePoolAnalytics({ poolId, timeframe = '3months' }: UsePoolAnalyticsProps) {
   const [analytics, setAnalytics] = useState<PoolAnalyticsType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const { pool, isLoading: poolLoading, error: poolError } = usePool({ poolId, userId });
+
+  const { pool, isLoading: poolLoading, error: poolError } = usePool({ poolId });
   
   // Process analytics data when pool data is loaded
   useEffect(() => {
