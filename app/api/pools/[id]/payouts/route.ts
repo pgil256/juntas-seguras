@@ -52,7 +52,7 @@ export async function POST(
       pool: any;
       payoutRecipient: PoolMember;
       payoutAmount: number;
-      transactionId: string;
+      transactionId: number;
       currentRound: number;
       recipientIndex: number;
     } | undefined;
