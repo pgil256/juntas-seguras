@@ -142,13 +142,22 @@ export async function DELETE(
       throw new ApiError('Only pool administrators can delete the pool', 403);
     }
     
+    // Get all member user IDs before deleting the pool
+    const memberUserIds = pool.members
+      .filter((member: PoolMemberDB) => member.email)
+      .map((member: PoolMemberDB) => member.email);
+
     // Delete the pool
     await PoolModel.deleteOne({ id: poolId });
-    
-    // Remove this pool from the user's pools
-    user.pools = user.pools.filter(id => id !== poolId);
-    await user.save();
-    
+
+    // Remove this pool from ALL members' pools arrays
+    if (memberUserIds.length > 0) {
+      await User.updateMany(
+        { email: { $in: memberUserIds } },
+        { $pull: { pools: poolId } }
+      );
+    }
+
     return {
       success: true,
       message: 'Pool deleted successfully'

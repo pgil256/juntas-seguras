@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature } from '../../../../lib/paypal';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getPaymentModel } from '../../../../lib/db/models/payment';
+import { getPoolModel } from '../../../../lib/db/models/pool';
+import { TransactionStatus, TransactionType } from '../../../../types/payment';
 
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
@@ -39,6 +43,9 @@ export async function POST(request: NextRequest) {
     const eventType = event.event_type;
 
     console.log(`PayPal webhook received: ${eventType}`);
+
+    // Connect to database for all handlers
+    await connectToDatabase();
 
     // Handle different event types
     switch (eventType) {
@@ -139,6 +146,7 @@ export async function POST(request: NextRequest) {
 // Event Handlers
 
 async function handleOrderApproved(order: any) {
+  const Payment = getPaymentModel();
   const customId = order.purchase_units?.[0]?.custom_id;
   let metadata: any = {};
 
@@ -150,17 +158,25 @@ async function handleOrderApproved(order: any) {
 
   const { userId, poolId } = metadata;
 
-  // TODO: Update payment record in database
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalOrderId: order.id },
-  //   { status: 'approved' }
-  // );
+  // Update payment record in database
+  const result = await Payment.findOneAndUpdate(
+    { paypalOrderId: order.id },
+    {
+      status: TransactionStatus.PENDING,
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
 
-  console.log(`Order ${order.id} approved for user ${userId} in pool ${poolId}`);
+  if (result) {
+    console.log(`Order ${order.id} approved - payment ${result.paymentId} updated for user ${userId} in pool ${poolId}`);
+  } else {
+    console.warn(`Order ${order.id} approved but no matching payment found in database`);
+  }
 }
 
 async function handleOrderCompleted(order: any) {
+  const Payment = getPaymentModel();
   const customId = order.purchase_units?.[0]?.custom_id;
   let metadata: any = {};
 
@@ -172,115 +188,295 @@ async function handleOrderCompleted(order: any) {
 
   const { userId, poolId } = metadata;
 
-  // TODO: Update payment record in database
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalOrderId: order.id },
-  //   { status: 'completed', processedAt: new Date() }
-  // );
+  // Update payment record in database
+  const result = await Payment.findOneAndUpdate(
+    { paypalOrderId: order.id },
+    {
+      status: TransactionStatus.COMPLETED,
+      processedAt: new Date(),
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
 
-  console.log(`Order ${order.id} completed for user ${userId} in pool ${poolId}`);
+  if (result) {
+    console.log(`Order ${order.id} completed - payment ${result.paymentId} updated for user ${userId} in pool ${poolId}`);
+  } else {
+    console.warn(`Order ${order.id} completed but no matching payment found in database`);
+  }
 }
 
 async function handleAuthorizationCreated(authorization: any) {
-  // TODO: Store authorization ID in payment record
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalOrderId: authorization.supplementary_data?.related_ids?.order_id },
-  //   { paypalAuthorizationId: authorization.id, status: 'authorized' }
-  // );
+  const Payment = getPaymentModel();
 
-  console.log(`Authorization created: ${authorization.id}`);
+  // Get the order ID from the authorization
+  const orderId = authorization.supplementary_data?.related_ids?.order_id;
+
+  if (!orderId) {
+    console.warn('Authorization created but no order ID found in supplementary_data');
+    return;
+  }
+
+  // Store authorization ID in payment record and update status to ESCROWED
+  const result = await Payment.findOneAndUpdate(
+    { paypalOrderId: orderId },
+    {
+      paypalAuthorizationId: authorization.id,
+      status: TransactionStatus.ESCROWED,
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
+
+  if (result) {
+    console.log(`Authorization ${authorization.id} created - payment ${result.paymentId} updated to ESCROWED`);
+  } else {
+    console.warn(`Authorization ${authorization.id} created but no matching payment found for order ${orderId}`);
+  }
 }
 
 async function handleAuthorizationVoided(authorization: any) {
-  // TODO: Update payment record to cancelled
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalAuthorizationId: authorization.id },
-  //   { status: 'cancelled' }
-  // );
+  const Payment = getPaymentModel();
 
-  console.log(`Authorization voided: ${authorization.id}`);
+  // Update payment record to cancelled
+  const result = await Payment.findOneAndUpdate(
+    { paypalAuthorizationId: authorization.id },
+    {
+      status: TransactionStatus.CANCELLED,
+      failureReason: 'Authorization voided',
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
+
+  if (result) {
+    console.log(`Authorization ${authorization.id} voided - payment ${result.paymentId} cancelled`);
+  } else {
+    console.warn(`Authorization ${authorization.id} voided but no matching payment found`);
+  }
 }
 
 async function handleCaptureCompleted(capture: any) {
-  // TODO: Update payment record to completed
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalAuthorizationId: capture.supplementary_data?.related_ids?.authorization_id },
-  //   { status: 'completed', paypalCaptureId: capture.id, processedAt: new Date() }
-  // );
+  const Payment = getPaymentModel();
+  const Pool = getPoolModel();
 
-  console.log(`Capture completed: ${capture.id}, amount: ${capture.amount?.value} ${capture.amount?.currency_code}`);
+  // Get authorization ID to find the payment
+  const authorizationId = capture.supplementary_data?.related_ids?.authorization_id;
+
+  // Update payment record to completed/released
+  const payment = await Payment.findOneAndUpdate(
+    { paypalAuthorizationId: authorizationId },
+    {
+      status: TransactionStatus.RELEASED,
+      paypalCaptureId: capture.id,
+      processedAt: new Date(),
+      releasedAt: new Date(),
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
+
+  if (payment) {
+    console.log(`Capture ${capture.id} completed - payment ${payment.paymentId} released, amount: ${capture.amount?.value} ${capture.amount?.currency_code}`);
+
+    // Update pool balance
+    const pool = await Pool.findOne({ id: payment.poolId });
+    if (pool) {
+      pool.totalAmount = (pool.totalAmount || 0) + payment.amount;
+      await pool.save();
+      console.log(`Pool ${payment.poolId} balance updated to ${pool.totalAmount}`);
+    }
+  } else {
+    console.warn(`Capture ${capture.id} completed but no matching payment found for authorization ${authorizationId}`);
+  }
 }
 
 async function handleCaptureDenied(capture: any) {
-  // TODO: Update payment record to failed
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalCaptureId: capture.id },
-  //   { status: 'failed', failureReason: 'Capture denied' }
-  // );
+  const Payment = getPaymentModel();
 
-  console.log(`Capture denied: ${capture.id}`);
+  // Update payment record to failed
+  const result = await Payment.findOneAndUpdate(
+    { paypalCaptureId: capture.id },
+    {
+      status: TransactionStatus.FAILED,
+      failureReason: 'Capture denied by PayPal',
+      failureCount: { $inc: 1 },
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
+
+  if (result) {
+    console.log(`Capture ${capture.id} denied - payment ${result.paymentId} marked as failed`);
+    // TODO: Send notification to admin about failed capture
+  } else {
+    console.warn(`Capture ${capture.id} denied but no matching payment found`);
+  }
 }
 
 async function handleCaptureRefunded(capture: any) {
-  // TODO: Create refund record and update original payment
-  // Example:
-  // await Payment.findOneAndUpdate(
-  //   { paypalCaptureId: capture.id },
-  //   { status: 'refunded' }
-  // );
+  const Payment = getPaymentModel();
 
-  console.log(`Capture refunded: ${capture.id}`);
+  // Update original payment to refunded status
+  const payment = await Payment.findOneAndUpdate(
+    { paypalCaptureId: capture.id },
+    {
+      status: TransactionStatus.CANCELLED,
+      failureReason: 'Payment refunded',
+      updatedAt: new Date()
+    },
+    { new: true }
+  );
+
+  if (payment) {
+    console.log(`Capture ${capture.id} refunded - payment ${payment.paymentId} marked as refunded`);
+
+    // Create a refund transaction record
+    const refundPayment = new Payment({
+      paymentId: `ref_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      userId: payment.userId,
+      poolId: payment.poolId,
+      amount: -payment.amount, // Negative amount for refund
+      currency: payment.currency,
+      type: TransactionType.REFUND,
+      status: TransactionStatus.COMPLETED,
+      description: `Refund for payment ${payment.paymentId}`,
+      member: payment.member,
+      relatedPaymentId: payment.paymentId,
+      processedAt: new Date()
+    });
+
+    await refundPayment.save();
+    console.log(`Refund transaction ${refundPayment.paymentId} created`);
+
+    // Update pool balance (subtract refunded amount)
+    const Pool = getPoolModel();
+    const pool = await Pool.findOne({ id: payment.poolId });
+    if (pool) {
+      pool.totalAmount = Math.max(0, (pool.totalAmount || 0) - payment.amount);
+      await pool.save();
+      console.log(`Pool ${payment.poolId} balance adjusted for refund`);
+    }
+  } else {
+    console.warn(`Capture ${capture.id} refunded but no matching payment found`);
+  }
 }
 
 async function handlePayoutSuccess(payout: any) {
+  const Pool = getPoolModel();
   const batchId = payout.batch_header?.payout_batch_id;
 
-  // TODO: Update payout record in database
-  // Example:
-  // await Payout.findOneAndUpdate(
-  //   { paypalPayoutBatchId: batchId },
-  //   { status: 'completed', processedAt: new Date() }
-  // );
+  // Find pool with this payout batch ID and update transaction status
+  const pools = await Pool.find({
+    'transactions.paypalPayoutBatchId': batchId
+  });
 
-  console.log(`Payout batch succeeded: ${batchId}`);
+  for (const pool of pools) {
+    let updated = false;
+    for (const transaction of pool.transactions) {
+      if (transaction.paypalPayoutBatchId === batchId) {
+        transaction.status = TransactionStatus.COMPLETED;
+        updated = true;
+      }
+    }
+    if (updated) {
+      await pool.save();
+      console.log(`Payout batch ${batchId} succeeded - pool ${pool.id} transactions updated`);
+    }
+  }
+
+  if (pools.length === 0) {
+    console.warn(`Payout batch ${batchId} succeeded but no matching pool transactions found`);
+  }
 }
 
 async function handlePayoutDenied(payout: any) {
+  const Pool = getPoolModel();
   const batchId = payout.batch_header?.payout_batch_id;
 
-  // TODO: Update payout record to failed and notify admin
-  // Example:
-  // await Payout.findOneAndUpdate(
-  //   { paypalPayoutBatchId: batchId },
-  //   { status: 'failed' }
-  // );
+  // Find pool with this payout batch ID and update transaction status
+  const pools = await Pool.find({
+    'transactions.paypalPayoutBatchId': batchId
+  });
 
-  console.log(`Payout batch denied: ${batchId}`);
+  for (const pool of pools) {
+    let updated = false;
+    for (const transaction of pool.transactions) {
+      if (transaction.paypalPayoutBatchId === batchId) {
+        transaction.status = TransactionStatus.FAILED;
+        updated = true;
+      }
+    }
+    if (updated) {
+      // Revert payout received status for the recipient
+      const failedPayout = pool.transactions.find(
+        (t: any) => t.paypalPayoutBatchId === batchId && t.type === TransactionType.PAYOUT
+      );
+      if (failedPayout) {
+        const recipient = pool.members.find((m: any) => m.name === failedPayout.member);
+        if (recipient) {
+          recipient.payoutReceived = false;
+        }
+      }
+
+      await pool.save();
+      console.log(`Payout batch ${batchId} denied - pool ${pool.id} transactions marked as failed`);
+      // TODO: Send notification to admin about failed payout
+    }
+  }
+
+  if (pools.length === 0) {
+    console.warn(`Payout batch ${batchId} denied but no matching pool transactions found`);
+  }
 }
 
 async function handlePayoutItemSuccess(payoutItem: any) {
-  // TODO: Update individual payout item record
-  // Example:
-  // await PayoutItem.findOneAndUpdate(
-  //   { paypalPayoutItemId: payoutItem.payout_item_id },
-  //   { status: 'completed' }
-  // );
-
-  console.log(`Payout item succeeded: ${payoutItem.payout_item_id}`);
+  // Individual payout item succeeded
+  // The batch success handler typically handles the main update
+  // This is for more granular tracking if needed
+  console.log(`Payout item ${payoutItem.payout_item_id} succeeded - recipient: ${payoutItem.payout_item?.receiver}, amount: ${payoutItem.payout_item?.amount?.value}`);
 }
 
 async function handlePayoutItemFailed(payoutItem: any) {
-  // TODO: Update individual payout item to failed and notify
-  // Example:
-  // await PayoutItem.findOneAndUpdate(
-  //   { paypalPayoutItemId: payoutItem.payout_item_id },
-  //   { status: 'failed', failureReason: payoutItem.errors }
-  // );
+  const Pool = getPoolModel();
 
-  console.log(`Payout item failed: ${payoutItem.payout_item_id}`);
+  // Try to parse metadata from sender_item_id
+  let metadata: any = {};
+  try {
+    metadata = payoutItem.payout_item?.sender_item_id
+      ? JSON.parse(payoutItem.payout_item.sender_item_id)
+      : {};
+  } catch {
+    // Not JSON, might be a simple batch ID
+  }
+
+  const { poolId, round, recipientId } = metadata;
+  const errorMessage = payoutItem.errors?.message || 'Unknown error';
+
+  if (poolId) {
+    const pool = await Pool.findOne({ id: poolId });
+    if (pool) {
+      // Find and update the specific payout transaction
+      for (const transaction of pool.transactions) {
+        if (transaction.type === TransactionType.PAYOUT &&
+            transaction.round === parseInt(round)) {
+          transaction.status = TransactionStatus.FAILED;
+        }
+      }
+
+      // Revert recipient's payout status
+      const recipient = pool.members.find(
+        (m: any) => m.id === recipientId || m.email === recipientId
+      );
+      if (recipient) {
+        recipient.payoutReceived = false;
+      }
+
+      await pool.save();
+      console.log(`Payout item failed for pool ${poolId} round ${round}: ${errorMessage}`);
+      // TODO: Send notification to admin about failed payout item
+    }
+  } else {
+    console.warn(`Payout item ${payoutItem.payout_item_id} failed but could not identify pool: ${errorMessage}`);
+  }
 }

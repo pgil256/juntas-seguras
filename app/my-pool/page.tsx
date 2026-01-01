@@ -656,7 +656,7 @@ export default function MyPoolPage() {
                           >
                             <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-full">
+                                <div className="text-sm font-medium text-gray-900 truncate max-w-[140px] sm:max-w-full">
                                   {member.email === currentUser?.email ? "You" : member.name}
                                 </div>
                                 {memberContribution?.isRecipient && (

@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionStatus, TransactionType } from '../../../../types/payment';
 import { createOrder } from '../../../../lib/paypal';
-import { v4 as uuidv4 } from 'uuid';
-
-// Simulate database collections
-const mockPayments = new Map();
-const mockUsers = new Map();
-const mockPools = new Map();
-
-// For a real app, this would use MongoDB models
-// import connectDB from '../../../../lib/db/connect';
-// import { getPoolModel } from '../../../../lib/db/models/pool';
-// import { getUserModel } from '../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../lib/auth';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getPaymentModel, getPaymentMethodModel, generatePaymentId } from '../../../../lib/db/models/payment';
+import { getPoolModel } from '../../../../lib/db/models/pool';
 
 interface PaymentRequest {
-  userId: string;
   poolId: string;
   amount: number;
   paymentMethodId: number;
@@ -26,9 +18,18 @@ interface PaymentRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+    const user = userResult.user;
+
     const body = await request.json() as PaymentRequest;
     const {
-      userId,
       poolId,
       amount,
       paymentMethodId,
@@ -39,12 +40,30 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!userId || !poolId || !amount || !paymentMethodId) {
+    if (!poolId || !amount || !paymentMethodId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
+
+    // Validate amount is positive and reasonable
+    if (typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json(
+        { error: 'Amount must be a positive number' },
+        { status: 400 }
+      );
+    }
+
+    if (amount > 10000) {
+      return NextResponse.json(
+        { error: 'Amount exceeds maximum allowed ($10,000)' },
+        { status: 400 }
+      );
+    }
+
+    // Round to 2 decimal places
+    const sanitizedAmount = Math.round(amount * 100) / 100;
 
     // For scheduled payments, validate scheduled date
     if (scheduleForLater && !scheduledDate) {
@@ -62,9 +81,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await connectToDatabase();
+
+    const Payment = getPaymentModel();
+    const PaymentMethod = getPaymentMethodModel();
+    const Pool = getPoolModel();
+
     // Validate payment method exists and belongs to user
-    const userPaymentMethods = getUserPaymentMethods(userId);
-    const paymentMethod = userPaymentMethods.find(method => method.id === paymentMethodId);
+    const paymentMethod = await PaymentMethod.findOne({
+      _id: paymentMethodId,
+      userId: user._id,
+      deletedAt: null
+    });
 
     if (!paymentMethod) {
       return NextResponse.json(
@@ -73,25 +101,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user info
-    // In a real app, this would query the database
-    const user = {
-      id: userId,
-      email: `user${userId}@example.com`,
-      name: `User ${userId}`
-    };
+    // Validate pool exists and user is a member
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
+      return NextResponse.json(
+        { error: 'Pool not found' },
+        { status: 404 }
+      );
+    }
 
-    // Get pool name for the payment description
-    // In a real app, this would query from a database
-    const poolName = `Pool ${poolId}`;
+    const isMember = pool.members.some(
+      (member: any) => member.email === user.email
+    );
+
+    if (!isMember) {
+      return NextResponse.json(
+        { error: 'You are not a member of this pool' },
+        { status: 403 }
+      );
+    }
+
+    // Validate amount matches pool contribution amount (with small tolerance for rounding)
+    if (Math.abs(sanitizedAmount - pool.contributionAmount) > 0.01) {
+      return NextResponse.json(
+        { error: `Amount must match pool contribution amount ($${pool.contributionAmount})` },
+        { status: 400 }
+      );
+    }
 
     // Create PayPal order with authorization intent (for escrow functionality)
     const paymentResult = await createOrder(
-      amount,
+      sanitizedAmount,
       'USD',
-      `Contribution to ${poolName}`,
+      `Contribution to ${pool.name}`,
       {
-        userId,
+        userId: user._id.toString(),
         poolId,
         isEscrow: useEscrow ? 'true' : 'false',
       }
@@ -104,44 +148,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create payment record
+    // Create payment record in database
     const paymentId = generatePaymentId();
     const transactionType = useEscrow ? TransactionType.ESCROW : TransactionType.DEPOSIT;
     const status = scheduleForLater
       ? TransactionStatus.SCHEDULED
-      : (useEscrow ? TransactionStatus.ESCROWED : TransactionStatus.PENDING);
+      : (useEscrow ? TransactionStatus.PENDING : TransactionStatus.PENDING);
 
-    const paymentRecord = {
-      id: paymentId,
-      userId,
+    const paymentRecord = new Payment({
+      paymentId,
+      userId: user._id,
       poolId,
-      amount,
+      amount: sanitizedAmount,
+      currency: 'USD',
       paymentMethodId,
-      status,
       type: transactionType,
+      status,
       paypalOrderId: paymentResult.orderId,
-      paypalAuthorizationId: null, // Will be set after user approves
-      description: `${useEscrow ? 'Escrow payment' : 'Contribution'} to ${poolName}`,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      scheduledDate: scheduleForLater ? scheduledDate : null,
-      processedAt: null, // Will be set after user completes payment
-      escrowId: useEscrow ? uuidv4() : null,
-      releaseDate: useEscrow ? escrowReleaseDate : null,
+      description: `${useEscrow ? 'Escrow payment' : 'Contribution'} to ${pool.name}`,
       member: user.name,
-    };
+      escrowId: useEscrow ? paymentId : undefined,
+      releaseDate: useEscrow && escrowReleaseDate ? new Date(escrowReleaseDate) : undefined,
+      scheduledDate: scheduleForLater && scheduledDate ? new Date(scheduledDate) : undefined,
+    });
 
-    // In a real app, this would save to a database
-    mockPayments.set(paymentId, paymentRecord);
+    await paymentRecord.save();
 
     // Log activity
-    await logActivity(userId,
+    await logActivity(user._id.toString(),
       useEscrow
         ? 'payment_escrow_initiated'
         : (scheduleForLater ? 'payment_scheduled' : 'payment_initiated'),
       {
         poolId,
-        amount,
+        amount: sanitizedAmount,
         paymentId,
       }
     );
@@ -159,7 +199,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      payment: paymentRecord,
+      payment: {
+        id: paymentRecord.paymentId,
+        amount: paymentRecord.amount,
+        status: paymentRecord.status,
+        type: paymentRecord.type,
+        poolId: paymentRecord.poolId,
+        createdAt: paymentRecord.createdAt,
+      },
       paypalOrderId: paymentResult.orderId,
       approvalUrl: paymentResult.approvalUrl,
       message: successMessage,
@@ -174,51 +221,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to retrieve user payment methods
-function getUserPaymentMethods(userId: string) {
-  // In a real app, this would query from a database
-  // For now, return mock data
-  return [
-    {
-      id: 1,
-      type: 'paypal',
-      name: 'PayPal Account',
-      last4: '****',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'card',
-      name: 'Visa',
-      last4: '8901',
-      isDefault: false,
-    },
-  ];
-}
-
-// Helper function to update pool balance
-function updatePoolBalance(poolId: string, amount: number) {
-  // In a real app, this would update the pool balance in a database
-  let pool = mockPools.get(poolId);
-
-  if (!pool) {
-    pool = { id: poolId, balance: 0 };
-  }
-
-  pool.balance += amount;
-  mockPools.set(poolId, pool);
-}
-
-// Helper function to generate a unique payment ID
-function generatePaymentId() {
-  return `pmt_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-}
-
 // Helper function to log activity
-async function logActivity(userId: string, type: string, metadata: any) {
-  // In a real app, this would log to a dedicated activity log database
+async function logActivity(userId: string, type: string, metadata: Record<string, unknown>) {
   try {
-    await fetch('/api/security/activity-log', {
+    // Use absolute URL for server-side fetch
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/security/activity-log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

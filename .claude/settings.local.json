@@ -49,7 +49,9 @@
       "Bash(git rm:*)",
       "Bash(git commit:*)",
       "Bash(./node_modules/.bin/tsc:*)",
-      "Bash(node_modules.bintsc --noEmit)"
+      "Bash(node_modules.bintsc --noEmit)",
+      "Bash(xargs -I {} sh -c 'lines=$(wc -l < \"\"\"\"{}\"\"\"\"); if [ \"\"\"\"$lines\"\"\"\" -lt 20 ]; then echo \"\"\"\"{}: $lines lines\"\"\"\"; fi')",
+      "Bash(node --check:*)"
     ]
   },
   "enableAllProjectMcpServers": false

@@ -158,7 +158,7 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
               value={selectedPoolId}
               onValueChange={handlePoolChange}
             >
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="Select a pool" />
               </SelectTrigger>
               <SelectContent>
@@ -199,7 +199,7 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
               value={selectedPoolId}
               onValueChange={handlePoolChange}
             >
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="Select a pool" />
               </SelectTrigger>
               <SelectContent>
@@ -238,7 +238,7 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
             value={selectedPoolId}
             onValueChange={handlePoolChange}
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-full sm:w-[220px]">
               <SelectValue placeholder="Select Pool" />
             </SelectTrigger>
             <SelectContent>
@@ -253,7 +253,7 @@ export default function PoolAnalyticsDashboard({ initialPoolId }: PoolAnalyticsD
             value={timeframe}
             onValueChange={handleTimeframeChange}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Select Timeframe" />
             </SelectTrigger>
             <SelectContent>

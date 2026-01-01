@@ -258,7 +258,9 @@ function JoinPoolContent() {
                       <div>
                         <p className="text-sm text-gray-500">Expires</p>
                         <p className="font-medium">
-                          {new Date(validationResult.invitation.expiresAt).toLocaleDateString()}
+                          {validationResult.invitation.expiresAt
+                            ? new Date(validationResult.invitation.expiresAt).toLocaleDateString()
+                            : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -280,7 +282,9 @@ function JoinPoolContent() {
                   </p>
                   <p className="text-sm text-gray-600">
                     Sent on: <span className="font-medium">
-                      {new Date(validationResult.invitation.sentDate).toLocaleDateString()}
+                      {validationResult.invitation.sentDate
+                        ? new Date(validationResult.invitation.sentDate).toLocaleDateString()
+                        : 'N/A'}
                     </span>
                   </p>
                 </div>

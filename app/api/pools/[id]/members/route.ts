@@ -268,15 +268,23 @@ export async function DELETE(
 
     // Remove the member from the pool
     const updatedMembers = pool.members.filter((member: PoolMemberDB) => member.id !== memberId);
-    
+
     // Update the pool
-    await PoolModel.updateOne({ id: poolId }, { 
-      $set: { 
+    await PoolModel.updateOne({ id: poolId }, {
+      $set: {
         members: updatedMembers,
         memberCount: updatedMembers.length
-      } 
+      }
     });
-    
+
+    // Remove this pool from the removed member's pools array
+    if (memberToRemove.email) {
+      await User.updateOne(
+        { email: memberToRemove.email.toLowerCase() },
+        { $pull: { pools: poolId } }
+      );
+    }
+
     // Add a message to the pool
     const messageId = Math.max(...(pool.messages?.map((m: PoolMessageDB) => m.id) || [0]), 0) + 1;
     await PoolModel.updateOne({ id: poolId }, {

@@ -235,11 +235,11 @@ export default function TicketViewer({
               </Badge>
               
               {isAdmin ? (
-                <Select 
-                  value={selectedTicket.status} 
+                <Select
+                  value={selectedTicket.status}
                   onValueChange={handleStatusChange}
                 >
-                  <SelectTrigger className={`w-[130px] h-7 text-xs ${getStatusBadge(selectedTicket.status)}`}>
+                  <SelectTrigger className={`w-full sm:w-[130px] h-7 text-xs ${getStatusBadge(selectedTicket.status)}`}>
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -271,11 +271,11 @@ export default function TicketViewer({
           {isAdmin && (
             <div className="flex flex-col items-end">
               <div className="mb-2">
-                <Select 
-                  value={selectedTicket.priority} 
+                <Select
+                  value={selectedTicket.priority}
                   onValueChange={handlePriorityChange}
                 >
-                  <SelectTrigger className="w-[120px] text-sm">
+                  <SelectTrigger className="w-full sm:w-[120px] text-sm">
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
