@@ -12,7 +12,7 @@ import {
 import PageLayout from '../../components/PageLayout';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
-import ClientComponentBoundary from '../../components/ClientComponentBoundary';
+import ClientOnly from '../../components/ClientOnly';
 
 export default function HelpLayout({
   children,
@@ -65,7 +65,7 @@ export default function HelpLayout({
             <ul className="flex flex-row list-none space-x-2">
               {helpNavItems.map((item) => (
                 <li key={item.href} className="inline-block">
-                  <ClientComponentBoundary>
+                  <ClientOnly>
                     <Link href={item.href}>
                       <Button
                         variant={isActive(item.href) ? "default" : "ghost"}
@@ -75,7 +75,7 @@ export default function HelpLayout({
                         {item.label}
                       </Button>
                     </Link>
-                  </ClientComponentBoundary>
+                  </ClientOnly>
                 </li>
               ))}
             </ul>

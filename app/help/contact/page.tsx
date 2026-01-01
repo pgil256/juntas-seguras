@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import ContactForm from '../../../components/support/ContactForm';
 import { Button } from '../../../components/ui/button';
 import { Mail, Phone, ChevronLeft, FileText, HelpCircle } from 'lucide-react';
-import ClientComponentBoundary from '../../../components/ClientComponentBoundary';
+import ClientOnly from '../../../components/ClientOnly';
 
 // User data - in a real app, this would come from authentication context
 const userData = {
@@ -30,7 +30,7 @@ export default function ContactPage() {
       <div className="flex flex-col md:flex-row gap-6">
             {/* Contact Form */}
             <div className="flex-1">
-              <ClientComponentBoundary>
+              <ClientOnly>
                 <ContactForm
                   userId={userData.userId}
                   userName={userData.name}
@@ -46,7 +46,7 @@ export default function ContactPage() {
                     { value: 'security', label: 'Security Concern' },
                   ]}
                 />
-              </ClientComponentBoundary>
+              </ClientOnly>
             </div>
             
             {/* Support Information */}
@@ -100,7 +100,7 @@ export default function ContactPage() {
                       <p className="mt-1 text-sm text-gray-500">
                         Find answers in our help documentation
                       </p>
-                      <ClientComponentBoundary>
+                      <ClientOnly>
                         <Button 
                           variant="link" 
                           size="sm" 
@@ -110,7 +110,7 @@ export default function ContactPage() {
                           <FileText className="h-4 w-4 mr-1" />
                           Browse Help Center
                         </Button>
-                      </ClientComponentBoundary>
+                      </ClientOnly>
                     </div>
                   </div>
                 </div>

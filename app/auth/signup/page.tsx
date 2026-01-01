@@ -16,7 +16,7 @@ import { VerificationType, VerificationMethod } from "../../../types/identity";
 import VerificationPopup from '../../../components/auth/VerificationPopup';
 import { useToast } from "../../../hooks/use-toast";
 
-import ClientComponentBoundary from '../../ClientComponentBoundary';
+import ClientOnly from '../../../components/ClientOnly';
 
 export default function SignUp() {
   const router = useRouter();
@@ -328,7 +328,7 @@ export default function SignUp() {
 
   // Render either credentials form, MFA setup form, or identity verification form
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div className="flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-lg">
           <CardHeader className="space-y-1">
@@ -731,6 +731,6 @@ export default function SignUp() {
           </CardFooter>
         </Card>
       </div>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }

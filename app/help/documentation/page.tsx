@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ClientComponentBoundary from '../../ClientComponentBoundary';
+import ClientOnly from '../../../components/ClientOnly';
 import { Button } from '../../../components/ui/button';
 import { ChevronLeft, ChevronRight, FileText, Book, Search, Download } from 'lucide-react';
 import {
@@ -65,7 +65,7 @@ export default function DocumentationPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Header */}
@@ -419,6 +419,6 @@ export default function DocumentationPage() {
         </div>
       </div>
     </div>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }
