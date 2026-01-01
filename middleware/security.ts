@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Apply security headers to all responses
  */
-export function securityHeaders(req: NextRequest, res: NextResponse): NextResponse {
-  // Clone the response to safely modify it
-  const response = res.clone();
-  
+export function securityHeaders(req: NextRequest): NextResponse {
+  // Create a new response with security headers
+  const response = NextResponse.next();
+
   // Set security headers
   const headers = response.headers;
   

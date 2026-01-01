@@ -112,7 +112,7 @@ export function IdentityVerification({ userId, requiredForPools = false }: Ident
         )}
         
         {requiredForPools && !identityInfo?.isVerified && (
-          <Alert variant="warning" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
+          <Alert className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Verification Required</AlertTitle>
             <AlertDescription>

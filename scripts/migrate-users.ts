@@ -1,6 +1,6 @@
-const dotenv = require('dotenv');
-const mongoose = require('mongoose');
-const { getUserModel } = require('../lib/db/models/user');
+import dotenv from 'dotenv';
+import mongooseLib from 'mongoose';
+import { getUserModel } from '../lib/db/models/user';
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });
@@ -11,7 +11,7 @@ console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Found' : 'Not found');
 
 async function migrateUsers() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongooseLib.connect(process.env.MONGODB_URI as string);
     console.log('Connected to MongoDB');
 
     const User = getUserModel();
