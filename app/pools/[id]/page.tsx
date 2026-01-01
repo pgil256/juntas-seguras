@@ -101,12 +101,18 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
     ? !userContributionInfo.isRecipient && !userContributionInfo.hasContributed
     : false;
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "MMM d, yyyy");
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return format(date, "MMM d, yyyy");
   };
 
-  const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), "MMM d, yyyy h:mm a");
+  const formatDateTime = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return format(date, "MMM d, yyyy h:mm a");
   };
 
   const formatCurrency = (amount: number) => {

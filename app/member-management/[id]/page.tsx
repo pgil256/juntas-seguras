@@ -535,8 +535,8 @@ export default function MemberManagementPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <div className="font-medium truncate max-w-[80px] sm:max-w-none">{member.name}</div>
-                                <div className="text-xs text-gray-500 truncate max-w-[80px] sm:max-w-none hidden sm:block">
+                                <div className="font-medium truncate max-w-[120px] sm:max-w-none">{member.name}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-[120px] sm:max-w-none hidden sm:block">
                                   {member.email}
                                 </div>
                               </div>
@@ -670,7 +670,7 @@ export default function MemberManagementPage() {
                         {invitations.map((invitation) => (
                           <TableRow key={invitation.id}>
                             <TableCell className="px-3 sm:px-4">
-                              <div className="font-medium truncate max-w-[120px] sm:max-w-none">
+                              <div className="font-medium truncate max-w-[140px] sm:max-w-none">
                                 {invitation.email}
                               </div>
                               <div className="text-xs text-gray-500 sm:hidden">
@@ -786,7 +786,7 @@ export default function MemberManagementPage() {
                                       {getInitials(member.name)}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div className="truncate max-w-[80px] sm:max-w-none">{member.name}</div>
+                                  <div className="truncate max-w-[120px] sm:max-w-none">{member.name}</div>
                                 </div>
                               </TableCell>
                               <TableCell className="px-3 sm:px-4">

@@ -199,10 +199,10 @@ const CreatePoolModal = ({
 
         <div className="mt-4 pt-2">
           {/* Step indicator */}
-          <div className="flex justify-between mb-8 px-4 sm:px-0">
+          <div className="flex justify-center items-center mb-8 px-2 sm:px-0">
             <div className="flex items-center">
               <div
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
                   step >= 1
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"
@@ -211,14 +211,14 @@ const CreatePoolModal = ({
                 {step > 1 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "1"}
               </div>
               <div
-                className={`h-1 w-8 sm:w-10 transition-colors duration-300 ${
+                className={`h-1 w-10 sm:w-14 transition-colors duration-300 ${
                   step > 1 ? "bg-blue-600" : "bg-gray-200"
                 }`}
               ></div>
             </div>
             <div className="flex items-center">
               <div
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
                   step >= 2
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"
@@ -227,14 +227,14 @@ const CreatePoolModal = ({
                 {step > 2 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "2"}
               </div>
               <div
-                className={`h-1 w-8 sm:w-10 transition-colors duration-300 ${
+                className={`h-1 w-10 sm:w-14 transition-colors duration-300 ${
                   step > 2 ? "bg-blue-600" : "bg-gray-200"
                 }`}
               ></div>
             </div>
             <div className="flex items-center">
               <div
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
                   step >= 3
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-500"

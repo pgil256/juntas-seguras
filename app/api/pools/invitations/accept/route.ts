@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
         }
       });
     }
-    
+
     // Add user to pool
     const newMember = {
       userId: user._id.toString(),
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
         description: pool.description
       }
     });
-    
+
   } catch (error) {
     console.error('Error accepting invitation:', error);
     return NextResponse.json(
