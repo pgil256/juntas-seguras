@@ -222,7 +222,7 @@ export async function POST(
         {
           poolId: pool.id,
           round: String(currentRound),
-          recipientId: payoutRecipient.id || payoutRecipient.email,
+          recipientId: String(payoutRecipient.id || payoutRecipient.email),
         }
       );
 
