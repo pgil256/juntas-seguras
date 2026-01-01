@@ -15,9 +15,7 @@ const ticketsStore = new Map<string, SupportTicket>();
 
 // Support staff list (would be from a database in production)
 const supportStaff = [
-  { id: 'staff1', name: 'Support Team', email: 'support@juntasseguras.com' },
-  { id: 'staff2', name: 'Alex Rodriguez', email: 'alex@juntasseguras.com' },
-  { id: 'staff3', name: 'Maria Torres', email: 'maria@juntasseguras.com' },
+  { id: 'staff1', name: 'Support Team', email: 'juntassegurasservice@gmail.com' },
 ];
 
 // GET /api/support/tickets - Get all tickets or a specific ticket if ticketId is provided
@@ -393,8 +391,8 @@ async function sendEmailNotification(params: {
     console.log('Type:', params.type);
     console.log('Ticket ID:', params.ticket.id);
     console.log('Recipient:', params.type.includes('support') 
-      ? params.ticket.userEmail 
-      : 'support@juntasseguras.com');
+      ? params.ticket.userEmail
+      : 'juntassegurasservice@gmail.com');
   }
   
   // In production:

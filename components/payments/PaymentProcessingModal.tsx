@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Building, DollarSign, Loader2, AlertCircle, Check, LockIcon } from 'lucide-react';
+import { CreditCard, Building, DollarSign, Loader2, AlertCircle, Check, LockIcon, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -94,11 +94,13 @@ export function PaymentProcessingModal({
   };
 
   const getPaymentMethodIcon = (type: string) => {
-    return type === 'card' ? (
-      <CreditCard className="h-5 w-5 text-gray-600" />
-    ) : (
-      <Building className="h-5 w-5 text-gray-600" />
-    );
+    if (type === 'paypal') {
+      return <Mail className="h-5 w-5 text-[#003087]" />;
+    } else if (type === 'card') {
+      return <CreditCard className="h-5 w-5 text-gray-600" />;
+    } else {
+      return <Building className="h-5 w-5 text-gray-600" />;
+    }
   };
 
   const handlePaymentSubmit = async () => {

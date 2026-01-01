@@ -23,15 +23,16 @@ export async function GET(req: NextRequest) {
     }
     
     // Get user settings or return defaults
+    const userAny = user as unknown as Record<string, unknown>;
     return NextResponse.json({
       id: user.id,
-      language: user.language || 'en',
-      timezone: user.timezone || 'America/New_York',
+      language: userAny.language || 'en',
+      timezone: userAny.timezone || 'America/New_York',
       securitySettings: {
         twoFactorAuth: user.twoFactorAuth || false,
-        lastPasswordChange: user.lastPasswordChange || user.createdAt
+        lastPasswordChange: userAny.lastPasswordChange || user.createdAt
       },
-      notificationPreferences: user.notificationPreferences || {
+      notificationPreferences: userAny.notificationPreferences || {
         email: {
           paymentReminders: true,
           poolUpdates: true,
@@ -89,11 +90,15 @@ export async function PUT(req: NextRequest) {
       { new: true }
     );
     
+    if (!updatedUser) {
+      return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    }
+    const updatedAny = updatedUser as unknown as Record<string, unknown>;
     return NextResponse.json({
       id: updatedUser.id,
-      language: updatedUser.language || 'en',
-      timezone: updatedUser.timezone || 'America/New_York',
-      notificationPreferences: updatedUser.notificationPreferences || {
+      language: updatedAny.language || 'en',
+      timezone: updatedAny.timezone || 'America/New_York',
+      notificationPreferences: updatedAny.notificationPreferences || {
         email: {
           paymentReminders: true,
           poolUpdates: true,

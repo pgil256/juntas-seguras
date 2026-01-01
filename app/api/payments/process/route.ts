@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionStatus, TransactionType } from '../../../../types/payment';
-import { createPaymentIntent, getOrCreateCustomer } from '../../../../lib/stripe';
+import { createOrder } from '../../../../lib/paypal';
 import { v4 as uuidv4 } from 'uuid';
 
 // Simulate database collections
@@ -27,15 +27,15 @@ interface PaymentRequest {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as PaymentRequest;
-    const { 
-      userId, 
-      poolId, 
-      amount, 
-      paymentMethodId, 
-      scheduleForLater, 
+    const {
+      userId,
+      poolId,
+      amount,
+      paymentMethodId,
+      scheduleForLater,
       scheduledDate,
       useEscrow,
-      escrowReleaseDate 
+      escrowReleaseDate
     } = body;
 
     // Validate required fields
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Validate payment method exists and belongs to user
     const userPaymentMethods = getUserPaymentMethods(userId);
     const paymentMethod = userPaymentMethods.find(method => method.id === paymentMethodId);
-    
+
     if (!paymentMethod) {
       return NextResponse.json(
         { error: 'Invalid payment method' },
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user info for Stripe customer creation
+    // Get user info
     // In a real app, this would query the database
     const user = {
       id: userId,
@@ -81,29 +81,14 @@ export async function POST(request: NextRequest) {
       name: `User ${userId}`
     };
 
-    // Get or create Stripe customer
-    const customerResult = await getOrCreateCustomer(
-      userId,
-      user.email,
-      user.name
-    );
-
-    if (!customerResult.success) {
-      return NextResponse.json(
-        { error: customerResult.error || 'Failed to create payment customer' },
-        { status: 400 }
-      );
-    }
-
     // Get pool name for the payment description
     // In a real app, this would query from a database
     const poolName = `Pool ${poolId}`;
 
-    // Create payment intent with Stripe
-    const paymentResult = await createPaymentIntent(
+    // Create PayPal order with authorization intent (for escrow functionality)
+    const paymentResult = await createOrder(
       amount,
-      'usd',
-      customerResult.customerId,
+      'USD',
       `Contribution to ${poolName}`,
       {
         userId,
@@ -122,9 +107,9 @@ export async function POST(request: NextRequest) {
     // Create payment record
     const paymentId = generatePaymentId();
     const transactionType = useEscrow ? TransactionType.ESCROW : TransactionType.DEPOSIT;
-    const status = scheduleForLater 
-      ? TransactionStatus.SCHEDULED 
-      : (useEscrow ? TransactionStatus.ESCROWED : TransactionStatus.COMPLETED);
+    const status = scheduleForLater
+      ? TransactionStatus.SCHEDULED
+      : (useEscrow ? TransactionStatus.ESCROWED : TransactionStatus.PENDING);
 
     const paymentRecord = {
       id: paymentId,
@@ -134,12 +119,13 @@ export async function POST(request: NextRequest) {
       paymentMethodId,
       status,
       type: transactionType,
-      stripePaymentIntentId: paymentResult.paymentIntentId,
+      paypalOrderId: paymentResult.orderId,
+      paypalAuthorizationId: null, // Will be set after user approves
       description: `${useEscrow ? 'Escrow payment' : 'Contribution'} to ${poolName}`,
       date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       scheduledDate: scheduleForLater ? scheduledDate : null,
-      processedAt: scheduleForLater ? null : new Date().toISOString(),
+      processedAt: null, // Will be set after user completes payment
       escrowId: useEscrow ? uuidv4() : null,
       releaseDate: useEscrow ? escrowReleaseDate : null,
       member: user.name,
@@ -148,16 +134,11 @@ export async function POST(request: NextRequest) {
     // In a real app, this would save to a database
     mockPayments.set(paymentId, paymentRecord);
 
-    // Update pool balance if not in escrow
-    if (!useEscrow && !scheduleForLater) {
-      updatePoolBalance(poolId, amount);
-    }
-
     // Log activity
-    await logActivity(userId, 
-      useEscrow 
-        ? 'payment_escrowed' 
-        : (scheduleForLater ? 'payment_scheduled' : 'payment_processed'), 
+    await logActivity(userId,
+      useEscrow
+        ? 'payment_escrow_initiated'
+        : (scheduleForLater ? 'payment_scheduled' : 'payment_initiated'),
       {
         poolId,
         amount,
@@ -167,22 +148,23 @@ export async function POST(request: NextRequest) {
 
     let successMessage = '';
     if (useEscrow) {
-      successMessage = scheduleForLater 
-        ? 'Escrow payment scheduled successfully' 
-        : 'Payment placed in escrow successfully';
+      successMessage = scheduleForLater
+        ? 'Escrow payment scheduled. Please complete payment approval.'
+        : 'Escrow payment initiated. Please complete payment approval.';
     } else {
-      successMessage = scheduleForLater 
-        ? 'Payment scheduled successfully' 
-        : 'Payment processed successfully';
+      successMessage = scheduleForLater
+        ? 'Payment scheduled. Please complete payment approval.'
+        : 'Payment initiated. Please complete payment approval.';
     }
 
     return NextResponse.json({
       success: true,
       payment: paymentRecord,
-      clientSecret: paymentResult.clientSecret,
+      paypalOrderId: paymentResult.orderId,
+      approvalUrl: paymentResult.approvalUrl,
       message: successMessage,
     });
-    
+
   } catch (error) {
     console.error('Payment processing error:', error);
     return NextResponse.json(
@@ -199,9 +181,9 @@ function getUserPaymentMethods(userId: string) {
   return [
     {
       id: 1,
-      type: 'bank',
-      name: 'Chase Bank',
-      last4: '4567',
+      type: 'paypal',
+      name: 'PayPal Account',
+      last4: '****',
       isDefault: true,
     },
     {
@@ -218,11 +200,11 @@ function getUserPaymentMethods(userId: string) {
 function updatePoolBalance(poolId: string, amount: number) {
   // In a real app, this would update the pool balance in a database
   let pool = mockPools.get(poolId);
-  
+
   if (!pool) {
     pool = { id: poolId, balance: 0 };
   }
-  
+
   pool.balance += amount;
   mockPools.set(poolId, pool);
 }

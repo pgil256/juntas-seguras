@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Smartphone, Mail, QrCode, Lock, Copy, Check, X, Loader2 } from 'lucide-react';
+import { Shield, Mail, QrCode, Lock, Copy, Check, X, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
@@ -18,22 +18,21 @@ interface TwoFactorSetupProps {
 
 export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: TwoFactorSetupProps) {
   const [step, setStep] = useState<'method' | 'setup' | 'verify' | 'backup' | 'success'>('method');
-  const [method, setMethod] = useState<TwoFactorMethod>('app');
+  const [method, setMethod] = useState<TwoFactorMethod>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupData, setSetupData] = useState<any>(null);
   const [verificationCode, setVerificationCode] = useState('');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [backupCodesCopied, setBackupCodesCopied] = useState(false);
-  
+
   // Get current 2FA status on mount
   useEffect(() => {
     async function checkTwoFactorStatus() {
       try {
         const response = await fetch(`/api/security/two-factor/setup?userId=${userId}`);
         const data = await response.json();
-        
+
         if (data.enabled) {
           // User already has 2FA enabled
           onSetupComplete?.();
@@ -42,29 +41,22 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
         console.error('Failed to check 2FA status:', error);
       }
     }
-    
+
     checkTwoFactorStatus();
   }, [userId, onSetupComplete]);
-  
+
   const startSetup = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const payload: any = {
         userId,
         method
       };
-      
-      // Add contact information based on method
-      if (method === 'sms') {
-        if (!phone) {
-          setError('Phone number is required for SMS authentication');
-          setLoading(false);
-          return;
-        }
-        payload.phone = phone;
-      } else if (method === 'email') {
+
+      // Add email if email method is selected
+      if (method === 'email') {
         if (!email) {
           setError('Email is required for email authentication');
           setLoading(false);
@@ -72,7 +64,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
         }
         payload.email = email;
       }
-      
+
       const response = await fetch('/api/security/two-factor/setup', {
         method: 'POST',
         headers: {
@@ -80,15 +72,15 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
         },
         body: JSON.stringify(payload)
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to set up two-factor authentication');
       }
-      
+
       const data = await response.json();
       setSetupData(data);
-      
+
       if (method === 'app') {
         setStep('setup');
       } else {
@@ -100,16 +92,16 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
       setLoading(false);
     }
   };
-  
+
   const verifyCode = async () => {
     if (!verificationCode) {
       setError('Please enter the verification code');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch('/api/security/two-factor/verify', {
         method: 'POST',
@@ -121,12 +113,12 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
           code: verificationCode
         })
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Invalid verification code');
       }
-      
+
       if (method === 'app') {
         setStep('backup');
       } else {
@@ -138,29 +130,29 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
       setLoading(false);
     }
   };
-  
+
   const copyBackupCodes = () => {
     if (setupData?.backupCodes) {
       navigator.clipboard.writeText(setupData.backupCodes.join('\n'));
       setBackupCodesCopied(true);
-      
+
       setTimeout(() => {
         setBackupCodesCopied(false);
       }, 3000);
     }
   };
-  
+
   const finishSetup = () => {
     setStep('success');
     setTimeout(() => {
       onSetupComplete?.();
     }, 1500);
   };
-  
+
   const cancelSetup = () => {
     onCancel?.();
   };
-  
+
   // Render the appropriate step
   const renderStep = () => {
     switch (step) {
@@ -190,33 +182,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                         </p>
                       </div>
                     </div>
-                    
-                    <div className="flex items-start space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                      <RadioGroupItem value="sms" id="method-sms" className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor="method-sms" className="font-medium text-sm flex items-center">
-                          <Smartphone className="h-4 w-4 mr-2" />
-                          Text Message (SMS)
-                        </Label>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Receive verification codes via SMS to your registered phone number.
-                        </p>
-                        {method === 'sms' && (
-                          <div className="mt-3">
-                            <Label htmlFor="phone" className="text-xs">Phone Number</Label>
-                            <Input
-                              id="phone"
-                              type="tel"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              placeholder="+1 (555) 123-4567"
-                              className="mt-1"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
+
                     <div className="flex items-start space-x-2 border rounded-md p-3 hover:bg-gray-50">
                       <RadioGroupItem value="email" id="method-email" className="mt-1" />
                       <div className="flex-1">
@@ -244,7 +210,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     </div>
                   </RadioGroup>
                 </div>
-                
+
                 {error && (
                   <Alert variant="destructive">
                     <X className="h-4 w-4" />
@@ -265,7 +231,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
             </CardFooter>
           </>
         );
-        
+
       case 'setup':
         return (
           <>
@@ -286,11 +252,11 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                       </div>
                     </div>
                   )}
-                  
+
                   <p className="text-sm text-gray-500 text-center">
                     Unable to scan the QR code? Enter this code manually:
                   </p>
-                  
+
                   <div className="mt-2 flex items-center space-x-2">
                     <code className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
                       {setupData?.secret}
@@ -307,7 +273,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     </Button>
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="verification-code" className="text-sm font-medium">
                     Enter Verification Code
@@ -326,7 +292,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     />
                   </div>
                 </div>
-                
+
                 {error && (
                   <Alert variant="destructive">
                     <X className="h-4 w-4" />
@@ -347,14 +313,14 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
             </CardFooter>
           </>
         );
-        
+
       case 'verify':
         return (
           <>
             <CardHeader>
-              <CardTitle>Verify Your {method === 'sms' ? 'Phone' : 'Email'}</CardTitle>
+              <CardTitle>Verify Your Email</CardTitle>
               <CardDescription>
-                Enter the verification code sent to your {method === 'sms' ? 'phone' : 'email'}.
+                Enter the verification code sent to your email.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -380,7 +346,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     Didn't receive a code? <a href="#" className="text-blue-600 hover:underline">Resend code</a>
                   </p>
                 </div>
-                
+
                 {error && (
                   <Alert variant="destructive">
                     <X className="h-4 w-4" />
@@ -401,7 +367,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
             </CardFooter>
           </>
         );
-        
+
       case 'backup':
         return (
           <>
@@ -420,7 +386,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     Keep these codes in a safe place. Each code can only be used once.
                   </AlertDescription>
                 </Alert>
-                
+
                 <div className="bg-gray-50 p-4 rounded-md border">
                   <div className="grid grid-cols-2 gap-2">
                     {setupData?.backupCodes?.map((code: string, index: number) => (
@@ -430,7 +396,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex justify-center">
                   <Button
                     variant="outline"
@@ -462,7 +428,7 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
             </CardFooter>
           </>
         );
-        
+
       case 'success':
         return (
           <>

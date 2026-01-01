@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '../../../../../lib/db/connect';
-import getUserModel from '../../../../../lib/db/models/user';
+import { getUserModel } from '../../../../../lib/db/models/user';
 import { ActivityType } from '../../../../../types/security';
 import { logServerActivity } from '../../../../../lib/utils';
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
     // Otherwise, perform normal validation
     else if (code) {
-      // First check if this is a temporary code from SMS/email
+      // First check if this is a temporary code from email verification
       if (user.twoFactorAuth?.temporaryCode && code === user.twoFactorAuth.temporaryCode) {
         // Verify the code isn't expired (codes are valid for 10 minutes)
         const codeGeneratedAt = new Date(user.twoFactorAuth.codeGeneratedAt || 0);
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       } 
       // If not a temporary code, or temporary code verification failed,
       // check if it's a TOTP code for authenticator app
-      else if (user.twoFactorAuth?.method === 'app') {
+      else if (user.twoFactorAuth?.method === 'app' && user.twoFactorAuth.secret) {
         success = verifyTotpCode(code, user.twoFactorAuth.secret);
       }
     } else if (recoveryCode) {

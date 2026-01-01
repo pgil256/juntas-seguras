@@ -72,6 +72,22 @@ import { useUserProfile } from "../../lib/hooks/useUserProfile";
 import { useUserSettings } from "../../lib/hooks/useUserSettings";
 import { usePaymentMethods } from "../../lib/hooks/usePaymentMethods";
 import { formatDate } from "../../lib/utils";
+import { PaymentMethod } from "../../types/payment";
+
+interface NotificationPreferences {
+  email: {
+    paymentReminders: boolean;
+    poolUpdates: boolean;
+    memberActivity: boolean;
+    marketing: boolean;
+  };
+  push: {
+    paymentReminders: boolean;
+    poolUpdates: boolean;
+    memberActivity: boolean;
+    marketing: boolean;
+  };
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -79,7 +95,7 @@ export default function SettingsPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [editingPaymentMethod, setEditingPaymentMethod] = useState<any>(null);
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
   
   // Get user profile data
   const { 
@@ -132,7 +148,7 @@ export default function SettingsPage() {
   });
 
   // Initialize notifications with null, to indicate loading state
-  const [notifications, setNotifications] = useState<any>(null);
+  const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
   
   // Update notifications state when settings are loaded
   useEffect(() => {
@@ -245,7 +261,7 @@ export default function SettingsPage() {
   };
   
   // Edit a payment method
-  const editPaymentMethod = (method: any) => {
+  const editPaymentMethod = (method: PaymentMethod) => {
     setEditingPaymentMethod(method);
     setShowPaymentMethodModal(true);
   };
@@ -258,8 +274,7 @@ export default function SettingsPage() {
     });
     
     if (result.success) {
-      // Show success message (in a real app you would use a toast)
-      console.log("Profile updated successfully");
+      // Profile updated successfully
     } else {
       // Show error message
       console.error("Failed to update profile:", result.error);
@@ -268,15 +283,13 @@ export default function SettingsPage() {
 
   const changePassword = async () => {
     // In a real app, this would call an API to change the password
-    // For now, just simulate it
-    console.log("Changing password");
+    // Password change logic would go here
     
     // Reset fields and hide the form
     setPasswords({ current: "", new: "", confirm: "" });
     setShowPasswordFields(false);
     
-    // Show success message (in a real app you would use a toast)
-    console.log("Password changed successfully");
+    // Password changed successfully
   };
 
   const saveNotifications = async () => {
@@ -286,8 +299,7 @@ export default function SettingsPage() {
     });
     
     if (result.success) {
-      // Show success message (in a real app you would use a toast)
-      console.log("Notification preferences updated successfully");
+      // Notification preferences updated successfully
     } else {
       // Show error message
       console.error("Failed to update notification preferences:", result.error);
@@ -302,8 +314,7 @@ export default function SettingsPage() {
     });
     
     if (result.success) {
-      // Show success message (in a real app you would use a toast)
-      console.log("Preferences updated successfully");
+      // Preferences updated successfully
     } else {
       // Show error message
       console.error("Failed to update preferences:", result.error);
@@ -312,8 +323,7 @@ export default function SettingsPage() {
 
   const deleteAccount = () => {
     // In a real app, this would call an API to delete the account
-    // For now, just simulate it
-    console.log("Deleting account");
+    // Account deletion logic would go here
     
     // Redirect to login or home
     router.push("/");
@@ -363,24 +373,24 @@ export default function SettingsPage() {
         <Tabs defaultValue="profile" className="mt-6">
           <TabsList className="mb-8">
             <TabsTrigger value="profile" className="flex items-center">
-              <User className="h-4 w-4 mr-2" />
-              Profile
+              <User className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Profile</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center">
-              <Shield className="h-4 w-4 mr-2" />
-              Security
+              <Shield className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
+              <Bell className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Notifications</span>
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Payment Methods
+              <CreditCard className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Payment</span>
             </TabsTrigger>
             <TabsTrigger value="preferences" className="flex items-center">
-              <Settings className="h-4 w-4 mr-2" />
-              Preferences
+              <Settings className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Preferences</span>
             </TabsTrigger>
           </TabsList>
 
@@ -631,20 +641,6 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Phone className="h-10 w-10 text-gray-400 mr-4" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          SMS Authentication
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Receive verification codes via text message
-                        </p>
-                      </div>
-                    </div>
-                    <Switch />
-                  </div>
                 </div>
 
                 <div className="border-t pt-6">
@@ -1003,19 +999,19 @@ export default function SettingsPage() {
                         method.isDefault ? "bg-blue-50 border-blue-200" : ""
                       }`}
                     >
-                      <div className="flex justify-between items-center">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                         <div className="flex items-center">
                           {method.type === "bank" ? (
-                            <div className="bg-green-100 p-2 rounded-md mr-4">
+                            <div className="bg-green-100 p-2 rounded-md mr-3 sm:mr-4 shrink-0">
                               <CreditCard className="h-6 w-6 text-green-600" />
                             </div>
                           ) : (
-                            <div className="bg-blue-100 p-2 rounded-md mr-4">
+                            <div className="bg-blue-100 p-2 rounded-md mr-3 sm:mr-4 shrink-0">
                               <CreditCard className="h-6 w-6 text-blue-600" />
                             </div>
                           )}
-                          <div>
-                            <div className="font-medium">{method.name}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{method.name}</div>
                             <div className="text-sm text-gray-500">
                               {method.type === "bank" ? "Account" : "Card"}{" "}
                               ending in {method.last4}
@@ -1027,19 +1023,21 @@ export default function SettingsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex space-x-3">
+                        <div className="flex flex-wrap gap-2">
                           {!method.isDefault && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
+                              className="min-h-[44px] flex-1 sm:flex-none"
                               onClick={() => setDefaultMethod(method.id)}
                             >
-                              Set as Default
+                              Set Default
                             </Button>
                           )}
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
+                            className="min-h-[44px] flex-1 sm:flex-none"
                             onClick={() => editPaymentMethod(method)}
                           >
                             Edit
@@ -1047,7 +1045,7 @@ export default function SettingsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-red-600"
+                            className="text-red-600 min-h-[44px] flex-1 sm:flex-none"
                             onClick={() => deletePaymentMethod(method.id)}
                           >
                             Remove
@@ -1058,8 +1056,8 @@ export default function SettingsPage() {
                   ))}
                 </div>
 
-                <Button 
-                  className="mt-4"
+                <Button
+                  className="mt-4 min-h-[44px] w-full sm:w-auto"
                   onClick={() => setShowPaymentMethodModal(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />

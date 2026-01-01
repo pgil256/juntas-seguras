@@ -6,17 +6,22 @@ export enum PoolStatus {
   ACTIVE = 'active',
   COMPLETED = 'completed',
   PAUSED = 'paused',
+  PENDING = 'pending',
 }
 
 export enum PoolMemberStatus {
   CURRENT = 'current',
   COMPLETED = 'completed',
   UPCOMING = 'upcoming',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  SUSPENDED = 'suspended',
 }
 
 export enum PoolMemberRole {
   ADMIN = 'admin',
   MEMBER = 'member',
+  CREATOR = 'creator',
 }
 
 export enum InvitationStatus {
@@ -33,6 +38,7 @@ export enum TransactionType {
 
 export interface PoolMember {
   id: number;
+  userId?: any; // MongoDB ObjectId reference to User
   name: string;
   email: string;
   phone?: string;
@@ -69,6 +75,10 @@ export interface PoolMessage {
   author: string;
   content: string;
   date: string;
+  // Optional MongoDB-specific fields (present when fetched from API)
+  _id?: string;         // MongoDB ObjectId as string
+  senderId?: string;    // Sender's user ID for ownership checks
+  readAt?: string;      // ISO timestamp when message was read (for direct messages)
 }
 
 export interface Pool {
@@ -97,6 +107,7 @@ export interface CreatePoolRequest {
   frequency: string;
   totalRounds: number;
   startDate?: string;
+  invitations?: string[];
 }
 
 export interface UpdatePoolRequest {
@@ -143,6 +154,7 @@ export interface CreateInvitationRequest {
   email: string;
   name?: string;
   phone?: string;
+  message?: string;
 }
 
 export interface ResendInvitationRequest {

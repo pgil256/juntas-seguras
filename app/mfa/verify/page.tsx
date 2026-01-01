@@ -48,8 +48,11 @@ function VerifyMfaContent() {
         throw new Error(data.error || 'Verification failed');
       }
 
-      // If verification is successful, redirect to the dashboard
-      router.push('/dashboard');
+      // Get return URL from query params or default to dashboard
+      const returnUrl = searchParams.get('returnUrl') || '/dashboard';
+      
+      // If verification is successful, redirect to the return URL or dashboard
+      router.push(decodeURIComponent(returnUrl));
       router.refresh();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred during verification');

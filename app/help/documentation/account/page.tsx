@@ -83,7 +83,7 @@ export default function AccountDocumentationPage() {
                 <span className="font-medium">Language:</span> Set your preferred language for the platform interface
               </li>
               <li>
-                <span className="font-medium">Notifications:</span> Configure email, SMS, and in-app notification preferences
+                <span className="font-medium">Notifications:</span> Configure email and in-app notification preferences
               </li>
               <li>
                 <span className="font-medium">Time Zone:</span> Set your time zone to ensure notifications arrive at appropriate times
@@ -112,7 +112,7 @@ export default function AccountDocumentationPage() {
                 <span className="font-medium">Password Management:</span> Regularly update your password for enhanced security
               </li>
               <li>
-                <span className="font-medium">Two-Factor Authentication:</span> Enable 2FA to add an extra layer of security using an authenticator app, SMS, or email
+                <span className="font-medium">Two-Factor Authentication:</span> Enable 2FA to add an extra layer of security using an authenticator app or email
               </li>
               <li>
                 <span className="font-medium">Login Sessions:</span> Review and manage active login sessions across devices

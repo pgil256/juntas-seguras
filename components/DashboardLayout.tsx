@@ -1,4 +1,6 @@
 // components/DashboardLayout.tsx
+"use client";
+
 import React from "react";
 import {
   CreditCard,
@@ -11,6 +13,7 @@ import {
   LogOut,
 } from "lucide-react";
 import Navbar from "./Navbar";
+import ClientOnly from "./ClientOnly";
 
 // Move data outside the component
 const poolStats = {
@@ -53,7 +56,9 @@ const upcomingPayments = [
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
+      <ClientOnly>
+        <Navbar />
+      </ClientOnly>
       
       {/* Main Content */}
       <div className="flex-grow px-3 sm:px-6 lg:px-8 py-4 sm:py-6">

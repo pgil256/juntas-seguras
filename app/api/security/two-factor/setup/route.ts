@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TwoFactorMethod, ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
-import getUserModel from '../../../../../lib/db/models/user';
+import { getUserModel } from '../../../../../lib/db/models/user';
 import { logServerActivity } from '../../../../../lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate method type
-    if (!['app', 'sms', 'email'].includes(method)) {
+    // Validate method type (email-only MFA - no SMS)
+    if (!['app', 'email'].includes(method)) {
       return NextResponse.json(
-        { error: 'Invalid authentication method. Must be app, sms, or email' },
+        { error: 'Invalid authentication method. Must be app or email' },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const UserModel = getUserModel();
     const user = await UserModel.findOne({ id: userId });
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
 
     // Generate a proper secret (in a real app, this would use a library like speakeasy)
     const secret = generateTotpSecret();
-    
+
     // Generate backup codes
     const backupCodes = generateBackupCodes();
 
-    // Update the user with 2FA settings
+    // Update the user with 2FA settings (email-only MFA - no phone)
     user.twoFactorAuth = {
       enabled: true,
       method: method as TwoFactorMethod,
@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
       backupCodes,
       lastUpdated: new Date().toISOString(),
       email: body.email || user.email,
-      phone: body.phone || user.phone,
       verified: false // Will be set to true when first verified
     };
 
@@ -59,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Log the activity
     logServerActivity(userId, ActivityType.TWO_FACTOR_SETUP, { method });
 
-    // For SMS and email methods, a verification code would be sent
+    // For email method, a verification code would be sent
     // For app method, return the secret for QR code generation
     if (method === 'app') {
       return NextResponse.json({
@@ -69,13 +68,12 @@ export async function POST(request: NextRequest) {
         qrCodeUrl: `otpauth://totp/JuntasApp:${user.email}?secret=${secret}&issuer=JuntasSeguras`,
       });
     } else {
-      // In a real app, this would send an SMS or email with the verification code
-      // For now, we simulate sending a code
+      // Email verification - send verification code via email
       const tempCode = '123456'; // In production, generate a random code and store it
-      
+
       return NextResponse.json({
         success: true,
-        message: `Verification code sent to your ${method === 'sms' ? 'phone' : 'email'}`,
+        message: 'Verification code sent to your email',
         backupCodes,
         // Remove in production - just for testing purposes
         tempCode
@@ -106,7 +104,7 @@ export async function DELETE(request: NextRequest) {
     await connectToDatabase();
     const UserModel = getUserModel();
     const user = await UserModel.findOne({ id: userId });
-    
+
     if (!user || !user.twoFactorAuth || !user.twoFactorAuth.enabled) {
       return NextResponse.json(
         { error: 'Two-factor authentication is not enabled for this user' },
@@ -151,7 +149,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const UserModel = getUserModel();
     const user = await UserModel.findOne({ id: userId });
-    
+
     if (!user || !user.twoFactorAuth) {
       return NextResponse.json({
         enabled: false,
@@ -160,12 +158,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Don't return the actual secret or backup codes for security
-    const { 
-      secret, 
-      backupCodes, 
-      ...safeData 
-    } = user.twoFactorAuth.toObject ? user.twoFactorAuth.toObject() : user.twoFactorAuth;
-    
+    type TwoFactorWithToObject = typeof user.twoFactorAuth & { toObject?: () => Record<string, unknown> };
+    const twoFactorObj = (user.twoFactorAuth as TwoFactorWithToObject).toObject
+      ? (user.twoFactorAuth as TwoFactorWithToObject).toObject!()
+      : (user.twoFactorAuth as Record<string, unknown>);
+    const { secret: _secret, backupCodes: _backupCodes, ...safeData } = twoFactorObj;
+
     return NextResponse.json(safeData);
   } catch (error) {
     console.error('2FA status error:', error);
@@ -182,19 +180,18 @@ function generateTotpSecret() {
   // Example:
   // const speakeasy = require('speakeasy');
   // return speakeasy.generateSecret({ length: 20 }).base32;
-  
+
   // For now, we generate a mock secret
-  return Array.from({ length: 16 }, () => 
+  return Array.from({ length: 16 }, () =>
     'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]
   ).join('');
 }
 
 function generateBackupCodes() {
   // Generate 8 backup codes, each 8 digits long
-  return Array.from({ length: 8 }, () => 
-    Array.from({ length: 8 }, () => 
+  return Array.from({ length: 8 }, () =>
+    Array.from({ length: 8 }, () =>
       '0123456789'[Math.floor(Math.random() * 10)]
     ).join('')
   );
 }
-

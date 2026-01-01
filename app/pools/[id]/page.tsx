@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Calendar,
   ChevronLeft,
@@ -17,8 +18,9 @@ import {
   Loader,
   Send,
   Trash2,
+  Wallet,
+  Loader2,
 } from "lucide-react";
-import Navbar from "../../../components/Navbar";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -31,36 +33,73 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui
 import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar";
 import { format } from "date-fns";
 import { InviteMembersDialog } from "../../../components/pools/InviteMembersDialog";
+import { ContributionModal } from "../../../components/pools/ContributionModal";
+import { ContributionStatusCard } from "../../../components/pools/ContributionStatusCard";
+import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../../components/ui/alert-dialog";
 import { usePool } from "../../../lib/hooks/usePool";
 import { usePoolMessages } from "../../../lib/hooks/usePoolMessages";
-import { TransactionType } from "../../../types/pool";
-
-// For demo purposes - in a real app, this would come from authentication context
-const mockUserId = 'user123';
+import { usePoolContributions } from "../../../lib/hooks/usePoolContributions";
+import { TransactionType, PoolMemberRole } from "../../../types/pool";
 
 export default function PoolDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const router = useRouter();
+  const { data: session, status: authStatus } = useSession();
   const [messageText, setMessageText] = useState("");
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showContributionModal, setShowContributionModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const { pool, isLoading: poolLoading, error: poolError, refreshPool } = usePool({ 
-    poolId: params.id,
-    userId: mockUserId
+
+  const { pool, isLoading: poolLoading, error: poolError, refreshPool } = usePool({
+    poolId: id
   });
-  
-  const { 
-    messages, 
-    isLoading: messagesLoading, 
-    error: messagesError, 
+
+  const {
+    messages,
+    isLoading: messagesLoading,
+    error: messagesError,
     sendMessage,
     deleteMessage,
     refreshMessages
-  } = usePoolMessages({ 
-    poolId: params.id,
-    userId: mockUserId
+  } = usePoolMessages({
+    poolId: id
   });
+
+  // Get contribution status for conditional button display
+  const {
+    isLoading: contributionLoading,
+    contributionStatus,
+    userContributionInfo,
+    getContributionStatus,
+  } = usePoolContributions({
+    poolId: id,
+    userEmail: session?.user?.email || '',
+  });
+
+  // Load contribution status when session is available
+  useEffect(() => {
+    if (session?.user?.email && id) {
+      getContributionStatus();
+    }
+  }, [session?.user?.email, id, getContributionStatus]);
+
+  // Determine if user can contribute
+  const canContribute = userContributionInfo
+    ? !userContributionInfo.isRecipient && !userContributionInfo.hasContributed
+    : false;
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "MMM d, yyyy");
@@ -106,6 +145,13 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
       .toUpperCase();
   };
 
+  // Check if current user is an admin
+  const isAdmin = pool?.members?.some(
+    (m) =>
+      m.email === session?.user?.email &&
+      (m.role === PoolMemberRole.ADMIN || m.role === PoolMemberRole.CREATOR || m.role === 'admin' || m.role === 'creator')
+  ) ?? false;
+
   // Scroll to bottom of messages when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,7 +160,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim()) return;
-    
+
     try {
       const result = await sendMessage(messageText);
       if (result) {
@@ -124,7 +170,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
       console.error("Failed to send message:", error);
     }
   };
-  
+
   const handleDeleteMessage = async (messageId: number) => {
     try {
       await deleteMessage(messageId);
@@ -132,68 +178,90 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
       console.error("Failed to delete message:", error);
     }
   };
-  
+
   const handleManageMembers = () => {
-    router.push(`/member-management/${params.id}`);
+    router.push(`/member-management/${id}`);
   };
-  
+
+  const handleContributionSuccess = useCallback(() => {
+    // Refresh pool data and contribution status after contribution
+    refreshPool();
+    getContributionStatus();
+  }, [refreshPool, getContributionStatus]);
+
+  // Handler for payout success
+  const handlePayoutSuccess = useCallback(() => {
+    // Refresh pool data after payout is processed
+    refreshPool();
+    getContributionStatus();
+  }, [refreshPool, getContributionStatus]);
+
+  // Handler for deleting the pool
+  const handleDeletePool = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/pools/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete pool');
+      }
+
+      // Redirect to my pools page after successful deletion
+      router.push('/my-pool');
+    } catch (error) {
+      console.error('Failed to delete pool:', error);
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (poolLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-center h-64">
-            <Loader className="h-8 w-8 text-blue-500 animate-spin mb-4" />
-            <p className="text-lg text-gray-500">Loading pool details...</p>
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+        <p className="text-lg text-gray-500">Loading pool details...</p>
       </div>
     );
   }
-  
+
   if (poolError) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{poolError}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => router.push('/my-pool')}>
-              Back to My Pools
-            </Button>
-          </div>
+      <div>
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{poolError}</AlertDescription>
+        </Alert>
+        <div className="mt-4">
+          <Button onClick={() => router.push('/my-pool')}>
+            Back to My Pools
+          </Button>
         </div>
       </div>
     );
   }
-  
+
   if (!pool) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <Alert>
-            <AlertTitle>Pool Not Found</AlertTitle>
-            <AlertDescription>The requested pool could not be found.</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => router.push('/my-pool')}>
-              Back to My Pools
-            </Button>
-          </div>
+      <div>
+        <Alert>
+          <AlertTitle>Pool Not Found</AlertTitle>
+          <AlertDescription>The requested pool could not be found.</AlertDescription>
+        </Alert>
+        <div className="mt-4">
+          <Button onClick={() => router.push('/my-pool')}>
+            Back to My Pools
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div>
+      <div>
         {/* Header */}
         <div className="px-4 py-4 sm:px-0">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -217,19 +285,56 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <div className="mt-4 md:mt-0 flex space-x-3">
-              <Button variant="outline" size="sm" className="flex items-center">
+            <div className="mt-4 md:mt-0 flex flex-wrap gap-2 w-full md:w-auto">
+              <Button variant="outline" size="sm" className="flex items-center min-h-[44px] flex-1 sm:flex-none justify-center">
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
-              <Button variant="outline" size="sm" className="flex items-center">
+              <Button variant="outline" size="sm" className="flex items-center min-h-[44px] flex-1 sm:flex-none justify-center">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              <Button className="flex items-center">
-                <DollarSign className="h-4 w-4 mr-2" />
-                Make Payment
-              </Button>
+              <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center min-h-[44px] flex-1 sm:flex-none justify-center text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Pool
+                </Button>
+              {contributionLoading ? (
+                <Button disabled className="flex items-center min-h-[44px] w-full sm:w-auto justify-center">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </Button>
+              ) : canContribute ? (
+                <Button
+                  className="flex items-center min-h-[44px] w-full sm:w-auto justify-center"
+                  onClick={() => setShowContributionModal(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Make Payment
+                </Button>
+              ) : userContributionInfo?.isRecipient ? (
+                <Button variant="outline" disabled className="flex items-center min-h-[44px] w-full sm:w-auto justify-center">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  You're the Recipient
+                </Button>
+              ) : userContributionInfo?.hasContributed ? (
+                <Button variant="outline" disabled className="flex items-center text-green-600 min-h-[44px] w-full sm:w-auto justify-center">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Payment Made
+                </Button>
+              ) : (
+                <Button
+                  className="flex items-center min-h-[44px] w-full sm:w-auto justify-center"
+                  onClick={() => setShowContributionModal(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Make Payment
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -346,25 +451,47 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
 
         {/* Tabs for different sections */}
         <div className="mt-8">
-          <Tabs defaultValue="members">
-            <TabsList className="mb-6">
+          <Tabs defaultValue="contributions">
+            <TabsList className="mb-6 flex-wrap">
+              <TabsTrigger value="contributions">Contributions</TabsTrigger>
+              <TabsTrigger value="payouts">Payouts</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="discussion">Discussion</TabsTrigger>
               <TabsTrigger value="rules">Rules</TabsTrigger>
             </TabsList>
 
+            {/* Contributions Tab */}
+            <TabsContent value="contributions">
+              <ContributionStatusCard
+                poolId={id}
+                userEmail={session?.user?.email || ''}
+                onMakeContribution={() => setShowContributionModal(true)}
+              />
+            </TabsContent>
+
+            {/* Payouts Tab */}
+            <TabsContent value="payouts">
+              <PoolPayoutsManager
+                poolId={id}
+                userId={session?.user?.id || ''}
+                isAdmin={isAdmin}
+                poolName={pool.name}
+                onPayoutSuccess={handlePayoutSuccess}
+              />
+            </TabsContent>
+
             {/* Members Tab */}
             <TabsContent value="members">
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <CardTitle>Pool Members</CardTitle>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center"
+                        className="flex items-center justify-center min-h-[44px]"
                         onClick={() => setShowInviteDialog(true)}
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
@@ -373,7 +500,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center"
+                        className="flex items-center justify-center min-h-[44px]"
                         onClick={handleManageMembers}
                       >
                         <Users className="h-4 w-4 mr-2" />
@@ -383,43 +510,43 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Member
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Position
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Status
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Joined
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Role
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Actions
                           </th>
@@ -430,12 +557,12 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                           <tr
                             key={member.id}
                             className={
-                              member.name === "You" ? "bg-blue-50" : ""
+                              member.email === session?.user?.email ? "bg-blue-50" : ""
                             }
                           >
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <Avatar className="h-8 w-8 mr-3">
+                                <Avatar className="h-8 w-8 mr-2 sm:mr-3 shrink-0">
                                   <AvatarImage
                                     src={member.avatar}
                                     alt={member.name}
@@ -444,20 +571,20 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                                     {getInitials(member.name)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-none">
                                     {member.name}
                                   </div>
-                                  <div className="text-sm text-gray-500">
+                                  <div className="text-sm text-gray-500 truncate max-w-[100px] sm:max-w-none hidden sm:block">
                                     {member.email}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {member.position}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                               <span
                                 className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
                                   member.status
@@ -467,14 +594,14 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                                   member.status.slice(1)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatDate(member.joinDate)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                            <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                               {member.role}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                              <button className="text-gray-400 hover:text-gray-500">
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm">
+                              <button className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                                 <MoreHorizontal className="h-5 w-5" />
                               </button>
                             </td>
@@ -536,40 +663,48 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {pool.transactions.map((transaction) => (
-                          <tr key={transaction.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                {getTransactionIcon(transaction.type)}
-                                <span className="ml-2 text-sm font-medium text-gray-900 capitalize">
-                                  {transaction.type}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {transaction.member}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <span
-                                className={
-                                  transaction.type === TransactionType.CONTRIBUTION
-                                    ? "text-blue-600"
-                                    : "text-green-600"
-                                }
-                              >
-                                {formatCurrency(transaction.amount)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDateTime(transaction.date)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 capitalize">
-                                {transaction.status}
-                              </span>
+                        {pool.transactions.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                              No transactions yet. Contributions will appear here.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          pool.transactions.map((transaction) => (
+                            <tr key={transaction.id}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  {getTransactionIcon(transaction.type)}
+                                  <span className="ml-2 text-sm font-medium text-gray-900 capitalize">
+                                    {transaction.type}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {transaction.member}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <span
+                                  className={
+                                    transaction.type === TransactionType.CONTRIBUTION
+                                      ? "text-blue-600"
+                                      : "text-green-600"
+                                  }
+                                >
+                                  {formatCurrency(transaction.amount)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDateTime(transaction.date)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 capitalize">
+                                  {transaction.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -620,7 +755,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                                     <span className="text-xs text-gray-500 mr-2">
                                       {formatDateTime(message.date)}
                                     </span>
-                                    {message.author === "You" && (
+                                    {(message.author === session?.user?.name || message.author === session?.user?.email) && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
@@ -647,7 +782,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                       <div className="flex">
                         <Avatar className="h-10 w-10 mr-3 shrink-0">
                           <AvatarFallback className="bg-blue-200 text-blue-800">
-                            {getInitials("You")}
+                            {getInitials(session?.user?.name || session?.user?.email || "?")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 relative">
@@ -774,14 +909,54 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
           </Tabs>
         </div>
       </div>
-      
+
       {/* Invite Members Dialog */}
       <InviteMembersDialog
-        poolId={params.id}
+        poolId={id}
         poolName={pool.name}
         isOpen={showInviteDialog}
         onClose={() => setShowInviteDialog(false)}
       />
+
+      {/* Contribution Modal */}
+      <ContributionModal
+        poolId={id}
+        poolName={pool.name}
+        userEmail={session?.user?.email || ''}
+        isOpen={showContributionModal}
+        onClose={() => setShowContributionModal(false)}
+        onContributionSuccess={handleContributionSuccess}
+      />
+
+      {/* Delete Pool Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Pool</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{pool.name}"? This action cannot be undone.
+              All pool data, including members, transactions, and messages will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePool}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Pool'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

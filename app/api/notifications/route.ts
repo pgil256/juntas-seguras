@@ -46,17 +46,19 @@ const defaultPreferences: NotificationPreference[] = [
 ];
 
 // Get real notifications from the database
-async function getUserNotifications(userId: string): Promise<Notification[]> {
+async function getUserNotifications(userId: string | null | undefined): Promise<Notification[]> {
   try {
+    if (!userId) return [];
     const db = mongoose.connection.db;
+    if (!db) return [];
     const notificationsCollection = db.collection('notifications');
-    
+
     const notifications = await notificationsCollection
       .find({ userId })
       .sort({ date: -1 })
       .toArray();
-      
-    return notifications;
+
+    return notifications as unknown as Notification[];
   } catch (error) {
     console.error("Error fetching user notifications:", error);
     return [];
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Use user preferences or default if not found
-    let userPreferences = user?.notificationPreferences || [...defaultPreferences];
+    const userPreferences = (user as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
     
     return NextResponse.json({ 
       notifications: userNotifications, 
@@ -120,14 +122,15 @@ export async function POST(request: NextRequest) {
     });
     
     // Use user preferences or defaults
-    let userPreferences = user?.notificationPreferences || [...defaultPreferences];
+    const userPreferences = (user as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
     
     switch (action) {
       case 'markAsRead':
         if (id) {
           // Update the notification in MongoDB
-          const db = mongoose.connection.db;
-          const notificationsCollection = db.collection('notifications');
+          const db1 = mongoose.connection.db;
+          if (!db1) throw new Error('Database not connected');
+          const notificationsCollection = db1.collection('notifications');
           
           await notificationsCollection.updateOne(
             { id, userId },
@@ -138,25 +141,28 @@ export async function POST(request: NextRequest) {
         }
         break;
         
-      case 'markAllAsRead':
+      case 'markAllAsRead': {
         // Update all user's notifications in MongoDB
-        const db = mongoose.connection.db;
-        const notificationsCollection = db.collection('notifications');
+        const db2 = mongoose.connection.db;
+        if (!db2) throw new Error('Database not connected');
+        const notificationsCollection2 = db2.collection('notifications');
         
-        await notificationsCollection.updateMany(
+        await notificationsCollection2.updateMany(
           { userId, read: false },
           { $set: { read: true } }
         );
-        
+
         return NextResponse.json({ success: true });
-        
+      }
+
       case 'deleteNotification':
         if (id) {
           // Delete the notification from MongoDB
-          const db = mongoose.connection.db;
-          const notificationsCollection = db.collection('notifications');
+          const db3 = mongoose.connection.db;
+          if (!db3) throw new Error('Database not connected');
+          const notificationsCollection3 = db3.collection('notifications');
           
-          await notificationsCollection.deleteOne({ id: Number(id), userId });
+          await notificationsCollection3.deleteOne({ id: Number(id), userId });
           
           return NextResponse.json({ success: true });
         }
@@ -165,23 +171,24 @@ export async function POST(request: NextRequest) {
       case 'togglePreference':
         if (id && type) {
           // Get current user and preferences
-          const UserModel = getUserModel();
-          const user = await UserModel.findOne({ 
+          const UserModel2 = getUserModel();
+          const user2 = await UserModel2.findOne({
             $or: [{ id: userId }, { email: userId }]
           });
-          
+
           // Get existing preferences or defaults
-          const currentPreferences = user?.notificationPreferences || [...defaultPreferences];
-          
+          const currentPreferences = (user2 as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
+
           // Find the preference
-          const prefIndex = currentPreferences.findIndex(p => p.id === id);
+          const prefIndex = currentPreferences.findIndex((p: NotificationPreference) => p.id === id);
           if (prefIndex !== -1) {
             // Toggle the value
-            const currentValue = currentPreferences[prefIndex][type];
-            currentPreferences[prefIndex][type] = !currentValue;
-            
+            const pref = currentPreferences[prefIndex] as unknown as Record<string, boolean>;
+            const currentValue = pref[type];
+            pref[type] = !currentValue;
+
             // Save back to database
-            await UserModel.findOneAndUpdate(
+            await UserModel2.findOneAndUpdate(
               { $or: [{ id: userId }, { email: userId }] },
               { notificationPreferences: currentPreferences }
             );
@@ -194,12 +201,12 @@ export async function POST(request: NextRequest) {
       case 'savePreferences':
         if (preferences) {
           // Save preferences directly to the user document
-          const UserModel = getUserModel();
-          await UserModel.findOneAndUpdate(
+          const UserModel3 = getUserModel();
+          await UserModel3.findOneAndUpdate(
             { $or: [{ id: userId }, { email: userId }] },
             { notificationPreferences: preferences }
           );
-          
+
           return NextResponse.json({ success: true });
         }
         break;
@@ -240,10 +247,11 @@ export async function PUT(request: NextRequest) {
     };
     
     // Insert into MongoDB
-    const db = mongoose.connection.db;
-    const notificationsCollection = db.collection('notifications');
+    const db4 = mongoose.connection.db;
+    if (!db4) throw new Error('Database not connected');
+    const notificationsCollection4 = db4.collection('notifications');
     
-    await notificationsCollection.insertOne(newNotification);
+    await notificationsCollection4.insertOne(newNotification);
     
     return NextResponse.json({ success: true, notification: newNotification });
   } catch (error) {

@@ -1,52 +1,169 @@
+/**
+ * Direct Messages API Routes
+ *
+ * Handles one-on-one messages between pool members. These messages are private
+ * and only visible to the two participants within the context of a specific pool.
+ * This replaces the previous in-memory storage with MongoDB persistence.
+ *
+ * Endpoints:
+ * - GET  /api/pools/[id]/members/messages?memberId=xxx - Fetch conversation between two users
+ * - POST /api/pools/[id]/members/messages - Send a direct message
+ *
+ * Data Flow:
+ * 1. Request comes in with pool ID from URL params and member ID from query/body
+ * 2. Session is validated via NextAuth
+ * 3. Participants array is sorted for consistent storage/retrieval
+ * 4. Operation is performed on DirectMessage collection
+ * 5. Response is formatted for backwards compatibility with frontend
+ *
+ * Key Design Decision:
+ * - Messages are stored with a sorted participants array to ensure that
+ *   conversations between User A and User B are always stored the same way,
+ *   regardless of who initiates the conversation
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { PoolMessage } from '../../../../../../types/pool';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../../../app/api/auth/[...nextauth]/options';
+import connectToDatabase from '../../../../../../lib/db/connect';
+import { DirectMessage, getSortedParticipants } from '../../../../../../lib/db/models/directMessage';
+import { Pool } from '../../../../../../lib/db/models/pool';
+import { User } from '../../../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../../../lib/auth';
+import { isValidObjectId } from '../../../../../../lib/utils/objectId';
+import mongoose from 'mongoose';
 
-// In a real application, this would be stored in a database
-// For now, we'll use a simple in-memory store by pool ID + member ID pair
-const directMessageStore = new Map<string, PoolMessage[]>();
-
-// Helper to create a key for the message store
-const getStoreKey = (poolId: string, fromUserId: string, toMemberId: string) => {
-  // Sort the IDs to ensure the same conversation is accessed regardless of sender/receiver
-  const userIds = [fromUserId, toMemberId].sort().join('-');
-  return `${poolId}:${userIds}`;
-};
-
-// GET /api/pools/[id]/members/messages?memberId=123 - Get direct messages between users
+/**
+ * GET /api/pools/[id]/members/messages?memberId=xxx
+ *
+ * Fetches the conversation history between the current user and another pool member.
+ * Returns messages in ascending order (oldest first) for display purposes.
+ *
+ * Query Parameters:
+ * - memberId: The other participant's user ID (required)
+ * - limit: Number of messages to return (default: 100)
+ * - skip: Number of messages to skip for pagination
+ * - before: ISO timestamp to fetch messages before (for infinite scroll)
+ *
+ * Response Format (backwards compatible):
+ * {
+ *   messages: [{ id, author, content, date }, ...]
+ * }
+ */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = params.id;
-    const userId = request.headers.get('user-id');
+    const { id: poolId } = await params;
     const url = new URL(request.url);
     const memberId = url.searchParams.get('memberId');
-    
+
     if (!poolId || !memberId) {
       return NextResponse.json(
         { error: 'Pool ID and member ID are required' },
         { status: 400 }
       );
     }
-    
-    if (!userId) {
+
+    // Get current user with proper ObjectId validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'User ID is required in headers' },
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+    const user = userResult.user;
+    const userId = user._id.toString();
+
+    // Validate pool ID format
+    if (!mongoose.Types.ObjectId.isValid(poolId)) {
+      return NextResponse.json(
+        { error: 'Invalid pool ID format' },
         { status: 400 }
       );
     }
-    
-    // In a real app, verify both users are members of this pool
-    
-    // Get the conversation key
-    const storeKey = getStoreKey(poolId, userId, memberId);
-    
-    // Get messages for this conversation
-    const messages = directMessageStore.get(storeKey) || [];
-    
-    return NextResponse.json({ messages });
-    
+
+    // The memberId might be a number (legacy) or a string ObjectId
+    // For new users, it should be a valid ObjectId
+    let otherUserId: string;
+    if (mongoose.Types.ObjectId.isValid(memberId)) {
+      otherUserId = memberId;
+    } else {
+      // Legacy support: if memberId is a number, try to find the user
+      // by their position in the pool's members array
+      const pool = await Pool.findById(poolId).lean();
+      if (!pool) {
+        return NextResponse.json(
+          { error: 'Pool not found' },
+          { status: 404 }
+        );
+      }
+
+      const numericId = parseInt(memberId);
+      const member = (pool as any).members?.find((m: any) => m.id === numericId);
+      if (member?.userId) {
+        otherUserId = member.userId.toString();
+      } else {
+        return NextResponse.json(
+          { error: 'Member not found in pool' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Parse pagination parameters
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '100'), 500);
+    const skip = parseInt(url.searchParams.get('skip') || '0');
+    const before = url.searchParams.get('before');
+
+    // Get sorted participants array for consistent querying
+    const sortedParticipants = getSortedParticipants(userId, otherUserId);
+
+    // Build query
+    const query: any = {
+      poolId: new mongoose.Types.ObjectId(poolId),
+      participants: { $all: sortedParticipants },
+      deleted: false
+    };
+
+    if (before) {
+      query.createdAt = { $lt: new Date(before) };
+    }
+
+    // Fetch messages sorted by createdAt descending, then reverse for display
+    const messages = await DirectMessage.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Reverse to get oldest-first order for display
+    const formattedMessages = messages.reverse().map((msg: any) => ({
+      id: msg._id.getTimestamp().getTime(),
+      author: msg.senderName,
+      content: msg.content,
+      date: msg.createdAt.toISOString(),
+      _id: msg._id.toString(),
+      senderId: msg.senderId.toString(),
+      readAt: msg.readAt?.toISOString() || null
+    }));
+
+    // Mark messages as read (fire and forget)
+    DirectMessage.updateMany(
+      {
+        poolId: new mongoose.Types.ObjectId(poolId),
+        participants: { $all: sortedParticipants },
+        senderId: new mongoose.Types.ObjectId(otherUserId),  // Only messages from the other user
+        readAt: null,
+        deleted: false
+      },
+      { $set: { readAt: new Date() } }
+    ).catch(err => console.error('Failed to mark messages as read:', err));
+
+    return NextResponse.json({ messages: formattedMessages });
+
   } catch (error) {
     console.error('Error fetching direct messages:', error);
     return NextResponse.json(
@@ -56,85 +173,159 @@ export async function GET(
   }
 }
 
-// POST /api/pools/[id]/members/messages - Send a direct message
+/**
+ * POST /api/pools/[id]/members/messages
+ *
+ * Sends a direct message to another pool member.
+ *
+ * Request Body:
+ * {
+ *   memberId: string | number (required) - The recipient's user ID or legacy member ID
+ *   content: string (required) - The message text
+ * }
+ *
+ * Response Format (backwards compatible):
+ * {
+ *   success: true,
+ *   message: { id, author, content, date }
+ * }
+ */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = params.id;
-    const userId = request.headers.get('user-id');
-    const body = await request.json();
-    
+    const { id: poolId } = await params;
+
     if (!poolId) {
       return NextResponse.json(
         { error: 'Pool ID is required' },
         { status: 400 }
       );
     }
-    
-    if (!userId) {
+
+    // Get current user with proper ObjectId validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'User ID is required in headers' },
-        { status: 400 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
-    
+    const user = userResult.user;
+    const userId = user._id.toString();
+
+    // Parse and validate request body
+    const body = await request.json();
     const { memberId, content } = body;
-    
+
     if (!memberId) {
       return NextResponse.json(
         { error: 'Recipient member ID is required' },
         { status: 400 }
       );
     }
-    
-    if (!content || content.trim() === '') {
+
+    const trimmedContent = content?.trim();
+    if (!trimmedContent) {
       return NextResponse.json(
         { error: 'Message content cannot be empty' },
         { status: 400 }
       );
     }
-    
-    // In a real app:
-    // 1. Verify both users are members of this pool
-    // 2. Get the user's name from the database
-    // 3. Save the message to the database
-    // 4. Potentially trigger notifications
-    
-    // For demo purposes, we'll use a mock username based on the user ID
-    const authorName = userId === 'user123' ? 'You' : `User ${userId}`;
-    
-    // Create the new message
-    const newMessage: PoolMessage = {
-      id: Date.now(),  // Use timestamp as a simple ID
-      author: authorName,
-      content: content.trim(),
-      date: new Date().toISOString()
-    };
-    
-    // Get the conversation key
-    const storeKey = getStoreKey(poolId, userId, memberId.toString());
-    
-    // Get existing messages or create a new array
-    const existingMessages = directMessageStore.get(storeKey) || [];
-    
-    // Add the new message
-    const updatedMessages = [...existingMessages, newMessage];
-    directMessageStore.set(storeKey, updatedMessages);
-    
-    // Log activity
-    await logActivity(userId, 'direct_message_sent', {
-      poolId,
-      messageId: newMessage.id,
-      recipientId: memberId
+
+    if (trimmedContent.length > 5000) {
+      return NextResponse.json(
+        { error: 'Message cannot exceed 5000 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Connect to database
+    await connectToDatabase();
+
+    // Validate pool ID format
+    if (!mongoose.Types.ObjectId.isValid(poolId)) {
+      return NextResponse.json(
+        { error: 'Invalid pool ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Verify pool exists
+    const pool = await Pool.findById(poolId).lean();
+    if (!pool) {
+      return NextResponse.json(
+        { error: 'Pool not found' },
+        { status: 404 }
+      );
+    }
+
+    // Resolve the recipient user ID (handle legacy numeric IDs)
+    let recipientUserId: string;
+    if (mongoose.Types.ObjectId.isValid(memberId.toString())) {
+      recipientUserId = memberId.toString();
+    } else {
+      // Legacy support: find user by position in pool members
+      const numericId = parseInt(memberId.toString());
+      const member = (pool as any).members?.find((m: any) => m.id === numericId);
+      if (member?.userId) {
+        recipientUserId = member.userId.toString();
+      } else {
+        return NextResponse.json(
+          { error: 'Recipient not found in pool' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Prevent sending messages to yourself
+    if (recipientUserId === userId) {
+      return NextResponse.json(
+        { error: 'Cannot send messages to yourself' },
+        { status: 400 }
+      );
+    }
+
+    // Get sender's name (we already have the user object)
+    const senderName = user.name || 'Unknown User';
+
+    // Get sorted participants for consistent storage
+    const sortedParticipants = getSortedParticipants(userId, recipientUserId);
+
+    // Create the direct message
+    const newMessage = await DirectMessage.create({
+      poolId: new mongoose.Types.ObjectId(poolId),
+      participants: sortedParticipants,
+      senderId: new mongoose.Types.ObjectId(userId),
+      senderName,
+      content: trimmedContent,
+      readAt: null,
+      deleted: false
     });
-    
+
+    // Format response for backwards compatibility
+    const formattedMessage = {
+      id: newMessage._id.getTimestamp().getTime(),
+      author: newMessage.senderName,
+      content: newMessage.content,
+      date: newMessage.createdAt.toISOString(),
+      _id: newMessage._id.toString(),
+      senderId: newMessage.senderId.toString()
+    };
+
+    // Log activity (fire and forget)
+    logActivity(userId, 'direct_message_sent', {
+      poolId,
+      messageId: newMessage._id.toString(),
+      recipientId: recipientUserId
+    }).catch(err => console.error('Activity log failed:', err));
+
     return NextResponse.json({
       success: true,
-      message: newMessage
+      message: formattedMessage
     });
-    
+
   } catch (error) {
     console.error('Error sending direct message:', error);
     return NextResponse.json(
@@ -144,10 +335,13 @@ export async function POST(
   }
 }
 
-// Helper function to log activity
+/**
+ * Helper function to log user activity
+ */
 async function logActivity(userId: string, type: string, metadata: any) {
   try {
-    await fetch('/api/security/activity-log', {
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/security/activity-log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

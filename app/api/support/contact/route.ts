@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// In a production environment, these would be environment variables
-const SUPPORT_EMAIL = 'support@juntasseguras.com';
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.example.com';
+// Email configuration from environment variables
+const SUPPORT_EMAIL = process.env.EMAIL_USER || 'juntassegurasservice@gmail.com';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
-const SMTP_USER = process.env.SMTP_USER || 'support@juntasseguras.com';
-const SMTP_PASSWORD = process.env.SMTP_PASSWORD || 'smtp_password';
+const SMTP_USER = process.env.EMAIL_USER || 'juntassegurasservice@gmail.com';
+const SMTP_PASSWORD = process.env.EMAIL_PASSWORD || '';
 
 export async function POST(request: NextRequest) {
   try {

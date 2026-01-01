@@ -41,7 +41,6 @@ export default function ProfilePage() {
   
   const [notificationSettings, setNotificationSettings] = useState({
     email: true,
-    sms: true,
     paymentReminders: true,
     poolUpdates: true,
     newMembers: false,
@@ -343,25 +342,6 @@ export default function ProfilePage() {
                         type="checkbox"
                         checked={notificationSettings.email}
                         onChange={() => handleToggleChange("email")}
-                        className="sr-only peer"
-                        disabled={!editMode}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Bell className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-sm text-gray-700">
-                        SMS Notifications
-                      </span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notificationSettings.sms}
-                        onChange={() => handleToggleChange("sms")}
                         className="sr-only peer"
                         disabled={!editMode}
                       />

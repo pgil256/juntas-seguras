@@ -1,22 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../auth/[...nextauth]/options';
 import type { CreateInvitationRequest, ResendInvitationRequest, CancelInvitationRequest } from '../../../../../types/pool';
 import { InvitationStatus } from '../../../../../types/pool';
-import type { PoolInvitation } from '../../../../../types/pool';
+import connectToDatabase from '../../../../../lib/db/connect';
+import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
+import { getPoolModel } from '../../../../../lib/db/models/pool';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
-// In-memory store for invitations
-// In a real app, this would be in a database
-const invitationsStore = new Map<string, PoolInvitation[]>();
+// Create email transporter
+const getEmailTransporter = () => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.warn('[INVITATIONS] Email credentials not configured');
+    return null;
+  }
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    }
+  });
+};
+
+const Pool = getPoolModel();
 
 /**
  * GET /api/pools/[id]/invitations - Get all invitations for a pool
  */
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = context.params.id;
-    const userId = request.headers.get('user-id');
+    const { id: poolId } = await context.params;
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     
     if (!poolId) {
       return NextResponse.json(
@@ -25,24 +51,54 @@ export async function GET(
       );
     }
     
-    if (!userId) {
+    await connectToDatabase();
+    
+    // Check if user has access to this pool
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'User ID is required in headers' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
     
-    // Get invitations from the store or return mock data
-    let poolInvitations = invitationsStore.get(poolId) || [];
+    // Only pool admins and creators can view invitations
+    const isAdmin = pool.members.some(
+      (m: any) => (
+        (m.userId && m.userId.toString() === session.user.id) || 
+        (session.user.email && m.email === session.user.email)
+      ) && (m.role === 'admin' || m.role === 'creator')
+    );
     
-    // If no invitations found, return an empty array (or mock data for development)
-    if (poolInvitations.length === 0) {
-      poolInvitations = getMockInvitations(poolId);
-      invitationsStore.set(poolId, poolInvitations);
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'You do not have permission to view invitations' },
+        { status: 403 }
+      );
     }
     
+    // Get invitations from database
+    const invitations = await PoolInvitation.find({ poolId })
+      .populate('invitedBy', 'name email')
+      .populate('acceptedBy', 'name email')
+      .sort({ createdAt: -1 });
+    
+    // Clean up expired invitations
+    await PoolInvitation.cleanupExpired();
+    
     return NextResponse.json({
-      invitations: poolInvitations
+      invitations: invitations.map(inv => ({
+        id: inv._id.toString(),
+        email: inv.email,
+        name: inv.name,
+        phone: inv.phone,
+        sentDate: inv.sentDate.toISOString(),
+        status: inv.status,
+        invitedBy: inv.invitedBy,
+        acceptedBy: inv.acceptedBy,
+        acceptedDate: inv.acceptedDate,
+        expiresAt: inv.expiresAt.toISOString()
+      }))
     });
     
   } catch (error) {
@@ -59,12 +115,19 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = context.params.id;
-    const userId = request.headers.get('user-id');
+    const { id: poolId } = await context.params;
+    const session = await getServerSession(authOptions);
     const body = await request.json() as CreateInvitationRequest;
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     
     if (!poolId) {
       return NextResponse.json(
@@ -73,14 +136,7 @@ export async function POST(
       );
     }
     
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required in headers' },
-        { status: 400 }
-      );
-    }
-    
-    const { email, name, phone } = body;
+    const { email, name, phone, message } = body;
     
     if (!email) {
       return NextResponse.json(
@@ -89,64 +145,119 @@ export async function POST(
       );
     }
     
-    // Get existing invitations for this pool
-    let poolInvitations = invitationsStore.get(poolId) || [];
+    await connectToDatabase();
     
-    // Check if an invitation for this email already exists
-    const existingInvitation = poolInvitations.find(
-      inv => inv.email.toLowerCase() === email.toLowerCase()
+    // Check if user has permission to invite
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
+      return NextResponse.json(
+        { error: 'Pool not found' },
+        { status: 404 }
+      );
+    }
+    
+    const isAdmin = pool.members.some(
+      (m: any) => (
+        (m.userId && m.userId.toString() === session.user.id) || 
+        (session.user.email && m.email === session.user.email)
+      ) && (m.role === 'admin' || m.role === 'creator')
     );
     
-    if (existingInvitation) {
-      // If the invitation exists but is expired, update it
-      if (existingInvitation.status === InvitationStatus.EXPIRED) {
-        existingInvitation.sentDate = new Date().toISOString();
-        existingInvitation.status = InvitationStatus.PENDING;
-        
-        // Save updated invitations
-        invitationsStore.set(poolId, poolInvitations);
-        
-        return NextResponse.json({
-          success: true,
-          invitation: existingInvitation,
-          message: 'Invitation resent successfully'
-        });
-      }
-      
-      // Otherwise return an error
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'An invitation has already been sent to this email' },
+        { error: 'You do not have permission to send invitations' },
+        { status: 403 }
+      );
+    }
+    
+    // Check if user is already a member
+    const existingMember = pool.members.find(
+      (m: any) => m.email === email.toLowerCase()
+    );
+    
+    if (existingMember) {
+      return NextResponse.json(
+        { error: 'This email is already a member of the pool' },
         { status: 400 }
       );
     }
     
-    // Create a new invitation
-    const newInvitation: PoolInvitation = {
-      id: poolInvitations.length > 0
-        ? Math.max(...poolInvitations.map(inv => inv.id)) + 1
-        : 1,
-      email,
-      sentDate: new Date().toISOString(),
+    // Check for existing pending invitation
+    const existingInvitation = await PoolInvitation.findOne({
+      poolId,
+      email: email.toLowerCase(),
+      status: InvitationStatus.PENDING
+    });
+    
+    if (existingInvitation) {
+      // If invitation is expired, update it
+      if (new Date() > existingInvitation.expiresAt) {
+        existingInvitation.sentDate = new Date();
+        existingInvitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        existingInvitation.invitationCode = crypto.randomBytes(16).toString('hex');
+        await existingInvitation.save();
+        
+        // Send email
+        await sendInvitationEmail(existingInvitation, pool, session.user);
+        
+        return NextResponse.json({
+          success: true,
+          invitation: {
+            id: existingInvitation._id.toString(),
+            email: existingInvitation.email,
+            status: existingInvitation.status,
+            sentDate: existingInvitation.sentDate.toISOString()
+          },
+          message: 'Invitation resent successfully'
+        });
+      }
+      
+      return NextResponse.json(
+        { error: 'An active invitation already exists for this email' },
+        { status: 400 }
+      );
+    }
+    
+    // Create new invitation
+    const invitationCode = crypto.randomBytes(16).toString('hex');
+    const newInvitation = await PoolInvitation.create({
+      poolId,
+      email: email.toLowerCase(),
+      name,
+      phone,
+      invitedBy: session.user.id,
+      invitationCode,
       status: InvitationStatus.PENDING,
-    };
+      sentDate: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      message,
+      emailSent: false
+    });
     
-    // Add the invitation
-    poolInvitations.push(newInvitation);
-    invitationsStore.set(poolId, poolInvitations);
-    
-    // In a real app, send an email to the invitee here
-    console.log(`Sending invitation email to ${email} for pool ${poolId}`);
+    // Send invitation email
+    await sendInvitationEmail(newInvitation, pool, session.user);
     
     // Log activity
-    await logActivity(userId, 'pool_invitation_sent', {
-      poolId,
-      invitationId: newInvitation.id,
-      email
-    });
+    try {
+      await logActivity(session.user.id, 'pool_invitation_sent', {
+        poolId,
+        invitationId: newInvitation._id.toString(),
+        email
+      });
+    } catch (error) {
+      console.error('Failed to log invitation activity:', error);
+    }
     
     return NextResponse.json({
       success: true,
-      invitation: newInvitation
+      invitation: {
+        id: newInvitation._id.toString(),
+        email: newInvitation.email,
+        name: newInvitation.name,
+        status: newInvitation.status,
+        sentDate: newInvitation.sentDate.toISOString(),
+        invitationCode: newInvitation.invitationCode
+      }
     });
     
   } catch (error) {
@@ -159,72 +270,96 @@ export async function POST(
 }
 
 /**
- * PATCH /api/pools/[id]/invitations/[invitationId]/resend - Resend an invitation
+ * PATCH /api/pools/[id]/invitations - Resend an invitation
  */
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = context.params.id;
-    const userId = request.headers.get('user-id');
+    const { id: poolId } = await context.params;
+    const session = await getServerSession(authOptions);
     const body = await request.json() as ResendInvitationRequest;
     const { invitationId } = body;
     
-    if (!poolId) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Pool ID is required' },
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    if (!poolId || !invitationId) {
+      return NextResponse.json(
+        { error: 'Pool ID and Invitation ID are required' },
         { status: 400 }
       );
     }
     
-    if (!userId) {
+    await connectToDatabase();
+    
+    // Check permissions
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'User ID is required in headers' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
     
-    if (!invitationId) {
+    const isAdmin = pool.members.some(
+      (m: any) => (
+        (m.userId && m.userId.toString() === session.user.id) || 
+        (session.user.email && m.email === session.user.email)
+      ) && (m.role === 'admin' || m.role === 'creator')
+    );
+    
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Invitation ID is required' },
-        { status: 400 }
+        { error: 'You do not have permission to resend invitations' },
+        { status: 403 }
       );
     }
     
-    // Get invitations for this pool
-    let poolInvitations = invitationsStore.get(poolId) || [];
+    // Find and update invitation
+    const invitation = await PoolInvitation.findById(invitationId);
     
-    // Find the invitation
-    const invitationIndex = poolInvitations.findIndex(inv => inv.id === invitationId);
-    
-    if (invitationIndex === -1) {
+    if (!invitation) {
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
       );
     }
     
-    // Update the invitation
-    poolInvitations[invitationIndex].sentDate = new Date().toISOString();
-    poolInvitations[invitationIndex].status = InvitationStatus.PENDING;
+    // Generate new code and reset dates
+    invitation.invitationCode = crypto.randomBytes(16).toString('hex');
+    invitation.sentDate = new Date();
+    invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    invitation.status = InvitationStatus.PENDING;
+    await invitation.save();
     
-    // Save updated invitations
-    invitationsStore.set(poolId, poolInvitations);
-    
-    // In a real app, resend the email here
-    console.log(`Resending invitation email to ${poolInvitations[invitationIndex].email} for pool ${poolId}`);
+    // Resend email
+    await sendInvitationEmail(invitation, pool, session.user);
     
     // Log activity
-    await logActivity(userId, 'pool_invitation_resent', {
-      poolId,
-      invitationId,
-      email: poolInvitations[invitationIndex].email
-    });
+    try {
+      await logActivity(session.user.id, 'pool_invitation_resent', {
+        poolId,
+        invitationId,
+        email: invitation.email
+      });
+    } catch (error) {
+      console.error('Failed to log resend activity:', error);
+    }
     
     return NextResponse.json({
       success: true,
-      invitation: poolInvitations[invitationIndex]
+      invitation: {
+        id: invitation._id.toString(),
+        email: invitation.email,
+        status: invitation.status,
+        sentDate: invitation.sentDate.toISOString()
+      }
     });
     
   } catch (error) {
@@ -241,39 +376,54 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = context.params.id;
-    const userId = request.headers.get('user-id');
-    const invitationId = parseInt(request.nextUrl.searchParams.get('invitationId') || '0');
+    const { id: poolId } = await context.params;
+    const session = await getServerSession(authOptions);
+    const invitationId = request.nextUrl.searchParams.get('invitationId');
     
-    if (!poolId) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Pool ID is required' },
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    if (!poolId || !invitationId) {
+      return NextResponse.json(
+        { error: 'Pool ID and Invitation ID are required' },
         { status: 400 }
       );
     }
     
-    if (!userId) {
+    await connectToDatabase();
+    
+    // Check permissions
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'User ID is required in headers' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
     
-    if (!invitationId) {
+    const isAdmin = pool.members.some(
+      (m: any) => (
+        (m.userId && m.userId.toString() === session.user.id) || 
+        (session.user.email && m.email === session.user.email)
+      ) && (m.role === 'admin' || m.role === 'creator')
+    );
+    
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Invitation ID is required' },
-        { status: 400 }
+        { error: 'You do not have permission to cancel invitations' },
+        { status: 403 }
       );
     }
     
-    // Get invitations for this pool
-    let poolInvitations = invitationsStore.get(poolId) || [];
-    
-    // Find the invitation
-    const invitation = poolInvitations.find(inv => inv.id === invitationId);
+    // Find and delete invitation
+    const invitation = await PoolInvitation.findByIdAndDelete(invitationId);
     
     if (!invitation) {
       return NextResponse.json(
@@ -282,16 +432,16 @@ export async function DELETE(
       );
     }
     
-    // Remove the invitation
-    poolInvitations = poolInvitations.filter(inv => inv.id !== invitationId);
-    invitationsStore.set(poolId, poolInvitations);
-    
     // Log activity
-    await logActivity(userId, 'pool_invitation_cancelled', {
-      poolId,
-      invitationId,
-      email: invitation.email
-    });
+    try {
+      await logActivity(session.user.id, 'pool_invitation_cancelled', {
+        poolId,
+        invitationId,
+        email: invitation.email
+      });
+    } catch (error) {
+      console.error('Failed to log cancellation activity:', error);
+    }
     
     return NextResponse.json({
       success: true,
@@ -307,10 +457,98 @@ export async function DELETE(
   }
 }
 
+// Helper function to send invitation email
+async function sendInvitationEmail(invitation: any, pool: any, inviter: any) {
+  try {
+    const transporter = getEmailTransporter();
+    if (!transporter) {
+      console.error('[INVITATIONS] Cannot send email - transporter not configured');
+      return;
+    }
+
+    const invitationUrl = `${process.env.NEXTAUTH_URL}/pools/join?code=${invitation.invitationCode}`;
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: invitation.email,
+      subject: `You're invited to join ${pool.name}!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>You've been invited to join a savings pool!</h2>
+          <p>Hello${invitation.name ? ' ' + invitation.name : ''},</p>
+          <p>${inviter.name || inviter.email} has invited you to join the savings pool "${pool.name}".</p>
+
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Pool Details:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li><strong>Pool Name:</strong> ${pool.name}</li>
+              <li><strong>Contribution Amount:</strong> $${pool.contributionAmount}</li>
+              <li><strong>Frequency:</strong> ${pool.frequency}</li>
+              <li><strong>Current Members:</strong> ${pool.members.length}</li>
+            </ul>
+            ${invitation.message ? `<p><strong>Personal Message:</strong> ${invitation.message}</p>` : ''}
+          </div>
+
+          <p>To accept this invitation, click the link below:</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${invitationUrl}" style="background: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">Join Pool</a>
+          </p>
+
+          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+          <p style="color: #666; font-size: 14px; word-break: break-all;">${invitationUrl}</p>
+
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">This invitation will expire in 7 days.</p>
+
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          <p style="color: #999; font-size: 12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
+        </div>
+      `,
+      text: `
+You've been invited to join a savings pool!
+
+Hello${invitation.name ? ' ' + invitation.name : ''},
+
+${inviter.name || inviter.email} has invited you to join the savings pool "${pool.name}".
+
+Pool Details:
+- Pool Name: ${pool.name}
+- Contribution Amount: $${pool.contributionAmount}
+- Frequency: ${pool.frequency}
+- Current Members: ${pool.members.length}
+${invitation.message ? '\nPersonal Message: ' + invitation.message : ''}
+
+To accept this invitation, visit:
+${invitationUrl}
+
+This invitation will expire in 7 days.
+
+If you didn't expect this invitation, you can safely ignore this email.
+      `
+    };
+
+    console.log(`[INVITATIONS] Sending invitation email to ${invitation.email}`);
+    const result = await transporter.sendMail(mailOptions);
+
+    invitation.emailSent = true;
+    invitation.emailSentAt = new Date();
+    await invitation.save();
+
+    console.log(`[INVITATIONS] Successfully sent invitation email to ${invitation.email}`, {
+      messageId: result.messageId,
+      response: result.response
+    });
+  } catch (error: any) {
+    console.error(`[INVITATIONS] Error sending invitation email to ${invitation.email}:`, {
+      message: error.message,
+      code: error.code
+    });
+  }
+}
+
 // Helper function to log activity
 async function logActivity(userId: string, type: string, metadata: any) {
   try {
-    await fetch('/api/security/activity-log', {
+    await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/security/activity-log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -322,22 +560,4 @@ async function logActivity(userId: string, type: string, metadata: any) {
   } catch (error) {
     console.error('Failed to log activity:', error);
   }
-}
-
-// Helper function to get mock invitations data for development
-function getMockInvitations(poolId: string): PoolInvitation[] {
-  return [
-    {
-      id: 1,
-      email: "luis@example.com",
-      sentDate: "2025-02-28T00:00:00Z",
-      status: InvitationStatus.PENDING,
-    },
-    {
-      id: 2,
-      email: "carmen@example.com",
-      sentDate: "2025-03-01T00:00:00Z",
-      status: InvitationStatus.EXPIRED,
-    },
-  ];
 }

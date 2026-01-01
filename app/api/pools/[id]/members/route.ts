@@ -1,23 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AddMemberRequest, RemoveMemberRequest, UpdateMemberRequest, UpdatePositionsRequest } from '../../../../../types/pool';
-import { handleApiRequest, ApiError } from '../../../../../lib/api';
+import { AddMemberRequest, RemoveMemberRequest, UpdateMemberRequest, UpdatePositionsRequest, PoolMember } from '../../../../../types/pool';
+import { handleApiRequest, ApiError, findUserById } from '../../../../../lib/api';
+import connectToDatabase from '../../../../../lib/db/connect';
 import getPoolModel from '../../../../../lib/db/models/pool';
-import getUserModel from '../../../../../lib/db/models/user';
+import { User } from '../../../../../lib/db/models/user';
+
+// Type for pool member from DB
+interface PoolMemberDB {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  position: number;
+  status?: string;
+  paymentsOnTime?: number;
+  paymentsMissed?: number;
+  totalContributed?: number;
+  payoutReceived?: boolean;
+  payoutDate?: string;
+  joinDate?: string;
+}
+
+interface PoolMessageDB {
+  id: number;
+  author: string;
+  content: string;
+  date: string;
+}
 
 // GET /api/pools/[id]/members - Get all members for a pool
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApiRequest(request, async ({ userId }) => {
-    const poolId = params.id;
+    const { id: poolId } = await params;
     
     if (!poolId) {
       throw new ApiError('Pool ID is required', 400);
     }
     
+    await connectToDatabase();
     const PoolModel = getPoolModel();
-    const UserModel = getUserModel();
     
     // Get the pool from database
     const pool = await PoolModel.findOne({ id: poolId });
@@ -27,8 +52,11 @@ export async function GET(
     }
     
     // Check if the user is authorized to access this pool
-    const user = await UserModel.findOne({ id: userId });
-    if (!user || !user.pools.includes(poolId)) {
+    const user = await findUserById(userId);
+    if (!user) {
+      throw new ApiError('User not found or invalid session', 401);
+    }
+    if (!user.pools.includes(poolId)) {
       throw new ApiError('You are not a member of this pool', 403);
     }
     
@@ -44,10 +72,10 @@ export async function GET(
 // POST /api/pools/[id]/members - Add a new member to a pool
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApiRequest(request, async ({ userId }) => {
-    const poolId = params.id;
+    const { id: poolId } = await params;
     const body = await request.json() as AddMemberRequest;
     
     if (!poolId) {
@@ -61,7 +89,7 @@ export async function POST(
     }
     
     const PoolModel = getPoolModel();
-    const UserModel = getUserModel();
+    await connectToDatabase();
     
     // Get the pool from database
     const pool = await PoolModel.findOne({ id: poolId });
@@ -71,33 +99,33 @@ export async function POST(
     }
     
     // Get user information
-    const user = await UserModel.findOne({ id: userId });
+    const user = await findUserById(userId);
     if (!user) {
-      throw new ApiError('User not found', 404);
+      throw new ApiError('User not found or invalid session', 401);
     }
-    
+
     // Check if the user is authorized to add members
     if (!user.pools.includes(poolId)) {
       throw new ApiError('You are not a member of this pool', 403);
     }
     
     // Find the admin member in the pool
-    const adminMember = pool.members.find(member => member.role === 'admin');
+    const adminMember = pool.members.find((member: PoolMemberDB) => member.role === 'admin');
     if (!adminMember || adminMember.email !== user.email) {
       throw new ApiError('Only pool administrators can add members', 403);
     }
-    
+
     // Check if the member already exists in the pool
-    const existingMember = pool.members.find(member => member.email === memberDetails.email);
+    const existingMember = pool.members.find((member: PoolMemberDB) => member.email === memberDetails.email);
     if (existingMember) {
       throw new ApiError('A member with this email already exists in the pool', 400);
     }
-    
+
     // Generate a unique member ID
-    const memberId = Math.max(...pool.members.map(m => m.id), 0) + 1;
-    
+    const memberId = Math.max(...pool.members.map((m: PoolMemberDB) => m.id), 0) + 1;
+
     // Determine the next available position
-    const positions = pool.members.map(m => m.position);
+    const positions = pool.members.map((m: PoolMemberDB) => m.position);
     let nextPosition = 1;
     while (positions.includes(nextPosition)) {
       nextPosition++;
@@ -136,7 +164,7 @@ export async function POST(
     });
     
     // Add a message to the pool
-    const messageId = Math.max(...(pool.messages?.map(m => m.id) || [0]), 0) + 1;
+    const messageId = Math.max(...(pool.messages?.map((m: PoolMessageDB) => m.id) || [0]), 0) + 1;
     await PoolModel.updateOne({ id: poolId }, {
       $push: {
         messages: {
@@ -147,7 +175,7 @@ export async function POST(
         }
       }
     });
-    
+
     return {
       success: true,
       member: newMember
@@ -161,10 +189,10 @@ export async function POST(
 // PATCH /api/pools/[id]/members - Update members or positions
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApiRequest(request, async ({ userId }) => {
-    const poolId = params.id;
+    const { id: poolId } = await params;
     
     if (!poolId) {
       throw new ApiError('Pool ID is required', 400);
@@ -191,10 +219,10 @@ export async function PATCH(
 // DELETE /api/pools/[id]/members - Remove a member from a pool
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApiRequest(request, async ({ userId }) => {
-    const poolId = params.id;
+    const { id: poolId } = await params;
     const memberId = parseInt(request.nextUrl.searchParams.get('memberId') || '0');
     
     if (!poolId) {
@@ -206,7 +234,7 @@ export async function DELETE(
     }
     
     const PoolModel = getPoolModel();
-    const UserModel = getUserModel();
+    await connectToDatabase();
     
     // Get the pool from database
     const pool = await PoolModel.findOne({ id: poolId });
@@ -216,30 +244,30 @@ export async function DELETE(
     }
     
     // Get user information
-    const user = await UserModel.findOne({ id: userId });
+    const user = await findUserById(userId);
     if (!user) {
-      throw new ApiError('User not found', 404);
+      throw new ApiError('User not found or invalid session', 401);
     }
-    
+
     // Find the admin member in the pool
-    const adminMember = pool.members.find(member => member.role === 'admin');
+    const adminMember = pool.members.find((member: PoolMemberDB) => member.role === 'admin');
     if (!adminMember || adminMember.email !== user.email) {
       throw new ApiError('Only pool administrators can remove members', 403);
     }
-    
+
     // Find the member to remove
-    const memberToRemove = pool.members.find(member => member.id === memberId);
+    const memberToRemove = pool.members.find((member: PoolMemberDB) => member.id === memberId);
     if (!memberToRemove) {
       throw new ApiError('Member not found in this pool', 404);
     }
-    
+
     // Check if the user is trying to remove the admin
     if (memberToRemove.role === 'admin') {
       throw new ApiError('You cannot remove the pool administrator', 400);
     }
-    
+
     // Remove the member from the pool
-    const updatedMembers = pool.members.filter(member => member.id !== memberId);
+    const updatedMembers = pool.members.filter((member: PoolMemberDB) => member.id !== memberId);
     
     // Update the pool
     await PoolModel.updateOne({ id: poolId }, { 
@@ -250,7 +278,7 @@ export async function DELETE(
     });
     
     // Add a message to the pool
-    const messageId = Math.max(...(pool.messages?.map(m => m.id) || [0]), 0) + 1;
+    const messageId = Math.max(...(pool.messages?.map((m: PoolMessageDB) => m.id) || [0]), 0) + 1;
     await PoolModel.updateOne({ id: poolId }, {
       $push: {
         messages: {
@@ -275,35 +303,34 @@ export async function DELETE(
 // Helper function to handle individual member updates
 async function handleMemberUpdate(poolId: string, userId: string, body: UpdateMemberRequest) {
   const { memberId, updates } = body;
-  
+
   if (!memberId || !updates) {
     throw new ApiError('Member ID and updates are required', 400);
   }
-  
+
   const PoolModel = getPoolModel();
-  const UserModel = getUserModel();
-  
+
   // Get the pool from database
   const pool = await PoolModel.findOne({ id: poolId });
-  
+
   if (!pool) {
     throw new ApiError('Pool not found', 404);
   }
-  
+
   // Get user information
-  const user = await UserModel.findOne({ id: userId });
+  const user = await findUserById(userId);
   if (!user) {
-    throw new ApiError('User not found', 404);
+    throw new ApiError('User not found or invalid session', 401);
   }
   
   // Find the admin member in the pool
-  const adminMember = pool.members.find(member => member.role === 'admin');
+  const adminMember = pool.members.find((member: PoolMemberDB) => member.role === 'admin');
   if (!adminMember || adminMember.email !== user.email) {
     throw new ApiError('Only pool administrators can update members', 403);
   }
-  
+
   // Find the member to update
-  const memberIndex = pool.members.findIndex(member => member.id === memberId);
+  const memberIndex = pool.members.findIndex((member: PoolMemberDB) => member.id === memberId);
   if (memberIndex === -1) {
     throw new ApiError('Member not found in this pool', 404);
   }
@@ -323,7 +350,7 @@ async function handleMemberUpdate(poolId: string, userId: string, body: UpdateMe
   
   // Handle position update separately if needed
   if (updates.position && updates.position !== member.position) {
-    const positionExists = pool.members.some(m => m.id !== memberId && m.position === updates.position);
+    const positionExists = pool.members.some((m: PoolMemberDB) => m.id !== memberId && m.position === updates.position);
     if (positionExists) {
       throw new ApiError('Position already assigned to another member', 400);
     }
@@ -342,7 +369,7 @@ async function handleMemberUpdate(poolId: string, userId: string, body: UpdateMe
   
   // Add a message to the pool if significant change
   if (updates.role || updates.position || updates.payoutReceived) {
-    const messageId = Math.max(...(pool.messages?.map(m => m.id) || [0]), 0) + 1;
+    const messageId = Math.max(...(pool.messages?.map((m: PoolMessageDB) => m.id) || [0]), 0) + 1;
     let messageContent = `${user.name} updated ${updatedMember.name}'s information.`;
     
     if (updates.role) {
@@ -374,36 +401,35 @@ async function handleMemberUpdate(poolId: string, userId: string, body: UpdateMe
 // Helper function to handle position updates for multiple members
 async function handlePositionUpdates(poolId: string, userId: string, body: UpdatePositionsRequest) {
   const { positions } = body;
-  
+
   if (!positions || !Array.isArray(positions) || positions.length === 0) {
     throw new ApiError('Position updates are required', 400);
   }
-  
+
   const PoolModel = getPoolModel();
-  const UserModel = getUserModel();
-  
+
   // Get the pool from database
   const pool = await PoolModel.findOne({ id: poolId });
-  
+
   if (!pool) {
     throw new ApiError('Pool not found', 404);
   }
-  
+
   // Get user information
-  const user = await UserModel.findOne({ id: userId });
+  const user = await findUserById(userId);
   if (!user) {
-    throw new ApiError('User not found', 404);
+    throw new ApiError('User not found or invalid session', 401);
   }
   
   // Find the admin member in the pool
-  const adminMember = pool.members.find(member => member.role === 'admin');
+  const adminMember = pool.members.find((member: PoolMemberDB) => member.role === 'admin');
   if (!adminMember || adminMember.email !== user.email) {
     throw new ApiError('Only pool administrators can update member positions', 403);
   }
-  
+
   // Verify all member IDs exist
   const memberIds = positions.map(p => p.memberId);
-  const existingMembers = pool.members.filter(m => memberIds.includes(m.id));
+  const existingMembers = pool.members.filter((m: PoolMemberDB) => memberIds.includes(m.id));
   
   if (existingMembers.length !== memberIds.length) {
     throw new ApiError('One or more members not found in this pool', 400);
@@ -419,7 +445,7 @@ async function handlePositionUpdates(poolId: string, userId: string, body: Updat
   
   // Update positions
   for (const posUpdate of positions) {
-    const member = pool.members.find(m => m.id === posUpdate.memberId);
+    const member = pool.members.find((m: PoolMemberDB) => m.id === posUpdate.memberId);
     if (member) {
       member.position = posUpdate.position;
     }
@@ -433,7 +459,7 @@ async function handlePositionUpdates(poolId: string, userId: string, body: Updat
   });
   
   // Add a message to the pool
-  const messageId = Math.max(...(pool.messages?.map(m => m.id) || [0]), 0) + 1;
+  const messageId = Math.max(...(pool.messages?.map((m: PoolMessageDB) => m.id) || [0]), 0) + 1;
   await PoolModel.updateOne({ id: poolId }, {
     $push: {
       messages: {

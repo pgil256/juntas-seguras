@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
-import { capturePayment } from '../../../../../lib/stripe';
+import { captureAuthorization } from '../../../../../lib/paypal';
 
 // Simulate database collections
 const mockPayments = new Map();
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Retrieve payment from database (mock)
     const payment = mockPayments.get(paymentId);
-    
+
     if (!payment) {
       return NextResponse.json(
         { error: 'Payment not found' },
@@ -76,8 +76,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Release the payment by capturing the Stripe payment intent
-    const captureResult = await capturePayment(payment.stripePaymentIntentId);
+    // Verify we have a PayPal authorization ID
+    if (!payment.paypalAuthorizationId) {
+      return NextResponse.json(
+        { error: 'Payment authorization not found. The user may not have completed the payment approval.' },
+        { status: 400 }
+      );
+    }
+
+    // Release the payment by capturing the PayPal authorization
+    const captureResult = await captureAuthorization(payment.paypalAuthorizationId);
 
     if (!captureResult.success) {
       return NextResponse.json(
@@ -89,6 +97,7 @@ export async function POST(request: NextRequest) {
     // Update payment record
     payment.status = TransactionStatus.RELEASED;
     payment.processedAt = new Date().toISOString();
+    payment.paypalCaptureId = captureResult.captureId;
     mockPayments.set(paymentId, payment);
 
     // Update pool balance now that funds are released
@@ -108,6 +117,7 @@ export async function POST(request: NextRequest) {
       relatedPaymentId: paymentId,
       processedAt: new Date().toISOString(),
       processedBy: userId,
+      paypalCaptureId: captureResult.captureId,
     };
 
     // In a real app, this would save to a database
@@ -126,7 +136,7 @@ export async function POST(request: NextRequest) {
       payment: releaseRecord,
       message: 'Payment successfully released from escrow',
     });
-    
+
   } catch (error) {
     console.error('Escrow release error:', error);
     return NextResponse.json(
@@ -140,11 +150,11 @@ export async function POST(request: NextRequest) {
 function updatePoolBalance(poolId: string, amount: number) {
   // In a real app, this would update the pool balance in a database
   let pool = mockPools.get(poolId);
-  
+
   if (!pool) {
     pool = { id: poolId, balance: 0 };
   }
-  
+
   pool.balance += amount;
   mockPools.set(poolId, pool);
 }

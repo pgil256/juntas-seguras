@@ -1,7 +1,7 @@
 // app/my-pool/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { usePools } from "../../lib/hooks/usePools";
@@ -9,9 +9,13 @@ import {
   Calendar,
   DollarSign,
   Users,
-  RefreshCw,
-  ChevronRight,
   Plus,
+  Check,
+  Clock,
+  Award,
+  Loader2,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -20,26 +24,72 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import CreatePoolModal from "../../components/pools/CreatePoolModal";
+import { ContributionModal } from "../../components/pools/ContributionModal";
 import { Button } from "../../components/ui/button";
 import { Pool } from "../../types/pool";
+
+// Interface for contribution status from API
+interface ContributionMember {
+  memberId: number;
+  name: string;
+  email: string;
+  position: number;
+  isRecipient: boolean;
+  hasContributed: boolean | null;
+  contributionDate: string | null;
+  amount: number;
+}
+
+interface ContributionStatus {
+  currentRound: number;
+  totalRounds: number;
+  contributionAmount: number;
+  nextPayoutDate: string;
+  recipient: {
+    name: string;
+    email: string;
+    position: number;
+  } | null;
+  contributions: ContributionMember[];
+  allContributionsReceived: boolean;
+}
 
 // Function to format dates from ISO string
 const formatDate = (dateString?: string) => {
   if (!dateString) return "Not set";
-  
+
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', { 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   }).format(date);
+};
+
+// Function to format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
 };
 
 // Function to calculate end date based on frequency and rounds
 const calculateEndDate = (startDate: string, frequency: string, rounds: number) => {
   const date = new Date(startDate);
-  
+
   switch (frequency.toLowerCase()) {
     case 'weekly':
       date.setDate(date.getDate() + (7 * rounds));
@@ -53,7 +103,7 @@ const calculateEndDate = (startDate: string, frequency: string, rounds: number) 
     default:
       date.setDate(date.getDate() + (7 * rounds)); // Default to weekly
   }
-  
+
   return formatDate(date.toISOString());
 };
 
@@ -63,6 +113,37 @@ export default function MyPoolPage() {
   const { pools, isLoading, error, refreshPools } = usePools();
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
   const [isCreatePoolModalOpen, setIsCreatePoolModalOpen] = useState(false);
+  const [showContributionModal, setShowContributionModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Contribution status state
+  const [contributionStatus, setContributionStatus] = useState<ContributionStatus | null>(null);
+  const [contributionLoading, setContributionLoading] = useState(false);
+  const [contributionError, setContributionError] = useState<string | null>(null);
+
+  // Fetch contribution status for the selected pool
+  const fetchContributionStatus = useCallback(async (poolId: string) => {
+    setContributionLoading(true);
+    setContributionError(null);
+
+    try {
+      const response = await fetch(`/api/pools/${poolId}/contributions`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch contribution status');
+      }
+
+      setContributionStatus(data);
+    } catch (err: any) {
+      console.error('Error fetching contribution status:', err);
+      setContributionError(err.message);
+      setContributionStatus(null);
+    } finally {
+      setContributionLoading(false);
+    }
+  }, []);
 
   // Select the first pool by default when pools are loaded
   useEffect(() => {
@@ -70,6 +151,13 @@ export default function MyPoolPage() {
       setSelectedPool(pools[0]);
     }
   }, [pools, selectedPool]);
+
+  // Fetch contribution status when selected pool changes
+  useEffect(() => {
+    if (selectedPool?.id) {
+      fetchContributionStatus(selectedPool.id);
+    }
+  }, [selectedPool?.id, fetchContributionStatus]);
 
   const handleCreatePool = () => {
     setIsCreatePoolModalOpen(true);
@@ -79,20 +167,57 @@ export default function MyPoolPage() {
     refreshPools();
   };
 
+  const handleContributionSuccess = () => {
+    // Refresh contribution status and pools after contribution
+    if (selectedPool?.id) {
+      fetchContributionStatus(selectedPool.id);
+    }
+    refreshPools();
+  };
+
+  // Handler for deleting the pool
+  const handleDeletePool = async () => {
+    if (!selectedPool?.id) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/pools/${selectedPool.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete pool');
+      }
+
+      // Close dialog and redirect to dashboard
+      setShowDeleteDialog(false);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Failed to delete pool:', error);
+      alert('Failed to delete pool. Only pool administrators can delete pools.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "current":
-      case "Current":
         return "bg-blue-100 text-blue-800";
       case "completed":
-      case "Completed":
         return "bg-green-100 text-green-800";
       case "upcoming":
-      case "Upcoming":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  // Helper to get contribution status for a member
+  const getMemberContributionStatus = (memberEmail: string) => {
+    if (!contributionStatus) return null;
+    return contributionStatus.contributions.find(c => c.email === memberEmail);
   };
 
   // Show loading state
@@ -139,16 +264,16 @@ export default function MyPoolPage() {
               You don't have any savings pools yet. Create your first pool to get started.
             </p>
             <div className="mt-6">
-              <Button 
+              <Button
                 onClick={handleCreatePool}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Create Pool
               </Button>
-              <CreatePoolModal 
-                isOpen={isCreatePoolModalOpen} 
-                onClose={() => setIsCreatePoolModalOpen(false)} 
+              <CreatePoolModal
+                isOpen={isCreatePoolModalOpen}
+                onClose={() => setIsCreatePoolModalOpen(false)}
                 onCreatePool={handlePoolCreated}
               />
             </div>
@@ -176,13 +301,24 @@ export default function MyPoolPage() {
 
   // Find the user's member record in the selected pool
   const currentUser = session?.user;
-  const userMember = currentUser ? 
+  const userMember = currentUser ?
     selectedPool.members.find(m => m.email === currentUser.email) : null;
 
-  // Find member with the next payout
-  const nextPayoutMember = selectedPool.members
-    .sort((a, b) => a.position - b.position)
-    .find(m => m.status === 'upcoming');
+  // Get user's contribution status
+  const userContributionStatus = currentUser?.email
+    ? getMemberContributionStatus(currentUser.email)
+    : null;
+
+  // Find member with the current round payout (recipient)
+  const currentRecipient = contributionStatus?.recipient;
+
+  // Calculate contribution progress
+  const contributionProgress = contributionStatus
+    ? {
+        contributed: contributionStatus.contributions.filter(c => c.hasContributed || c.isRecipient).length,
+        total: contributionStatus.contributions.length,
+      }
+    : null;
 
   return (
     <div>
@@ -195,23 +331,158 @@ export default function MyPoolPage() {
               <h2 className="text-2xl font-semibold text-gray-800">My Pool</h2>
               <p className="mt-1 text-gray-500">{selectedPool.name}</p>
             </div>
-            <div className="mt-4 md:mt-0 flex space-x-3">
+            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/pools/${selectedPool.id}/members`)}
-                className="inline-flex items-center"
+                onClick={() => router.push(`/member-management/${selectedPool.id}`)}
+                className="inline-flex items-center justify-center min-h-[44px] w-full sm:w-auto"
               >
                 <Users className="h-4 w-4 mr-2" />
                 Invite Members
               </Button>
-              <Button 
-                className="inline-flex items-center"
+              <Button
+                className="inline-flex items-center justify-center min-h-[44px] w-full sm:w-auto"
+                onClick={() => setShowContributionModal(true)}
               >
                 <DollarSign className="h-4 w-4 mr-2" />
                 Make Payment
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(true)}
+                className="inline-flex items-center justify-center min-h-[44px] w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Pool
+              </Button>
             </div>
           </div>
+        </div>
+
+        {/* Current Round Status Card */}
+        <div className="mt-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-lg">Round {contributionStatus?.currentRound || selectedPool.currentRound} Status</CardTitle>
+                  <CardDescription>Current round contribution progress</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => selectedPool.id && fetchContributionStatus(selectedPool.id)}
+                  disabled={contributionLoading}
+                >
+                  {contributionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {contributionLoading && !contributionStatus ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+                </div>
+              ) : contributionError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{contributionError}</AlertDescription>
+                </Alert>
+              ) : contributionStatus ? (
+                <div className="space-y-4">
+                  {/* Recipient info */}
+                  {currentRecipient && (
+                    <div className="flex items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                      <Award className="h-5 w-5 text-blue-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">
+                          This Round's Recipient: <span className="font-bold">{currentRecipient.name}</span>
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          Will receive {formatCurrency(contributionStatus.contributionAmount * (contributionStatus.contributions.length - 1))}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* User's status */}
+                  {userContributionStatus && (
+                    <div className={`flex items-center p-3 rounded-lg border ${
+                      userContributionStatus.isRecipient
+                        ? 'bg-emerald-50 border-emerald-100'
+                        : userContributionStatus.hasContributed
+                          ? 'bg-green-50 border-green-100'
+                          : 'bg-amber-50 border-amber-100'
+                    }`}>
+                      {userContributionStatus.isRecipient ? (
+                        <>
+                          <Award className="h-5 w-5 text-emerald-600 mr-3" />
+                          <p className="text-sm font-medium text-emerald-800">
+                            You're the recipient this round! No contribution needed.
+                          </p>
+                        </>
+                      ) : userContributionStatus.hasContributed ? (
+                        <>
+                          <Check className="h-5 w-5 text-green-600 mr-3" />
+                          <p className="text-sm font-medium text-green-800">
+                            You've contributed {formatCurrency(contributionStatus.contributionAmount)} this round.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="h-5 w-5 text-amber-600 mr-3" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-800">
+                              You haven't contributed yet this round.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => setShowContributionModal(true)}
+                            className="ml-3 bg-amber-600 hover:bg-amber-700 min-h-[44px]"
+                          >
+                            Contribute Now
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Progress bar */}
+                  {contributionProgress && (
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">Contribution Progress</span>
+                        <span className="font-medium">
+                          {contributionProgress.contributed}/{contributionProgress.total} members
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${
+                            contributionStatus.allContributionsReceived ? 'bg-green-500' : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${(contributionProgress.contributed / contributionProgress.total) * 100}%` }}
+                        />
+                      </div>
+                      {contributionStatus.allContributionsReceived && (
+                        <p className="text-sm text-green-600 mt-1 flex items-center">
+                          <Check className="h-4 w-4 mr-1" />
+                          All contributions received! Ready for payout.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No contribution data available</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Pool Status Overview */}
@@ -248,7 +519,7 @@ export default function MyPoolPage() {
                     Amount Per Cycle
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    ${selectedPool.contributionAmount}
+                    {formatCurrency(selectedPool.contributionAmount)}
                   </dd>
                 </div>
                 <div className="bg-white px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -264,7 +535,7 @@ export default function MyPoolPage() {
                     Next Payout
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                    {formatDate(selectedPool.nextPayoutDate)} {nextPayoutMember ? `(${nextPayoutMember.name})` : ''}
+                    {formatDate(selectedPool.nextPayoutDate)} {currentRecipient ? `(${currentRecipient.name})` : ''}
                   </dd>
                 </div>
                 <div className="bg-white px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -376,48 +647,73 @@ export default function MyPoolPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {selectedPool.members
                       .sort((a, b) => a.position - b.position)
-                      .map((member) => (
-                        <tr
-                          key={member.id}
-                          className={member.email === currentUser?.email ? "bg-blue-50" : ""}
-                        >
-                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-full">
-                              {member.email === currentUser?.email ? "You" : member.name}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {member.position}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                                member.status
-                              )}`}
-                            >
-                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
-                            {member.paymentsOnTime > member.paymentsMissed ? (
-                              <span className="text-green-600">Yes</span>
-                            ) : (
-                              <span className="text-red-600">No</span>
-                            )}
-                          </td>
-                          <td className="hidden lg:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(member.payoutDate)}
-                          </td>
-                          <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${member.totalContributed}
-                          </td>
-                        </tr>
-                      ))}
+                      .map((member) => {
+                        const memberContribution = getMemberContributionStatus(member.email);
+                        return (
+                          <tr
+                            key={member.id}
+                            className={member.email === currentUser?.email ? "bg-blue-50" : ""}
+                          >
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-full">
+                                  {member.email === currentUser?.email ? "You" : member.name}
+                                </div>
+                                {memberContribution?.isRecipient && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    <Award className="h-3 w-3 mr-1" />
+                                    Recipient
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {member.position}
+                              </div>
+                            </td>
+                            <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                                  member.status
+                                )}`}
+                              >
+                                {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
+                              {contributionLoading ? (
+                                <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                              ) : memberContribution ? (
+                                memberContribution.isRecipient ? (
+                                  <span className="text-gray-400 text-sm">N/A</span>
+                                ) : memberContribution.hasContributed ? (
+                                  <span className="inline-flex items-center text-green-600">
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Yes
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center text-amber-600">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    Pending
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="hidden lg:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(member.payoutDate)}
+                            </td>
+                            <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatCurrency(member.totalContributed || 0)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
-                
+
                 {/* Mobile view for hidden columns */}
                 <div className="block sm:hidden mt-4 px-4">
                   <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
@@ -444,7 +740,7 @@ export default function MyPoolPage() {
                   <span className="h-5 w-5 text-blue-500 mr-2">•</span>
                   <span>
                     All members must contribute{" "}
-                    <strong>${selectedPool.contributionAmount}</strong> every{" "}
+                    <strong>{formatCurrency(selectedPool.contributionAmount)}</strong> every{" "}
                     {selectedPool.frequency.toLowerCase()}.
                   </span>
                 </li>
@@ -486,13 +782,53 @@ export default function MyPoolPage() {
           </Card>
         </div>
       </div>
-      
+
       {/* Create Pool Modal */}
-      <CreatePoolModal 
-        isOpen={isCreatePoolModalOpen} 
-        onClose={() => setIsCreatePoolModalOpen(false)} 
+      <CreatePoolModal
+        isOpen={isCreatePoolModalOpen}
+        onClose={() => setIsCreatePoolModalOpen(false)}
         onCreatePool={handlePoolCreated}
       />
+
+      {/* Contribution Modal */}
+      <ContributionModal
+        poolId={selectedPool.id}
+        poolName={selectedPool.name}
+        userEmail={session?.user?.email || ''}
+        isOpen={showContributionModal}
+        onClose={() => setShowContributionModal(false)}
+        onContributionSuccess={handleContributionSuccess}
+      />
+
+      {/* Delete Pool Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Pool</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedPool.name}"? This action cannot be undone.
+              All pool data, including members, transactions, and messages will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePool}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Pool'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

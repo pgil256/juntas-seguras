@@ -7,7 +7,6 @@ import {
   HelpCircle,
   Mail,
   Phone,
-  MessageCircle,
   FileText,
   User,
   DollarSign,
@@ -16,6 +15,7 @@ import {
   ExternalLink,
   BookOpen,
   ChevronRight,
+  MessageCircle,
 } from "lucide-react";
 import {
   Card,
@@ -257,15 +257,7 @@ export default function HelpPage() {
               </p>
             </div>
             <div className="mt-4 md:mt-0 flex space-x-3">
-              <Button 
-                variant="outline" 
-                className="flex items-center"
-                onClick={() => alert('Live chat would open here')}
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Live Chat
-              </Button>
-              <Button 
+              <Button
                 className="flex items-center"
                 onClick={() => router.push('/help/support')}
               >
@@ -458,7 +450,7 @@ export default function HelpPage() {
                     Email Support
                   </div>
                   <div className="text-sm text-gray-500">
-                    support@juntasseguras.com
+                    juntasseguras@gmail.com
                   </div>
                 </div>
               </div>
@@ -468,7 +460,7 @@ export default function HelpPage() {
                   <div className="text-sm font-medium text-gray-900">
                     Phone Support
                   </div>
-                  <div className="text-sm text-gray-500">+1 (555) 123-4567</div>
+                  <div className="text-sm text-gray-500">+1 (570) 855-0384</div>
                 </div>
               </div>
               <Button 

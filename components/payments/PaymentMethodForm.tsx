@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreditCard, Building, User, Calendar, CreditCardIcon } from 'lucide-react';
+import { CreditCard, Building, User, Mail } from 'lucide-react';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,7 +26,8 @@ const years = Array.from({ length: 10 }, (_, i) => {
 });
 
 export interface PaymentMethodFormValues {
-  type: 'card' | 'bank';
+  type: 'paypal' | 'card' | 'bank';
+  paypalEmail?: string;
   cardholderName?: string;
   cardNumber?: string;
   expiryMonth?: string;
@@ -46,6 +47,16 @@ interface PaymentMethodFormProps {
   isEditing?: boolean;
 }
 
+// PayPal logo SVG component
+function PayPalLogo({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.384a.774.774 0 0 1 .763-.635h6.154c2.044 0 3.488.4 4.293 1.191.755.743 1.052 1.858.882 3.312-.064.545-.183 1.074-.357 1.576-.168.482-.397.93-.683 1.334a5.228 5.228 0 0 1-1.053 1.107c-.43.353-.903.626-1.41.815-.513.191-1.076.334-1.691.426-.607.092-1.226.139-1.848.139H7.877l-.801 7.888z" />
+      <path d="M19.25 8.058c-.064.545-.183 1.074-.357 1.576-.168.482-.397.93-.683 1.334-.287.405-.625.761-1.013 1.064-.388.302-.827.552-1.316.749-.488.197-1.015.346-1.578.447-.563.1-1.162.151-1.797.151H10.43l-.801 7.888h-2.5l3.107-17.213h6.154c2.044 0 3.488.4 4.293 1.191.573.563.91 1.296 1.008 2.191.098.896-.005 1.904-.44 3.622z" />
+    </svg>
+  );
+}
+
 export function PaymentMethodForm({
   initialValues,
   onSubmit,
@@ -53,7 +64,8 @@ export function PaymentMethodForm({
   isEditing = false,
 }: PaymentMethodFormProps) {
   const [values, setValues] = useState<PaymentMethodFormValues>({
-    type: initialValues?.type || 'card',
+    type: initialValues?.type || 'paypal',
+    paypalEmail: initialValues?.paypalEmail || '',
     cardholderName: initialValues?.cardholderName || '',
     cardNumber: initialValues?.cardNumber || '',
     expiryMonth: initialValues?.expiryMonth || '',
@@ -81,7 +93,7 @@ export function PaymentMethodForm({
     });
   };
 
-  const handlePaymentTypeChange = (value: 'card' | 'bank') => {
+  const handlePaymentTypeChange = (value: 'paypal' | 'card' | 'bank') => {
     setValues({
       ...values,
       type: value,
@@ -107,19 +119,26 @@ export function PaymentMethodForm({
         <div className="mb-4">
           <RadioGroup
             value={values.type}
-            onValueChange={(value) => handlePaymentTypeChange(value as 'card' | 'bank')}
-            className="flex space-x-4"
+            onValueChange={(value) => handlePaymentTypeChange(value as 'paypal' | 'card' | 'bank')}
+            className="flex flex-wrap gap-4"
           >
             <div className="flex items-center space-x-2">
+              <RadioGroupItem value="paypal" id="payment-paypal" />
+              <Label htmlFor="payment-paypal" className="flex items-center cursor-pointer">
+                <PayPalLogo className="mr-2 h-4 w-4 text-[#003087]" />
+                PayPal
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
               <RadioGroupItem value="card" id="payment-card" />
-              <Label htmlFor="payment-card" className="flex items-center">
+              <Label htmlFor="payment-card" className="flex items-center cursor-pointer">
                 <CreditCard className="mr-2 h-4 w-4" />
                 Credit/Debit Card
               </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="bank" id="payment-bank" />
-              <Label htmlFor="payment-bank" className="flex items-center">
+              <Label htmlFor="payment-bank" className="flex items-center cursor-pointer">
                 <Building className="mr-2 h-4 w-4" />
                 Bank Account
               </Label>
@@ -127,7 +146,33 @@ export function PaymentMethodForm({
           </RadioGroup>
         </div>
 
-        {values.type === 'card' ? (
+        {values.type === 'paypal' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                Enter your PayPal email address. You&apos;ll be redirected to PayPal to authorize payments when making contributions.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="paypalEmail">PayPal Email Address</Label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="paypalEmail"
+                  name="paypalEmail"
+                  type="email"
+                  value={values.paypalEmail}
+                  onChange={handleChange}
+                  className="pl-10"
+                  placeholder="your-email@example.com"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {values.type === 'card' && (
           <div className="space-y-4">
             <div>
               <Label htmlFor="cardholderName">Name on Card</Label>
@@ -144,11 +189,11 @@ export function PaymentMethodForm({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="cardNumber">Card Number</Label>
               <div className="relative mt-1">
-                <CreditCardIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   id="cardNumber"
                   name="cardNumber"
@@ -167,7 +212,7 @@ export function PaymentMethodForm({
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-1">
                 <Label htmlFor="expiryMonth">Month</Label>
@@ -187,7 +232,7 @@ export function PaymentMethodForm({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="col-span-1">
                 <Label htmlFor="expiryYear">Year</Label>
                 <Select
@@ -206,7 +251,7 @@ export function PaymentMethodForm({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="col-span-1">
                 <Label htmlFor="cvv">CVV</Label>
                 <div className="relative mt-1">
@@ -230,7 +275,9 @@ export function PaymentMethodForm({
               </div>
             </div>
           </div>
-        ) : (
+        )}
+
+        {values.type === 'bank' && (
           <div className="space-y-4">
             <div>
               <Label htmlFor="accountHolderName">Account Holder Name</Label>
@@ -247,7 +294,7 @@ export function PaymentMethodForm({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="routingNumber">Routing Number</Label>
               <div className="relative mt-1">
@@ -270,11 +317,11 @@ export function PaymentMethodForm({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="accountNumber">Account Number</Label>
               <div className="relative mt-1">
-                <CreditCardIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   id="accountNumber"
                   name="accountNumber"
@@ -293,7 +340,7 @@ export function PaymentMethodForm({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label>Account Type</Label>
               <RadioGroup
@@ -313,7 +360,7 @@ export function PaymentMethodForm({
             </div>
           </div>
         )}
-        
+
         <div className="mt-4 flex items-center">
           <input
             type="checkbox"

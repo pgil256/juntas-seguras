@@ -18,7 +18,13 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     
     // Get all collections
-    const collections = await mongoose.connection.db.collections();
+    const db = mongoose.connection.db;
+    if (!db) {
+      return NextResponse.json({
+        error: 'Database connection not established',
+      }, { status: 500 });
+    }
+    const collections = await db.collections();
     
     // Track cleared collections
     const clearedCollections = [];
@@ -34,11 +40,11 @@ export async function POST(request: NextRequest) {
       message: 'Database cleared successfully',
       clearedCollections,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error clearing database:', error);
     return NextResponse.json({
       error: 'Failed to clear database',
-      details: error.message,
+      details: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 });
   }
 }

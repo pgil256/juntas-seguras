@@ -1,41 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../[...nextauth]/options';
-import connectToDatabase from '@/lib/db/connect';
 import { getUserModel } from '@/lib/db/models/user';
+import { getCurrentUser } from '@/lib/auth';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 
 // Generate TOTP secret and QR code on the server side
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Get current user with proper ObjectId validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
-
-    const userId = session.user.id;
-
-    await connectToDatabase();
+    const user = userResult.user;
+    const userId = user._id.toString();
     const UserModel = getUserModel();
-    
-    // Find the user by ObjectId
-    const user = await UserModel.findById(userId);
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
 
     // Generate a new TOTP secret
     const secret = speakeasy.generateSecret({
       name: `Juntas Seguras:${user.email}`
     });
+
+    if (!secret.otpauth_url) {
+      return NextResponse.json(
+        { error: 'Failed to generate TOTP secret' },
+        { status: 500 }
+      );
+    }
 
     // Generate QR code as data URL
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
@@ -44,11 +38,11 @@ export async function POST(request: NextRequest) {
     // We'll confirm it once verified
     await UserModel.findByIdAndUpdate(
       userId,
-      { 
-        $set: { 
+      {
+        $set: {
           'twoFactorAuth.pendingTotpSecret': secret.base32,
           'twoFactorAuth.method': 'totp',
-        } 
+        }
       }
     );
 
@@ -65,4 +59,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

@@ -159,7 +159,6 @@ function TwoFactorVerifyContent() {
   const getMethodLabel = () => {
     switch (method) {
       case 'app': return 'Authentication App';
-      case 'sms': return 'Text Message (SMS)';
       case 'email': return 'Email';
       default: return 'Authentication Method';
     }

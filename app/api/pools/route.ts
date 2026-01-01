@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { Pool, CreatePoolRequest } from '../../../types/pool';
+import { Pool, CreatePoolRequest, PoolStatus, PoolMemberRole, PoolMemberStatus } from '../../../types/pool';
 import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
-import getUserModel from '../../../lib/db/models/user';
-import { handleApiRequest, ApiError } from '../../../lib/api';
+import { User } from '../../../lib/db/models/user';
+import { handleApiRequest, ApiError, findUserById } from '../../../lib/api';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {
   return handleApiRequest(request, async ({ userId }) => {
-    const UserModel = getUserModel();
+    await connectToDatabase();
     const PoolModel = getPoolModel();
-    
-    // Find the user by MongoDB _id
-    const user = await UserModel.findById(userId);
-    
+
+    // Find the user using centralized lookup with email fallback
+    const user = await findUserById(userId);
+
     if (!user) {
       console.error(`User not found in /api/pools for provided userId: ${userId}`);
-      throw new ApiError('User not found', 404);
+      throw new ApiError('User not found or invalid session', 401);
     }
     
     // Handle the case where user has no pools yet or pools array doesn't exist
@@ -65,15 +65,43 @@ export async function POST(request: NextRequest) {
       throw new ApiError('Valid number of rounds is required', 400);
     }
     
-    const UserModel = getUserModel();
+    await connectToDatabase();
     const PoolModel = getPoolModel();
-    
-    // Find the user by MongoDB _id
-    const user = await UserModel.findById(userId);
-    
+
+    // Find the user using centralized lookup with email fallback
+    let user = await findUserById(userId);
+
+    // If user not found, try to create from OAuth session
+    if (!user) {
+      const { getServerSession } = await import('next-auth/next');
+      const { authOptions } = await import('../auth/[...nextauth]/options');
+      const session = await getServerSession(authOptions);
+
+      if (session?.user?.email) {
+        console.log('Creating new user from OAuth session...');
+        user = await User.create({
+          email: session.user.email,
+          name: session.user.name || 'Unknown',
+          emailVerified: true,
+          provider: 'azure-ad', // Default, will be corrected on next login
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          verificationMethod: 'email',
+          pools: [],
+          twoFactorAuth: {
+            enabled: false,
+            method: 'email',
+            verified: false,
+            lastUpdated: new Date().toISOString(),
+          },
+        });
+        console.log(`Created new user: ${user!.email}, _id: ${user!._id}`);
+      }
+    }
+
     if (!user) {
       console.error(`User not found in POST /api/pools for provided userId: ${userId}`);
-      throw new ApiError('User not found', 404);
+      throw new ApiError('User not found or invalid session', 401);
     }
     
     // Generate a unique ID
@@ -93,23 +121,24 @@ export async function POST(request: NextRequest) {
       name: body.name,
       description: body.description || '',
       createdAt: new Date().toISOString(),
-      status: 'active',
+      status: PoolStatus.ACTIVE,
       totalAmount: 0, // Initial amount is 0
       contributionAmount: body.contributionAmount,
       frequency: body.frequency || 'weekly',
-      currentRound: 0,
+      currentRound: 1, // Start at round 1
       totalRounds: body.totalRounds,
       nextPayoutDate: nextPayoutDate.toISOString(),
       memberCount,
       members: [
         {
           id: 1,
+          userId: user._id, // Add the user's MongoDB ID
           name: user.name, // Use the actual user's name
           email: user.email, // Use the actual user's email
           joinDate: new Date().toISOString(),
-          role: 'admin',
+          role: PoolMemberRole.ADMIN,
           position: 1, // Admin gets position 1 by default
-          status: 'upcoming',
+          status: PoolMemberStatus.CURRENT, // First member is current (will receive first payout)
           paymentsOnTime: 0,
           paymentsMissed: 0,
           totalContributed: 0,
@@ -129,11 +158,44 @@ export async function POST(request: NextRequest) {
       ]
     };
     
-    // Process invitations if provided
+    // Save the new pool to the database first
+    const poolDoc = await PoolModel.create(newPool);
+
+    // Add this pool to the user's pools (ensure pools array exists)
+    if (!user.pools) {
+      user.pools = [];
+    }
+    user.pools.push(poolId);
+    await user.save();
+    
+    // Process invitations if provided (after pool is created)
     if (body.invitations && body.invitations.length > 0) {
-      // In a real app, this would send email invitations
-      // For now, just log the invitation requests
       console.log(`Sending ${body.invitations.length} invitations for pool ${poolId}`);
+      
+      // Send invitations using the invitations API
+      for (const email of body.invitations) {
+        try {
+          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pools/${poolId}/invitations`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'user-id': userId
+            },
+            body: JSON.stringify({
+              email: email.trim(),
+              poolId
+            })
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to send invitation to ${email}`);
+          } else {
+            console.log(`Successfully sent invitation to ${email}`);
+          }
+        } catch (error) {
+          console.error(`Error sending invitation to ${email}:`, error);
+        }
+      }
       
       // Generate welcome message
       newPool.messages.push({
@@ -142,14 +204,10 @@ export async function POST(request: NextRequest) {
         content: `I've sent invitations to ${body.invitations.length} members to join our pool.`,
         date: new Date().toISOString()
       });
+      
+      // Update the pool with the new message
+      await PoolModel.updateOne({ id: poolId }, { $set: { messages: newPool.messages } });
     }
-    
-    // Save the new pool to the database
-    const poolDoc = await PoolModel.create(newPool);
-    
-    // Add this pool to the user's pools
-    user.pools.push(poolId);
-    await user.save();
     
     // Log activity (in a real app)
     // await logActivity(userId, 'pool_create', {

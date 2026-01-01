@@ -47,6 +47,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         return;
       }
 
+      // Check for MFA requirement
+      if (response.status === 403) {
+        const data = await response.json();
+        if (data.requiresMfa) {
+          console.log('MFA verification required for notifications - will retry after verification');
+          return;
+        }
+      }
+
       const data = await response.json();
       
       if (response.ok) {
@@ -65,8 +74,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   // Fetch notifications when authentication status changes
   useEffect(() => {
-    getNotifications();
-  }, [status]);
+    if (status === 'authenticated' || status === 'unauthenticated') {
+      getNotifications();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]); // getNotifications is intentionally omitted to prevent infinite loops
 
   const markAsRead = async (id: number) => {
     try {
