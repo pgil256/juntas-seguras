@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface UsePoolPayoutsProps {
   poolId: string;
@@ -47,20 +47,20 @@ export function usePoolPayouts({ poolId, userId }: UsePoolPayoutsProps): UsePool
   const [payoutStatus, setPayoutStatus] = useState<PayoutStatus | null>(null);
 
   // Check the payout status for the current round
-  const checkPayoutStatus = async () => {
+  const checkPayoutStatus = useCallback(async () => {
     if (!poolId) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch(`/api/pools/${poolId}/payouts`);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to check payout status');
       }
-      
+
       setPayoutStatus(data);
     } catch (err: any) {
       console.error('Error checking payout status:', err);
@@ -69,7 +69,7 @@ export function usePoolPayouts({ poolId, userId }: UsePoolPayoutsProps): UsePool
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId]);
 
   // Process the payout for the current round
   const processPayout = async () => {

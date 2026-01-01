@@ -27,5 +27,5 @@ export interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: number) => Promise<void>;
   togglePreference: (id: string, type: 'email' | 'push') => Promise<void>;
-  savePreferences: () => Promise<void>;
+  savePreferences: () => Promise<boolean>;
 }

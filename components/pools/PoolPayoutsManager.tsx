@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { usePoolPayouts } from '../../lib/hooks/usePoolPayouts';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -31,7 +31,7 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
   // Load status on mount
   useEffect(() => {
     checkPayoutStatus();
-  }, [poolId]);
+  }, [checkPayoutStatus]);
 
   // Format currency amounts
   const formatCurrency = (amount: number) => {

@@ -46,8 +46,10 @@ export class InvalidObjectIdError extends Error {
   }
 }
 
-export default {
+const objectIdUtils = {
   isValidObjectId,
   toObjectId,
   InvalidObjectIdError,
 };
+
+export default objectIdUtils;

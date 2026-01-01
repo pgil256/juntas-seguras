@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { VerificationStatus, VerificationType, VerificationMethod, UserIdentityInfo } from '../../types/identity';
 
 interface UseIdentityVerificationProps {
@@ -26,12 +26,42 @@ export function useIdentityVerification({ userId }: UseIdentityVerificationProps
   const [error, setError] = useState<string | null>(null);
   const [identityInfo, setIdentityInfo] = useState<UserIdentityInfo | null>(null);
 
+  // Check the status of the current verification
+  const checkVerificationStatus = useCallback(async () => {
+    if (!userId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/identity/verification?userId=${userId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to check verification status');
+      }
+
+      setIdentityInfo({
+        isVerified: data.isVerified,
+        verificationStatus: data.status,
+        verificationType: data.verification?.type,
+        verificationMethod: data.verification?.method,
+        lastUpdated: data.verification?.lastUpdated,
+      });
+    } catch (err: any) {
+      console.error('Error checking verification status:', err);
+      setError(err.message || 'Failed to check verification status');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
   // Check verification status on load
   useEffect(() => {
     if (userId) {
       checkVerificationStatus();
     }
-  }, [userId]);
+  }, [userId, checkVerificationStatus]);
 
   // Start a new identity verification process
   const startVerification = async (type: VerificationType, method: VerificationMethod) => {
@@ -77,36 +107,6 @@ export function useIdentityVerification({ userId }: UseIdentityVerificationProps
         success: false,
         error: err.message || 'Failed to start verification process',
       };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Check the status of the current verification
-  const checkVerificationStatus = async () => {
-    if (!userId) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/identity/verification?userId=${userId}`);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to check verification status');
-      }
-      
-      setIdentityInfo({
-        isVerified: data.isVerified,
-        verificationStatus: data.status,
-        verificationType: data.verification?.type,
-        verificationMethod: data.verification?.method,
-        lastUpdated: data.verification?.lastUpdated,
-      });
-    } catch (err: any) {
-      console.error('Error checking verification status:', err);
-      setError(err.message || 'Failed to check verification status');
     } finally {
       setIsLoading(false);
     }

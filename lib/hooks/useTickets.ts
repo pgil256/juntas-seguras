@@ -77,7 +77,7 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
     } finally {
       setIsLoading(false);
     }
-  }, [userId, ticketId]);
+  }, [userId, ticketId, isAdmin]);
 
   // Fetch statistics (for admin dashboard)
   const fetchStats = useCallback(async () => {

@@ -13,7 +13,7 @@ export const NotificationContext = createContext<NotificationContextType>({
   markAllAsRead: async () => {},
   deleteNotification: async () => {},
   togglePreference: async () => {},
-  savePreferences: async () => {},
+  savePreferences: async () => false,
 });
 
 interface NotificationProviderProps {

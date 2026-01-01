@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ActivityLog, ActivityType } from '../../types/security';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
@@ -24,25 +24,25 @@ export default function ActivityLogViewer({ userId }: ActivityLogViewerProps) {
   const [filter, setFilter] = useState<ActivityType | 'all'>('all');
 
   // Fetch activity logs
-  const fetchLogs = async (page = 1, activityType: ActivityType | 'all' = 'all') => {
+  const fetchLogs = useCallback(async (page = 1, activityType: ActivityType | 'all' = 'all') => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let url = `/api/security/activity-log?userId=${userId}&page=${page}`;
-      
+
       if (activityType !== 'all') {
         url += `&type=${activityType}`;
       }
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch activity logs');
       }
-      
+
       const data = await response.json();
-      
+
       setLogs(data.logs);
       setCurrentPage(data.pagination.currentPage);
       setTotalPages(data.pagination.totalPages);
@@ -53,12 +53,12 @@ export default function ActivityLogViewer({ userId }: ActivityLogViewerProps) {
     } finally {
       setLoading(false);
     }
-  };
-  
+  }, [userId]);
+
   // Initial fetch on mount
   useEffect(() => {
     fetchLogs(1, filter);
-  }, [userId]);
+  }, [fetchLogs, filter]);
   
   // Handle page change
   const handlePageChange = (page: number) => {

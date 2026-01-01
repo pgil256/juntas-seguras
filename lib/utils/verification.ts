@@ -141,7 +141,7 @@ export function isValidPhone(phone: string): boolean {
   return cleaned.length >= 10 && cleaned.length <= 15;
 }
 
-export default {
+const verificationUtils = {
   generateVerificationCode,
   generateSecureToken,
   generateAlphanumericCode,
@@ -152,3 +152,5 @@ export default {
   isValidEmail,
   isValidPhone,
 };
+
+export default verificationUtils;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SearchResponse, SearchResult, PaginationInfo } from '../../types/search';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -26,18 +26,18 @@ export function SearchResults({
   const hasResults = results.totalResults > 0;
 
   // Get initial tab with results
-  const getInitialTabWithResults = () => {
+  const getInitialTabWithResults = useCallback(() => {
     if (results.pools.length > 0) return 'pools';
     if (results.members.length > 0) return 'members';
     if (results.transactions.length > 0) return 'transactions';
     if (results.messages.length > 0) return 'messages';
     return 'all';
-  };
+  }, [results.pools.length, results.members.length, results.transactions.length, results.messages.length]);
 
   // Reset active tab when query changes
   useEffect(() => {
     setActiveTab(getInitialTabWithResults());
-  }, [query, results]);
+  }, [query, getInitialTabWithResults]);
 
   // Helper to highlight matched text
   const highlightMatch = (text: string, query: string) => {

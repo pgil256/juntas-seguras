@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, ArrowDownUp, ArrowUp, ArrowDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Label } from '../../components/ui/label';
@@ -60,6 +60,14 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
     }
   };
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilters(prevFilters => {
+      const newFilters = { ...prevFilters, [key]: value };
+      onFilterChange(newFilters);
+      return newFilters;
+    });
+  }, [onFilterChange]);
+
   // Set default sort field when category changes
   useEffect(() => {
     const category = filters.category;
@@ -69,16 +77,10 @@ export function SearchFilters({ onFilterChange, initialFilters = {} }: SearchFil
       if (category === 'transactions' || category === 'messages') {
         defaultSortField = 'date';
       }
-      
+
       handleFilterChange('sortField', defaultSortField);
     }
-  }, [filters.category]);
-
-  const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
-  };
+  }, [filters.category, filters.sortField, handleFilterChange]);
 
   const handleReset = () => {
     const resetFilters = {

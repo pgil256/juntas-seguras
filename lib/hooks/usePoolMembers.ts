@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { PoolMember, PoolMemberRole } from '../../types/pool';
 
@@ -53,7 +53,7 @@ export function usePoolMembers({ poolId }: UsePoolMembersProps): UsePoolMembersR
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!poolId) {
       setError('Pool ID is required');
       setIsLoading(false);
@@ -95,7 +95,7 @@ export function usePoolMembers({ poolId }: UsePoolMembersProps): UsePoolMembersR
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId, status]);
 
   const addMember = async (memberDetails: AddMemberParams) => {
     // Check authentication
@@ -278,7 +278,7 @@ export function usePoolMembers({ poolId }: UsePoolMembersProps): UsePoolMembersR
     if (poolId && status === 'authenticated') {
       fetchMembers();
     }
-  }, [poolId, status]);
+  }, [poolId, status, fetchMembers]);
 
   return {
     members,

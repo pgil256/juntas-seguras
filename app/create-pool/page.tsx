@@ -44,7 +44,7 @@ export default function CreatePoolPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { createPool, isLoading, error } = useCreatePool({
-    userId: mockUserId,
+    
     onSuccess: (poolId) => {
       // Navigate to member management to invite members
       router.push(`/member-management/${poolId}`);
