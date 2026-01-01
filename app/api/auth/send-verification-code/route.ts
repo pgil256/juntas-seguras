@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmailVerificationCode } from '@/lib/services/mfa';
-import { getCurrentUser } from '@/lib/auth';
+import { sendEmailVerificationCode } from '../../../../lib/services/mfa';
+import { getCurrentUser } from '../../../../lib/auth';
 
 export async function POST(request: NextRequest) {
   try {

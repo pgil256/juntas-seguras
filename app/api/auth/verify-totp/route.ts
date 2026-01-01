@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserModel } from '@/lib/db/models/user';
-import { getCurrentUser } from '@/lib/auth';
+import { getUserModel } from '../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../lib/auth';
 import speakeasy from 'speakeasy';
 
 export async function POST(request: NextRequest) {
