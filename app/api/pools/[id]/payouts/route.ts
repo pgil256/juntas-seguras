@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import mongoose from 'mongoose';
 import { authOptions } from '../../../auth/[...nextauth]/options';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
-import { PoolMemberStatus, PoolMemberRole } from '../../../../../types/pool';
+import { PoolMemberStatus, PoolMemberRole, PoolMember } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { createPayout } from '../../../../../lib/paypal';
@@ -48,7 +48,14 @@ export async function POST(
     await connectToDatabase();
 
     // Use transaction to prevent race conditions
-    let result;
+    let result: {
+      pool: any;
+      payoutRecipient: PoolMember;
+      payoutAmount: number;
+      transactionId: string;
+      currentRound: number;
+      recipientIndex: number;
+    } | undefined;
     await session.withTransaction(async () => {
       // Find and lock the pool document for update
       const pool = await Pool.findOne({ id: poolId }).session(session);
