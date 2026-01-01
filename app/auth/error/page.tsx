@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
-import ClientComponentBoundary from "../../ClientComponentBoundary";
+import ClientOnly from "../../../components/ClientOnly";
 
 export default function AuthError() {
   const [errorMessage, setErrorMessage] = useState<string>("An authentication error occurred");
@@ -30,7 +30,7 @@ export default function AuthError() {
   }, []);
 
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
@@ -59,6 +59,6 @@ export default function AuthError() {
           </CardFooter>
         </Card>
       </div>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }

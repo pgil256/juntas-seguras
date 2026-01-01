@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import ClientComponentBoundary from '../../ClientComponentBoundary';
+import ClientOnly from '../../../components/ClientOnly';
 import { 
   FileText, 
   User, 
@@ -79,7 +79,7 @@ export default function HelpDocumentationLayout({
   const isActive = (path: string) => pathname === path;
 
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar navigation */}
       <div className="md:w-1/4 lg:w-1/5">
@@ -122,6 +122,6 @@ export default function HelpDocumentationLayout({
         {children}
       </div>
       </div>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }

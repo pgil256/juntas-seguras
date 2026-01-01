@@ -6,7 +6,7 @@ import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
 import { Trash2, AlertTriangle, RefreshCw, CheckCircle, DatabaseIcon } from 'lucide-react';
-import ClientComponentBoundary from '../../ClientComponentBoundary';
+import ClientOnly from '../../../components/ClientOnly';
 
 export default function ResetDatabasePage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +56,7 @@ export default function ResetDatabasePage() {
   };
 
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -149,6 +149,6 @@ export default function ResetDatabasePage() {
           </CardFooter>
         </Card>
       </div>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }

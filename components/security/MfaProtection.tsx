@@ -9,7 +9,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Loader2, X, KeyRound, Shield } from 'lucide-react';
-import ClientComponentBoundary from '../../app/ClientComponentBoundary';
+import ClientOnly from '../ClientOnly';
 
 interface MfaProtectionProps {
   children: React.ReactNode;
@@ -146,7 +146,7 @@ export default function MfaProtection({
   };
 
   return (
-    <ClientComponentBoundary>
+    <ClientOnly>
       <div onClick={handleRequestAccess}>
         {children}
       </div>
@@ -251,6 +251,6 @@ export default function MfaProtection({
           </div>
         </DialogContent>
       </Dialog>
-    </ClientComponentBoundary>
+    </ClientOnly>
   );
 }
