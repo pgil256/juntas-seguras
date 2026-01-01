@@ -387,13 +387,13 @@ export default function SignUp() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional for SMS verification)</Label>
+                  <Label htmlFor="phone">Phone Number (Optional)</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+1 (570) 855-0384"
                     className="w-full"
                   />
                 </div>
@@ -512,19 +512,6 @@ export default function SignUp() {
                       </Label>
                     </div>
                     
-                    <div className={`flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 ${!phone ? 'opacity-50' : ''}`}>
-                      <RadioGroupItem value="sms" id="r2" disabled={!phone} />
-                      <Label htmlFor="r2" className="flex items-center cursor-pointer">
-                        <Smartphone className="h-5 w-5 mr-2 text-gray-600" />
-                        <div>
-                          <span className="block font-medium">SMS Text Message</span>
-                          <span className="block text-gray-500 text-sm">
-                            {phone ? `Receive codes via SMS to ${phone}` : 'Phone number required'}
-                          </span>
-                        </div>
-                      </Label>
-                    </div>
-                    
                     <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
                       <RadioGroupItem value="app" id="r3" />
                       <Label htmlFor="r3" className="flex items-center cursor-pointer">
@@ -558,12 +545,10 @@ export default function SignUp() {
                   </div>
                 )}
                 
-                {(mfaMethod === 'email' || mfaMethod === 'sms') && (
+                {mfaMethod === 'email' && (
                   <div className="p-4 border rounded-md bg-gray-50">
                     <p className="text-sm">
-                      {mfaMethod === 'email' 
-                        ? `A verification code has been sent to ${email}.` 
-                        : `A verification code has been sent to ${phone}.`}
+                      A verification code has been sent to {email}.
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
                       Enter the 6-digit code below to verify.

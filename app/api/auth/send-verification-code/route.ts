@@ -1,35 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../[...nextauth]/options';
-import connectToDatabase from '@/lib/db/connect';
-import { getUserModel } from '@/lib/db/models/user';
 import { sendEmailVerificationCode } from '@/lib/services/mfa';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify the user is authenticated
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Get current user with proper ObjectId validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
+    const userId = user._id.toString();
 
-    // Connect to the database
-    await connectToDatabase();
-    
     // Send verification code
-    console.log(`Sending verification code to user ${session.user.id}`);
-    const sent = await sendEmailVerificationCode(session.user.id);
-    
+    console.log(`Sending verification code to user ${userId}`);
+    const sent = await sendEmailVerificationCode(userId);
+
     if (!sent) {
       return NextResponse.json(
         { error: 'Failed to send verification code' },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Verification code sent successfully'
@@ -41,4 +37,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

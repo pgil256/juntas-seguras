@@ -158,8 +158,7 @@ export default function TwoFactorPage() {
                 <div>
                   <p className="text-sm font-medium">Authentication Method</p>
                   <p className="text-xs text-gray-500">
-                    {twoFactorStatus.method === 'app' ? 'Authenticator App' : 
-                     twoFactorStatus.method === 'sms' ? 'Text Message (SMS)' : 
+                    {twoFactorStatus.method === 'app' ? 'Authenticator App' :
                      twoFactorStatus.method === 'email' ? 'Email' : 'Unknown Method'}
                   </p>
                 </div>
@@ -220,7 +219,7 @@ export default function TwoFactorPage() {
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-start">
                 <span className="bg-gray-200 text-gray-700 rounded-full h-5 w-5 flex items-center justify-center text-xs mr-2 mt-0.5">1</span>
-                <span>Set up an authentication method (app, SMS, or email)</span>
+                <span>Set up an authentication method (app or email)</span>
               </li>
               <li className="flex items-start">
                 <span className="bg-gray-200 text-gray-700 rounded-full h-5 w-5 flex items-center justify-center text-xs mr-2 mt-0.5">2</span>

@@ -1,35 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../[...nextauth]/options';
-import connectToDatabase from '@/lib/db/connect';
-import { getUserModel } from '@/lib/db/models/user';
-import { sendEmailVerificationCode } from '@/lib/services/mfa';
+import { getToken } from 'next-auth/jwt';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getUserModel } from '../../../../lib/db/models/user';
+import { sendEmailVerificationCode } from '../../../../lib/services/mfa';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // Verify authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Get the token to check authentication
+    const token = await getToken({ 
+      req, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    if (!token?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
-    
-    const { email } = await request.json();
-    
-    if (!email) {
+
+    // Check if MFA is actually required
+    if (!token.requiresMfa) {
       return NextResponse.json(
-        { error: 'Email is required' },
+        { error: 'MFA is not required for this session' },
         { status: 400 }
       );
     }
-    
+
+    // Connect to database
     await connectToDatabase();
     const UserModel = getUserModel();
     
-    // Find user by ID
-    const user = await UserModel.findById(session.user.id);
+    // Find user by MongoDB _id
+    const user = await UserModel.findById(token.id);
+    
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -37,21 +41,93 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Send new verification code
-    console.log(`Resending MFA code to ${email} for user ${session.user.id}`);
-    const sent = await sendEmailVerificationCode(session.user.id);
-    
-    if (!sent) {
+    // Check if MFA is enabled
+    if (!user.twoFactorAuth?.enabled) {
       return NextResponse.json(
-        { error: 'Failed to send verification code' },
+        { error: 'MFA is not enabled for this account' },
+        { status: 400 }
+      );
+    }
+
+    // Check for rate limiting - prevent resend spam
+    const lastCodeSent = user.twoFactorAuth?.codeGeneratedAt;
+    if (lastCodeSent) {
+      const timeSinceLastCode = Date.now() - new Date(lastCodeSent).getTime();
+      const minResendInterval = 60 * 1000; // 1 minute
+      
+      if (timeSinceLastCode < minResendInterval) {
+        const waitTime = Math.ceil((minResendInterval - timeSinceLastCode) / 1000);
+        return NextResponse.json(
+          { 
+            error: `Please wait ${waitTime} seconds before requesting a new code`,
+            waitTime 
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Check daily resend limit
+    const today = new Date().toDateString();
+    const resendCount = parseInt(user.metadata?.get(`mfaResendCount_${today}`) || '0');
+    
+    if (resendCount >= 5) {
+      return NextResponse.json(
+        { 
+          error: 'Daily resend limit reached. Please try again tomorrow.',
+          limitReached: true 
+        },
+        { status: 429 }
+      );
+    }
+
+    // Resend the code based on MFA method (email only - TOTP cannot be resent)
+    const mfaMethod = token.mfaMethod || user.twoFactorAuth.method || 'email';
+    let codeSent = false;
+
+    if (mfaMethod === 'email') {
+      codeSent = await sendEmailVerificationCode(token.id as string);
+    } else if (mfaMethod === 'app') {
+      return NextResponse.json(
+        { error: 'TOTP codes cannot be resent. Please use your authenticator app.' },
+        { status: 400 }
+      );
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid MFA method. Only email verification codes can be resent.' },
+        { status: 400 }
+      );
+    }
+
+    if (!codeSent) {
+      return NextResponse.json(
+        { error: 'Failed to send verification code. Please try again.' },
         { status: 500 }
       );
     }
-    
+
+    // Update resend count
+    await UserModel.findByIdAndUpdate(
+      user._id,
+      { 
+        $set: { 
+          [`metadata.mfaResendCount_${today}`]: (resendCount + 1).toString(),
+          'metadata.lastResendTime': new Date().toISOString()
+        } 
+      }
+    );
+
+    // Log the resend action
+    console.log(`MFA code resent for user ${user.email}, method: ${mfaMethod}, count today: ${resendCount + 1}`);
+
     return NextResponse.json({
       success: true,
-      message: 'Verification code sent successfully'
+      message: 'Verification code has been resent',
+      method: mfaMethod,
+      resendCount: resendCount + 1,
+      remainingResends: Math.max(0, 5 - (resendCount + 1))
     });
+    
   } catch (error) {
     console.error('Error resending MFA code:', error);
     return NextResponse.json(
@@ -59,4 +135,70 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+
+// GET endpoint to check resend eligibility
+export async function GET(req: NextRequest) {
+  try {
+    const token = await getToken({ 
+      req, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    if (!token?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Connect to database
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    
+    // Find user
+    const user = await UserModel.findById(token.id);
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate time since last code
+    const lastCodeSent = user.twoFactorAuth?.codeGeneratedAt;
+    let canResend = true;
+    let waitTime = 0;
+    
+    if (lastCodeSent) {
+      const timeSinceLastCode = Date.now() - new Date(lastCodeSent).getTime();
+      const minResendInterval = 60 * 1000; // 1 minute
+      
+      if (timeSinceLastCode < minResendInterval) {
+        canResend = false;
+        waitTime = Math.ceil((minResendInterval - timeSinceLastCode) / 1000);
+      }
+    }
+
+    // Check daily limit
+    const today = new Date().toDateString();
+    const resendCount = parseInt(user.metadata?.get(`mfaResendCount_${today}`) || '0');
+    const remainingResends = Math.max(0, 5 - resendCount);
+    
+    return NextResponse.json({
+      canResend: canResend && remainingResends > 0,
+      waitTime,
+      resendCount,
+      remainingResends,
+      method: token.mfaMethod || user.twoFactorAuth?.method || 'email'
+    });
+    
+  } catch (error) {
+    console.error('Error checking resend eligibility:', error);
+    return NextResponse.json(
+      { error: 'Failed to check resend eligibility' },
+      { status: 500 }
+    );
+  }
+}

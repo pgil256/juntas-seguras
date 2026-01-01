@@ -1,15 +1,11 @@
 // app/page.tsx
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { Shield, Users, Wallet, CheckCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 
 export default function LandingPage() {
-  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -52,34 +48,35 @@ export default function LandingPage() {
               wealth, and achieve financial goals.
             </p>
             <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-              <Button 
-                size="lg" 
-                onClick={() => router.push("/auth/signup")}
-                className="w-full sm:w-auto justify-center text-base"
-              >
-                Get Started
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => router.push("/help/documentation")}
-                className="w-full sm:w-auto justify-center text-base"
-              >
-                Learn More
-              </Button>
+              <Link href="/auth/signup">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto justify-center text-base"
+                >
+                  Get Started
+                </Button>
+              </Link>
+              <Link href="/help/documentation">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto justify-center text-base"
+                >
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="mt-8 sm:mt-10 lg:mt-0">
             <div className="rounded-lg shadow-xl overflow-hidden bg-gradient-to-b from-blue-50 to-white h-64 sm:h-80 md:h-96">
               <div className="relative w-full h-full flex items-center justify-center">
                 <Image
-                  src="/images/js-logo.png"
+                  src="/js-logo.png"
                   alt="Juntas Seguras platform"
                   width={600}
                   height={300}
                   className="w-[90%] h-auto transform scale-105 sm:scale-110"
                   priority
-                  unoptimized
                 />
               </div>
             </div>
@@ -185,23 +182,25 @@ export default function LandingPage() {
           </h2>
           <div className="mt-6 sm:mt-8 lg:mt-0 lg:flex-shrink-0 flex flex-col sm:flex-row gap-3 sm:gap-0">
             <div className="inline-flex rounded-md shadow w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="bg-white text-blue-600 hover:bg-blue-50 w-full sm:w-auto justify-center"
-                onClick={() => router.push("/auth/signup")}
-              >
-                Sign up
-              </Button>
+              <Link href="/auth/signup">
+                <Button
+                  size="lg"
+                  className="bg-white text-blue-600 hover:bg-blue-50 w-full sm:w-auto justify-center"
+                >
+                  Sign up
+                </Button>
+              </Link>
             </div>
             <div className="sm:ml-3 inline-flex rounded-md shadow w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="lg"
-                className="bg-white/10 text-white border-white hover:bg-blue-700 w-full sm:w-auto justify-center"
-                onClick={() => router.push("/auth/signin")}
-              >
-                Log in
-              </Button>
+              <Link href="/auth/signin">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="bg-white/10 text-white border-white hover:bg-blue-700 w-full sm:w-auto justify-center"
+                >
+                  Log in
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

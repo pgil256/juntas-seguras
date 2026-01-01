@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { 
   Home, 
   HelpCircle, 
@@ -13,13 +12,18 @@ import {
 import PageLayout from '../../components/PageLayout';
 import { Button } from '../../components/ui/button';
 import { Separator } from '../../components/ui/separator';
+import ClientComponentBoundary from '../../components/ClientComponentBoundary';
 
 export default function HelpLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const [pathname, setPathname] = useState('');
+  
+  useEffect(() => {
+    setPathname(window.location.pathname);
+  }, []);
 
   // Define help navigation items
   const helpNavItems = [
@@ -57,18 +61,24 @@ export default function HelpLayout({
             <h1 className="text-2xl font-bold text-gray-900">Help & Support</h1>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center mb-6 gap-3 sm:gap-1">
-            {helpNavItems.map((item) => (
-              <Link href={item.href} key={item.href}>
-                <Button
-                  variant={isActive(item.href) ? "default" : "ghost"}
-                  className={`flex items-center ${isActive(item.href) ? "" : "text-gray-700"}`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
+          <div className="mb-6">
+            <ul className="flex flex-row list-none space-x-2">
+              {helpNavItems.map((item) => (
+                <li key={item.href} className="inline-block">
+                  <ClientComponentBoundary>
+                    <Link href={item.href}>
+                      <Button
+                        variant={isActive(item.href) ? "default" : "ghost"}
+                        className={`flex items-center ${isActive(item.href) ? "" : "text-gray-700"}`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </Button>
+                    </Link>
+                  </ClientComponentBoundary>
+                </li>
+              ))}
+            </ul>
           </div>
           
           <Separator className="my-4" />

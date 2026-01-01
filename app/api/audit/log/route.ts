@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import connectToDatabase from '../../../../lib/db/connect';
 import getAuditLogModel from '../../../../lib/db/models/auditLog';
-import getUserModel from '../../../../lib/db/models/user';
+import { getUserModel } from '../../../../lib/db/models/user';
 import { AuditLogType } from '../../../../types/audit';
 
 // POST /api/audit/log - Create a new audit log entry

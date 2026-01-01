@@ -1,0 +1,16 @@
+console.log('To clear your session and remove the MFA requirement:');
+console.log('');
+console.log('1. Open your browser');
+console.log('2. Go to Developer Tools (F12)');
+console.log('3. Go to Application tab (Chrome) or Storage tab (Firefox)');
+console.log('4. Clear all:');
+console.log('   - Cookies (especially next-auth.session-token)');
+console.log('   - Local Storage');
+console.log('   - Session Storage');
+console.log('5. Refresh the page');
+console.log('');
+console.log('OR use this browser console command:');
+console.log('');
+console.log('localStorage.clear(); sessionStorage.clear(); document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); }); location.reload();');
+console.log('');
+console.log('After clearing, you should be able to login without MFA popups.');

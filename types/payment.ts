@@ -1,9 +1,10 @@
 /**
  * Types for payment-related features
+ * Updated for PayPal integration
  */
 
 // Payment method types
-export type PaymentMethodType = 'card' | 'bank';
+export type PaymentMethodType = 'paypal' | 'card' | 'bank';
 
 export interface PaymentMethod {
   id: number;
@@ -11,6 +12,8 @@ export interface PaymentMethod {
   name: string;
   last4: string;
   isDefault: boolean;
+  // PayPal-specific fields
+  paypalEmail?: string;
   // Card-specific fields
   cardholderName?: string;
   expiryMonth?: string;
@@ -28,6 +31,8 @@ export enum TransactionType {
   FEE = 'fee',
   ESCROW = 'escrow',
   ESCROW_RELEASE = 'escrow_release',
+  CONTRIBUTION = 'contribution',
+  PAYOUT = 'payout',
 }
 
 export enum TransactionStatus {
@@ -57,8 +62,11 @@ export interface Transaction {
   failureReason?: string;
   escrowId?: string;
   releaseDate?: string;
-  stripePaymentIntentId?: string;
-  stripeTransferId?: string;
+  // PayPal-specific fields
+  paypalOrderId?: string;
+  paypalAuthorizationId?: string;
+  paypalCaptureId?: string;
+  paypalPayoutBatchId?: string;
 }
 
 // Payment processing types
@@ -83,6 +91,8 @@ export interface PaymentProcessRequest {
 export interface PaymentProcessResponse {
   success: boolean;
   payment?: Transaction;
+  paypalOrderId?: string;
+  approvalUrl?: string;
   message?: string;
   error?: string;
 }
@@ -90,11 +100,15 @@ export interface PaymentProcessResponse {
 // Payment method form types
 export interface PaymentMethodFormValues {
   type: PaymentMethodType;
+  // PayPal fields
+  paypalEmail?: string;
+  // Card fields
   cardholderName?: string;
   cardNumber?: string;
   expiryMonth?: string;
   expiryYear?: string;
   cvv?: string;
+  // Bank fields
   accountHolderName?: string;
   accountNumber?: string;
   routingNumber?: string;
@@ -106,6 +120,8 @@ export interface PaymentMethodRequest {
   userId: string;
   type: PaymentMethodType;
   isDefault: boolean;
+  // PayPal fields
+  paypalEmail?: string;
   // Card fields
   cardholderName?: string;
   cardNumber?: string;
@@ -122,5 +138,36 @@ export interface PaymentMethodRequest {
 export interface PaymentMethodResponse {
   success: boolean;
   method?: PaymentMethod;
+  error?: string;
+}
+
+// PayPal-specific types
+export interface PayPalOrderResponse {
+  success: boolean;
+  orderId?: string;
+  approvalUrl?: string;
+  status?: string;
+  error?: string;
+}
+
+export interface PayPalAuthorizationResponse {
+  success: boolean;
+  orderId?: string;
+  authorizationId?: string;
+  status?: string;
+  error?: string;
+}
+
+export interface PayPalCaptureResponse {
+  success: boolean;
+  captureId?: string;
+  status?: string;
+  error?: string;
+}
+
+export interface PayPalPayoutResponse {
+  success: boolean;
+  payoutBatchId?: string;
+  batchStatus?: string;
   error?: string;
 }

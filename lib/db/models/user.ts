@@ -2,13 +2,14 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 import { TwoFactorMethod } from '../../../types/security';
 import { VerificationStatus, VerificationType, VerificationMethod } from '../../../types/identity';
 
-// Two-factor authentication schema
+// Two-factor authentication schema (Email-only MFA)
 const TwoFactorSchema = new Schema({
   enabled: { type: Boolean, default: false },
-  method: { type: String, enum: ['app', 'sms', 'email'] },
+  method: { type: String, enum: ['app', 'email', 'totp'], default: 'email' },
   secret: { type: String },
+  totpSecret: { type: String }, // For TOTP authenticator apps
+  pendingTotpSecret: { type: String }, // Temporary secret during TOTP setup
   backupCodes: [{ type: String }],
-  phone: { type: String },
   email: { type: String },
   lastUpdated: { type: String },
   verified: { type: Boolean, default: false },
@@ -47,7 +48,9 @@ const IdentityVerificationSchema = new Schema({
 
 // User schema for basic authentication and user management
 const UserSchema = new Schema({
-  id: { type: String, unique: true, sparse: true }, // Make id optional and sparse
+  // Note: MongoDB automatically creates _id field, we don't use custom 'id' field anymore
+  // Removed custom id field to avoid conflicts with MongoDB's _id
+  // Use _id.toString() when you need the ID as a string
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String },
@@ -55,6 +58,10 @@ const UserSchema = new Schema({
   lastLogin: { type: Date },
   avatar: { type: String },
   hashedPassword: { type: String },
+  // OAuth provider fields
+  provider: { type: String, enum: ['credentials', 'google', 'azure-ad'], default: 'credentials' },
+  providerId: { type: String }, // Provider's user ID
+  emailVerified: { type: Boolean, default: false },
   pools: [{ type: String }], // Array of pool IDs the user belongs to
   // Verification fields
   verificationCode: { type: String },
@@ -106,7 +113,7 @@ const UserSchema = new Schema({
 
 // Define the User document type
 export interface UserDocument extends Document {
-  id: string;
+  // id is inherited from Document (_id.toString())
   name: string;
   email: string;
   phone?: string;
@@ -114,6 +121,10 @@ export interface UserDocument extends Document {
   lastLogin?: Date;
   avatar?: string;
   hashedPassword?: string;
+  // OAuth provider fields
+  provider?: 'credentials' | 'google' | 'azure-ad';
+  providerId?: string;
+  emailVerified?: boolean;
   pools: string[];
   verificationCode?: string;
   verificationExpiry?: Date;
@@ -124,8 +135,9 @@ export interface UserDocument extends Document {
     enabled: boolean;
     method: TwoFactorMethod;
     secret?: string;
+    totpSecret?: string;
+    pendingTotpSecret?: string;
     backupCodes?: string[];
-    phone?: string;
     email?: string;
     lastUpdated?: string;
     verified: boolean;

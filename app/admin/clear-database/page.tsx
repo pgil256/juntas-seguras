@@ -43,11 +43,11 @@ export default function ClearDatabasePage() {
         message: data.message,
         clearedCollections: data.clearedCollections,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error clearing database:', error);
       setResult({
         success: false,
-        error: error.message || 'An error occurred while clearing the database',
+        error: error instanceof Error ? error.message : 'An error occurred while clearing the database',
       });
     } finally {
       setIsLoading(false);

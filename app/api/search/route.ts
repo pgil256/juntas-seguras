@@ -3,7 +3,32 @@ import { SearchResponse, PaginationInfo, SearchResult } from '../../../types/sea
 import { handleApiRequest } from '../../../lib/api';
 import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
-import getUserModel from '../../../lib/db/models/user';
+import { getUserModel } from '../../../lib/db/models/user';
+
+interface PoolMemberDB {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  position: number;
+  status: string;
+}
+
+interface PoolTransactionDB {
+  id: number;
+  type: string;
+  amount: number;
+  date: string;
+  member: string;
+  status: string;
+}
+
+interface PoolMessageDB {
+  id: number;
+  author: string;
+  content: string;
+  date: string;
+}
 
 /**
  * Create a paginated subset of search results
@@ -411,8 +436,8 @@ export async function GET(request: NextRequest) {
     }));
     
     // Extract members from all pools
-    const members = userPools.flatMap(pool => 
-      pool.members.map(member => ({
+    const members = userPools.flatMap(pool =>
+      pool.members.map((member: PoolMemberDB) => ({
         id: `${pool.id}-${member.id}`,
         name: member.name,
         email: member.email,
@@ -422,10 +447,10 @@ export async function GET(request: NextRequest) {
         status: member.status,
       }))
     );
-    
+
     // Extract transactions from all pools
-    const transactions = userPools.flatMap(pool => 
-      pool.transactions.map(txn => ({
+    const transactions = userPools.flatMap(pool =>
+      pool.transactions.map((txn: PoolTransactionDB) => ({
         id: `${pool.id}-${txn.id}`,
         type: txn.type,
         amount: txn.amount,
@@ -435,10 +460,10 @@ export async function GET(request: NextRequest) {
         status: txn.status,
       }))
     );
-    
+
     // Extract messages from all pools
-    const messages = userPools.flatMap(pool => 
-      pool.messages.map(msg => ({
+    const messages = userPools.flatMap(pool =>
+      pool.messages.map((msg: PoolMessageDB) => ({
         id: `${pool.id}-${msg.id}`,
         author: msg.author,
         content: msg.content,

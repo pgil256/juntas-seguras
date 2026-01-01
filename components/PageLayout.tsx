@@ -2,6 +2,7 @@
 
 import React from "react";
 import Navbar from "../components/Navbar";
+import ClientOnly from "./ClientOnly";
 import Link from "next/link";
 
 export default function PageLayout({
@@ -11,7 +12,9 @@ export default function PageLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
+      <ClientOnly>
+        <Navbar />
+      </ClientOnly>
       
       <main className="flex-grow w-full mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-4 sm:py-6">
         {children}
@@ -55,16 +58,16 @@ export default function PageLayout({
                 <h3 className="text-sm font-semibold text-gray-500 tracking-wider uppercase">Legal</h3>
                 <ul className="space-y-2.5">
                   <li>
-                    <Link 
-                      href="#" 
+                    <Link
+                      href="/privacy"
                       className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200"
                     >
                       Privacy
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="#" 
+                    <Link
+                      href="/terms"
                       className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200"
                     >
                       Terms

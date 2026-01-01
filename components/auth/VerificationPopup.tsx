@@ -48,7 +48,7 @@ export default function VerificationPopup({
 
     try {
       await onVerify(verificationCode);
-      onClose();
+      // Don't automatically close - let the parent component handle closing on success
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
     } finally {
@@ -129,12 +129,12 @@ export default function VerificationPopup({
                     autoFocus
                   />
                   
-                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                  <div className="space-y-3">
                     <button
                       type="button"
                       onClick={handleResend}
                       disabled={isResending}
-                      className="w-full sm:w-auto inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      className="w-full py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
                       {isResending ? 'Resending...' : 'Resend Code'}
                     </button>
@@ -143,7 +143,7 @@ export default function VerificationPopup({
                       type="button"
                       onClick={handleSubmit}
                       disabled={isSubmitting || verificationCode.length !== 6}
-                      className="w-full sm:w-auto flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      className="w-full py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
                       {isSubmitting ? 'Verifying...' : 'Verify'}
                     </button>

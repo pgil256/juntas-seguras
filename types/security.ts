@@ -1,14 +1,14 @@
 /**
  * Types for security-related features including 2FA and account activity logging
+ * Note: SMS-based MFA has been removed. Only email and authenticator app methods are supported.
  */
 
-// Two-factor authentication types
-export type TwoFactorMethod = 'app' | 'sms' | 'email';
+// Two-factor authentication types (Email-only MFA - SMS removed)
+export type TwoFactorMethod = 'app' | 'email';
 
 export interface TwoFactorSetup {
   enabled: boolean;
   method: TwoFactorMethod;
-  phone?: string;
   email?: string;
   secret?: string;
   backupCodes?: string[];

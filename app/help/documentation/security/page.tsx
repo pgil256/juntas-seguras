@@ -44,7 +44,7 @@ export default function SecurityDocumentationPage() {
                 <div>
                   <h4 className="font-medium text-gray-900">Two-Factor Authentication</h4>
                   <p className="text-sm text-gray-700 mt-1">
-                    Add an extra layer of security by enabling 2FA via authenticator app, SMS, or email verification.
+                    Add an extra layer of security by enabling 2FA via authenticator app or email verification.
                   </p>
                 </div>
               </div>
@@ -87,7 +87,7 @@ export default function SecurityDocumentationPage() {
                 <span className="font-medium">Setting Up 2FA:</span> Go to Profile → Security → Two-Factor Authentication
               </li>
               <li>
-                <span className="font-medium">Select Method:</span> Choose from authenticator app, SMS, or email verification
+                <span className="font-medium">Select Method:</span> Choose from authenticator app or email verification
               </li>
               <li>
                 <span className="font-medium">Authenticator App (Recommended):</span> Scan the QR code with Google Authenticator, Authy, or similar apps
@@ -132,17 +132,6 @@ export default function SecurityDocumentationPage() {
                       </td>
                       <td className="p-2">Medium</td>
                       <td className="p-2">Maximum security</td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-2 font-medium">SMS</td>
-                      <td className="p-2">
-                        <div className="flex items-center">
-                          <CheckCircle className="h-4 w-4 text-yellow-600 mr-1" />
-                          <span>Medium</span>
-                        </div>
-                      </td>
-                      <td className="p-2">High</td>
-                      <td className="p-2">Balance of security and convenience</td>
                     </tr>
                     <tr className="border-t">
                       <td className="p-2 font-medium">Email</td>

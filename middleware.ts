@@ -1,88 +1,118 @@
 import { NextResponse } from 'next/server';
-import { withAuth } from 'next-auth/middleware';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-// This function can be marked `async` if using `await` inside
-export default withAuth(
-  // `withAuth` augments your `Request` with the user's token.
-  function middleware(req) {
-    const token = req.nextauth.token;
+// List of public routes that don't require authentication
+const publicRoutes = [
+  '/',
+  '/auth/signin',
+  '/auth/signup',
+  '/auth/error',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/help',
+  '/help/documentation',
+  '/api/auth', // Allow all NextAuth routes (signin, callback, session, providers, etc.)
+];
+
+// List of API routes that require authentication
+const protectedApiRoutes = [
+  '/api/pools',
+  '/api/payments',
+  '/api/notifications',
+  '/api/users',
+  '/api/admin',
+  '/api/audit',
+  '/api/security',
+];
+
+// List of routes that require MFA verification
+const mfaProtectedRoutes = [
+  '/settings/security',
+  '/admin',
+];
+
+export default async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  
+  // Allow public routes
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    return NextResponse.next();
+  }
+  
+  // Allow static files and Next.js internal routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+  
+  try {
+    // Check for authentication token
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
     
-    // If the token isn't present, no need to do additional checks - withAuth will handle it
+    // Redirect to signin if no token
     if (!token) {
-      if (req.nextUrl.pathname.startsWith('/api/')) {
+      // For API routes, return 401
+      if (pathname.startsWith('/api/')) {
         return new NextResponse(
           JSON.stringify({ error: 'Authentication required' }),
           { status: 401, headers: { 'content-type': 'application/json' } }
         );
       }
-      return NextResponse.next();
+      
+      // For regular routes, redirect to signin
+      const signInUrl = new URL('/auth/signin', request.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
     }
     
-    // Check if MFA verification is required
-    // Skip this check in development mode
-    if (false && process.env.NODE_ENV !== 'development' && token.requiresMfa) {
-      // Requests to MFA verification page or API should be allowed
-      const isMfaPath = req.nextUrl.pathname.includes('/profile/security/two-factor/verify');
-      const isMfaApi = req.nextUrl.pathname.includes('/api/security/two-factor');
-      const isSignInPath = req.nextUrl.pathname === '/auth/signin';
-      
-      // Allow requests to MFA verification page, API, and sign-in page
-      if (isMfaPath || isMfaApi || isSignInPath) {
+    // Check if MFA is required but not completed
+    if (token.requiresMfa && pathname !== '/mfa/verify') {
+      // Allow API calls for MFA verification
+      if (pathname.startsWith('/api/auth/verify-mfa') || 
+          pathname.startsWith('/api/auth/resend-mfa')) {
         return NextResponse.next();
       }
       
-      // For other requests, redirect to MFA verification
-      const returnUrl = encodeURIComponent(req.nextUrl.pathname);
-      return NextResponse.redirect(
-        new URL(`/profile/security/two-factor/verify?returnUrl=${returnUrl}`, req.url)
-      );
+      // Redirect to MFA verification
+      return NextResponse.redirect(new URL('/mfa/verify', request.url));
     }
     
-    // Check for payment-related routes that need additional MFA
-    // Skip this check in development mode
-    if (process.env.NODE_ENV !== 'development') {
-      const isPaymentApi = req.nextUrl.pathname.startsWith('/api/payments');
-      const isPaymentPage = req.nextUrl.pathname.startsWith('/payments');
-      
-      // For payment routes, we'll rely on the client-side MFA protection
-      // This is just an extra layer of protection for the API
-      if (isPaymentApi && !req.headers.get('X-MFA-Verified')) {
-        return new NextResponse(
-          JSON.stringify({ error: 'MFA verification required for payment operations' }),
-          { status: 403, headers: { 'content-type': 'application/json' } }
-        );
+    // Check for MFA-protected routes that require additional verification
+    if (mfaProtectedRoutes.some(route => pathname.startsWith(route))) {
+      // You could implement additional MFA checks here if needed
+      // For now, just ensure the user has completed initial MFA
+      if (!token.mfaSetupComplete) {
+        return NextResponse.redirect(new URL('/mfa/setup', request.url));
       }
     }
     
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of error, allow the request to proceed
+    // The page itself should handle authentication
+    return NextResponse.next();
   }
-);
+}
 
-// Configure which paths require authentication
+// Configure which routes the middleware should run on
 export const config = {
   matcher: [
-    // Protected routes that require auth
-    '/dashboard/:path*',
-    '/profile/:path*',
-    '/my-pool/:path*',
-    '/member-management/:path*',
-    '/pools/:path*',
-    '/payments/:path*',
-    '/create-pool/:path*',
-    '/notifications/:path*',
-    '/settings/:path*',
-    '/analytics/:path*',
-    
-    // Protected API routes
-    '/api/pools/:path*',
-    '/api/payments/:path*',
-    '/api/notifications/:path*',
-    '/api/security/:path*',
-    '/api/users/:path*',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
 };

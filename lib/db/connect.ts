@@ -9,6 +9,18 @@ if (!process.env.MONGODB_URI) {
   console.log('Warning: Using local MongoDB instance. Set MONGODB_URI for production.');
 }
 
+// Define the type for our mongoose cache
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+  isConnected: boolean;
+}
+
+// Extend the global namespace to include our mongoose cache
+declare global {
+  var mongoose: MongooseCache | undefined;
+}
+
 // Global variable to track connection status
 let cached = global.mongoose;
 

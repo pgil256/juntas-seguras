@@ -16,6 +16,8 @@ declare module "next-auth" {
     requiresMfa?: boolean;
     /** The MFA method to use */
     mfaMethod?: TwoFactorMethod;
+    /** Timestamp of the last login */
+    lastLoginTime?: string;
   }
   
   /**
@@ -41,5 +43,7 @@ declare module "next-auth/jwt" {
     requiresMfa?: boolean;
     /** The MFA method to use */
     mfaMethod?: TwoFactorMethod;
+    /** Timestamp of the last login */
+    lastLoginTime?: string;
   }
 }

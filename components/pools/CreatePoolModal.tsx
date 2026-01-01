@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCreatePool } from "../../lib/hooks/useCreatePool";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
@@ -45,6 +46,7 @@ const CreatePoolModal = ({
   onCreatePool,
 }: CreatePoolModalProps) => {
   const { status } = useSession();
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   
@@ -54,6 +56,10 @@ const CreatePoolModal = ({
       if (onCreatePool) {
         onCreatePool({ id: poolId, ...poolData });
       }
+      
+      // Close modal and redirect to member management
+      onClose();
+      router.push(`/member-management/${poolId}`);
     }
   });
   
@@ -79,34 +85,46 @@ const CreatePoolModal = ({
   };
 
   const nextStep = () => {
-    setStep((prev) => prev + 1);
+    // Validate current step before proceeding
+    if (validateStep(step)) {
+      setStep((prev) => prev + 1);
+    }
   };
 
   const prevStep = () => {
     setStep((prev) => prev - 1);
+    setFormErrors([]); // Clear errors when going back
   };
 
-  const validateForm = (): boolean => {
+  const validateStep = (stepToValidate: number): boolean => {
     const errors: string[] = [];
     
     if (status !== 'authenticated') {
       errors.push('You must be signed in to create a pool');
     }
     
-    if (!poolData.name.trim()) {
-      errors.push('Pool name is required');
+    if (stepToValidate >= 1) {
+      if (!poolData.name.trim()) {
+        errors.push('Pool name is required');
+      }
+      
+      if (!poolData.contributionAmount || isNaN(Number(poolData.contributionAmount)) || Number(poolData.contributionAmount) <= 0) {
+        errors.push('Valid contribution amount is required');
+      }
     }
     
-    if (!poolData.contributionAmount || isNaN(Number(poolData.contributionAmount)) || Number(poolData.contributionAmount) <= 0) {
-      errors.push('Valid contribution amount is required');
-    }
-    
-    if (!poolData.startDate) {
-      errors.push('Start date is required');
+    if (stepToValidate >= 2) {
+      if (!poolData.startDate) {
+        errors.push('Start date is required');
+      }
     }
     
     setFormErrors(errors);
     return errors.length === 0;
+  };
+
+  const validateForm = (): boolean => {
+    return validateStep(3);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -401,6 +419,8 @@ const CreatePoolModal = ({
                     <Input
                       id="emails"
                       name="emails"
+                      value={poolData.emails}
+                      onChange={handleInputChange}
                       placeholder="e.g. friend@example.com, family@example.com"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -442,58 +462,58 @@ const CreatePoolModal = ({
               </div>
             )}
 
-            <DialogFooter className="mt-6 flex justify-between sm:justify-between">
+            {formErrors.length > 0 && (
+              <div className="mt-4">
+                <Alert variant="destructive">
+                  <AlertTitle>Validation Errors</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-5">
+                      {formErrors.map((err, index) => (
+                        <li key={index}>{err}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-4">
+                <Alert variant="destructive">
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            <DialogFooter className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
               {step > 1 ? (
                 <Button
                   type="button"
                   variant="outline"
                   onClick={prevStep}
-                  className="flex items-center"
+                  className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Back
                 </Button>
               ) : (
-                <div></div> // Empty div for spacing
+                <div className="hidden sm:block"></div>
               )}
 
-              {formErrors.length > 0 && (
-                <div className="mb-4 w-full">
-                  <Alert variant="destructive">
-                    <AlertTitle>Validation Errors</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc pl-5">
-                        {formErrors.map((err, index) => (
-                          <li key={index}>{err}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-              
-              {error && (
-                <div className="mb-4 w-full">
-                  <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                </div>
-              )}
-              
               {step < 3 ? (
                 <Button
                   type="button"
                   onClick={nextStep}
-                  className="flex items-center"
+                  className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button 
-                  type="submit" 
-                  className="bg-blue-600 hover:bg-blue-700"
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 min-h-[44px] w-full sm:w-auto"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Creating...' : 'Create Pool'}

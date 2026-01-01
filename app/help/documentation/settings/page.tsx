@@ -90,9 +90,6 @@ export default function SettingsDocumentationPage() {
                 <span className="font-medium">Email Notifications:</span> Choose which updates are sent to your email
               </li>
               <li>
-                <span className="font-medium">SMS Notifications:</span> Enable text messages for time-sensitive alerts
-              </li>
-              <li>
                 <span className="font-medium">In-App Notifications:</span> Manage your notification center preferences
               </li>
               <li>
@@ -135,7 +132,7 @@ export default function SettingsDocumentationPage() {
             
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">Tip:</span> Enable SMS notifications for payment reminders to avoid missing important contribution deadlines.
+                <span className="font-medium">Tip:</span> Enable email notifications for payment reminders to avoid missing important contribution deadlines.
               </p>
             </div>
           </section>

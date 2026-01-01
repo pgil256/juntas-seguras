@@ -1,40 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../[...nextauth]/options';
-import connectToDatabase from '@/lib/db/connect';
 import { getUserModel } from '@/lib/db/models/user';
+import { getCurrentUser } from '@/lib/auth';
 import speakeasy from 'speakeasy';
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Get current user with proper ObjectId validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
+    const userId = user._id.toString();
+    const UserModel = getUserModel();
 
-    const userId = session.user.id;
     const { code } = await request.json();
 
     if (!code) {
       return NextResponse.json(
         { error: 'Verification code is required' },
         { status: 400 }
-      );
-    }
-
-    await connectToDatabase();
-    const UserModel = getUserModel();
-    
-    // Find the user by ObjectId
-    const user = await UserModel.findById(userId);
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       );
     }
 
@@ -88,4 +76,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

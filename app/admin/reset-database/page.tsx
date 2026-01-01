@@ -44,11 +44,11 @@ export default function ResetDatabasePage() {
         message: data.message,
         clearedCollections: data.clearedCollections,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error resetting database:', error);
       setResult({
         success: false,
-        error: error.message || 'An error occurred while resetting the database',
+        error: error instanceof Error ? error.message : 'An error occurred while resetting the database',
       });
     } finally {
       setIsLoading(false);

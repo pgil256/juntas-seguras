@@ -336,7 +336,7 @@ export default function DocumentationPage() {
                       <section>
                         <h3 className="text-xl font-semibold text-gray-900">Customizing Notification Settings</h3>
                         <p className="mt-2 text-gray-700">
-                          Configure your notification preferences to receive alerts through your preferred channels (email, SMS, in-app) and with your preferred frequency.
+                          Configure your notification preferences to receive alerts through your preferred channels (email, in-app) and with your preferred frequency.
                         </p>
                       </section>
 
@@ -361,7 +361,7 @@ export default function DocumentationPage() {
                       <section>
                         <h3 className="text-xl font-semibold text-gray-900">Two-Factor Authentication</h3>
                         <p className="mt-2 text-gray-700">
-                          Add an extra layer of security to your account by requiring a second verification step during login, using authentication apps, SMS, or email.
+                          Add an extra layer of security to your account by requiring a second verification step during login, using authentication apps or email.
                         </p>
                       </section>
 

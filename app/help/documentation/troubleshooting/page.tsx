@@ -52,7 +52,7 @@ export default function TroubleshootingPage() {
                   <div>
                     <h4 className="font-medium text-gray-900">Two-Factor Authentication (2FA) Issues</h4>
                     <p className="text-sm text-gray-700 mt-1">
-                      If you can't access your authenticator app or don't receive the SMS code, use your backup codes to log in. Contact support if you've lost both.
+                      If you can't access your authenticator app or don't receive the email code, use your backup codes to log in. Contact support if you've lost both.
                     </p>
                   </div>
                 </div>

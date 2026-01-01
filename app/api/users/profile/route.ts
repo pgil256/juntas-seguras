@@ -84,6 +84,9 @@ export async function PUT(req: NextRequest) {
       { new: true }
     );
     
+    if (!updatedUser) {
+      return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    }
     return NextResponse.json({
       id: updatedUser.id,
       name: updatedUser.name,
@@ -170,7 +173,10 @@ export async function PATCH(req: NextRequest) {
       updateData,
       { new: true }
     );
-    
+
+    if (!updatedUser) {
+      return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    }
     return NextResponse.json({
       success: true,
       id: updatedUser.id,

@@ -13,9 +13,10 @@ interface PoolPayoutsManagerProps {
   userId: string;
   isAdmin: boolean;
   poolName: string;
+  onPayoutSuccess?: () => void;
 }
 
-export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName }: PoolPayoutsManagerProps) {
+export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayoutSuccess }: PoolPayoutsManagerProps) {
   const { 
     isLoading, 
     error, 
@@ -67,14 +68,16 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName }: PoolPa
   const handleProcessPayout = async () => {
     setProcessingPayout(true);
     setPayoutResult(null);
-    
+
     try {
       const result = await processPayout();
       setPayoutResult(result);
-      
-      // Reload status after processing
+
+      // Reload status after processing and notify parent
       if (result.success) {
         await checkPayoutStatus();
+        // Call the callback to refresh pool data in parent component
+        onPayoutSuccess?.();
       }
     } finally {
       setProcessingPayout(false);

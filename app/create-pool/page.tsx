@@ -46,8 +46,8 @@ export default function CreatePoolPage() {
   const { createPool, isLoading, error } = useCreatePool({
     userId: mockUserId,
     onSuccess: (poolId) => {
-      // Navigate to the newly created pool
-      router.push(`/pools/${poolId}`);
+      // Navigate to member management to invite members
+      router.push(`/member-management/${poolId}`);
     }
   });
   const [poolData, setPoolData] = useState({
@@ -477,26 +477,26 @@ export default function CreatePoolPage() {
           <div className="flex items-center justify-center">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="h-1 w-24 md:w-36 bg-gray-200"></div>
+                <div className="h-1 w-12 sm:w-24 md:w-36 bg-gray-200"></div>
               </div>
-              <div className="relative w-10 h-10 flex items-center justify-center bg-blue-600 rounded-full text-white">
+              <div className={`relative w-10 h-10 flex items-center justify-center rounded-full text-white ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`}>
                 {step > 1 ? <Check className="h-6 w-6" /> : 1}
               </div>
             </div>
-            <div className="h-1 w-24 md:w-36 bg-gray-200"></div>
-            <div className="relative w-10 h-10 flex items-center justify-center bg-gray-200 rounded-full text-gray-600">
-              {step > 2 ? <Check className="h-6 w-6 text-white" /> : 2}
+            <div className={`h-1 w-12 sm:w-24 md:w-36 ${step > 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+            <div className={`relative w-10 h-10 flex items-center justify-center rounded-full ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+              {step > 2 ? <Check className="h-6 w-6" /> : 2}
             </div>
-            <div className="h-1 w-24 md:w-36 bg-gray-200"></div>
-            <div className="relative w-10 h-10 flex items-center justify-center bg-gray-200 rounded-full text-gray-600">
-              {step > 3 ? <Check className="h-6 w-6 text-white" /> : 3}
+            <div className={`h-1 w-12 sm:w-24 md:w-36 ${step > 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+            <div className={`relative w-10 h-10 flex items-center justify-center rounded-full ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+              {step > 3 ? <Check className="h-6 w-6" /> : 3}
             </div>
           </div>
-          <div className="flex justify-between mt-2">
-            <div className="text-sm font-medium text-blue-600">Basic Info</div>
-            <div className="text-sm font-medium text-gray-600">Schedule</div>
-            <div className="text-sm font-medium text-gray-600">
-              Invite & Review
+          <div className="flex justify-between mt-2 text-xs sm:text-sm">
+            <div className={`font-medium ${step >= 1 ? 'text-blue-600' : 'text-gray-600'}`}>Basic Info</div>
+            <div className={`font-medium ${step >= 2 ? 'text-blue-600' : 'text-gray-600'}`}>Schedule</div>
+            <div className={`font-medium ${step >= 3 ? 'text-blue-600' : 'text-gray-600'} text-right`}>
+              Review
             </div>
           </div>
         </div>
@@ -504,13 +504,37 @@ export default function CreatePoolPage() {
         <form onSubmit={handleSubmit}>
           {renderStepContent()}
 
-          <div className="mt-8 flex justify-between">
+          {formErrors.length > 0 && (
+            <div className="mt-4">
+              <Alert variant="destructive">
+                <AlertTitle>Validation Errors</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-5">
+                    {formErrors.map((err, index) => (
+                      <li key={index}>{err}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4">
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
             {step > 1 ? (
               <Button
                 type="button"
                 variant="outline"
                 onClick={prevStep}
-                className="flex items-center"
+                className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
@@ -520,50 +544,26 @@ export default function CreatePoolPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.push("/")}
-                className="flex items-center"
+                className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Cancel
               </Button>
             )}
 
-            {formErrors.length > 0 && (
-              <div className="mb-4 w-full">
-                <Alert variant="destructive">
-                  <AlertTitle>Validation Errors</AlertTitle>
-                  <AlertDescription>
-                    <ul className="list-disc pl-5">
-                      {formErrors.map((err, index) => (
-                        <li key={index}>{err}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
-            {error && (
-              <div className="mb-4 w-full">
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
             {step < 3 ? (
               <Button
                 type="button"
                 onClick={nextStep}
-                className="flex items-center"
+                className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
               >
                 Next
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
-              <Button 
-                type="submit" 
-                className="bg-blue-600 hover:bg-blue-700"
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 min-h-[44px] w-full sm:w-auto"
                 disabled={isLoading || isSubmitting}
               >
                 {isLoading ? 'Creating...' : 'Create Pool'}

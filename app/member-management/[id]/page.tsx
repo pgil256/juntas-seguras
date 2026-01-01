@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import {
   Users,
   ChevronLeft,
@@ -67,17 +67,18 @@ import { InviteMembersDialog } from "../../../components/pools/InviteMembersDial
 // For demo purposes - in a real app, this would come from authentication context
 const mockUserId = 'user123';
 
-export default function MemberManagementPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function MemberManagementPage() {
+  const params = useParams();
+  const id = params.id as string;
   const router = useRouter();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PoolMember | null>(null);
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [positionsChanged, setPositionsChanged] = useState(false);
   const [originalPositions, setOriginalPositions] = useState<PoolMember[]>([]);
@@ -90,7 +91,7 @@ export default function MemberManagementPage({
     error: poolError, 
     refreshPool 
   } = usePool({ 
-    poolId: params.id,
+    poolId: id,
     userId: mockUserId
   });
   
@@ -105,7 +106,7 @@ export default function MemberManagementPage({
     updatePositions,
     refreshMembers
   } = usePoolMembers({
-    poolId: params.id,
+    poolId: id,
     userId: mockUserId
   });
   
@@ -118,7 +119,7 @@ export default function MemberManagementPage({
     cancelInvitation,
     refreshInvitations
   } = usePoolInvitations({
-    poolId: params.id,
+    poolId: id,
     userId: mockUserId
   });
 
@@ -311,13 +312,44 @@ export default function MemberManagementPage({
   const handleSendMessage = () => {
     if (!selectedMember || !messageText) return;
 
-    // In a real app, this would send a message to the member
-    console.log("Sending message to", selectedMember.name, ":", messageText);
+    // Message would be sent to the member here
 
     // Reset and close
     setMessageText("");
     setShowMessageDialog(false);
     setSelectedMember(null);
+  };
+
+  const handleSendReminder = async () => {
+    if (!selectedMember) return;
+
+    setIsSendingReminder(true);
+
+    try {
+      const response = await fetch(`/api/pools/${id}/members/${selectedMember.id}/reminder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: reminderMessage }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to send reminder');
+      } else {
+        alert('Reminder sent successfully!');
+        setShowReminderDialog(false);
+        setReminderMessage("");
+        setSelectedMember(null);
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('An unexpected error occurred while sending the reminder');
+    } finally {
+      setIsSendingReminder(false);
+    }
   };
 
   const handleResendInvitation = async (invitationId: number) => {
@@ -372,7 +404,7 @@ export default function MemberManagementPage({
             <AlertDescription>{poolError || membersError || invitationsError}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => router.push(`/pools/${params.id}`)}>
+            <Button onClick={() => router.push(`/pools/${id}`)}>
               Back to Pool
             </Button>
           </div>
@@ -412,7 +444,7 @@ export default function MemberManagementPage({
                 variant="ghost"
                 size="sm"
                 className="mr-4"
-                onClick={() => router.push(`/pools/${params.id}`)}
+                onClick={() => router.push(`/pools/${id}`)}
               >
                 <ChevronLeft className="h-5 w-5 mr-1" />
                 Back to Pool
@@ -427,9 +459,9 @@ export default function MemberManagementPage({
               </div>
             </div>
 
-            <div className="mt-4 md:mt-0">
-              <Button 
-                className="flex items-center"
+            <div className="mt-4 md:mt-0 w-full md:w-auto">
+              <Button
+                className="flex items-center justify-center min-h-[44px] w-full md:w-auto"
                 onClick={() => setShowInviteDialog(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -439,7 +471,7 @@ export default function MemberManagementPage({
               {/* Import and use the InviteMembersDialog component */}
               {pool && (
                 <InviteMembersDialog
-                  poolId={params.id}
+                  poolId={id}
                   poolName={pool.name}
                   isOpen={showInviteDialog}
                   onClose={() => {
@@ -470,17 +502,17 @@ export default function MemberManagementPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Position</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Payments</TableHead>
-                        <TableHead>Total Contributed</TableHead>
-                        <TableHead>Payout Date</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="px-3 sm:px-4">Member</TableHead>
+                        <TableHead className="px-3 sm:px-4">Position</TableHead>
+                        <TableHead className="px-3 sm:px-4">Status</TableHead>
+                        <TableHead className="hidden md:table-cell px-3 sm:px-4">Payments</TableHead>
+                        <TableHead className="hidden lg:table-cell px-3 sm:px-4">Total Contributed</TableHead>
+                        <TableHead className="hidden sm:table-cell px-3 sm:px-4">Payout Date</TableHead>
+                        <TableHead className="px-3 sm:px-4">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -489,9 +521,9 @@ export default function MemberManagementPage({
                           key={member.id}
                           className={member.name === "You" ? "bg-blue-50" : ""}
                         >
-                          <TableCell>
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
+                          <TableCell className="px-3 sm:px-4">
+                            <div className="flex items-center space-x-2 sm:space-x-3">
+                              <Avatar className="h-8 w-8 shrink-0">
                                 <AvatarImage
                                   src={member.avatar}
                                   alt={member.name}
@@ -500,25 +532,25 @@ export default function MemberManagementPage({
                                   {getInitials(member.name)}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <div className="font-medium">{member.name}</div>
-                                <div className="text-xs text-gray-500">
+                              <div className="min-w-0">
+                                <div className="font-medium truncate max-w-[80px] sm:max-w-none">{member.name}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-[80px] sm:max-w-none hidden sm:block">
                                   {member.email}
                                 </div>
                               </div>
                               {member.role === PoolMemberRole.ADMIN && (
-                                <Badge className="ml-2">Admin</Badge>
+                                <Badge className="hidden sm:inline-flex ml-2">Admin</Badge>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>{member.position}</TableCell>
-                          <TableCell>
+                          <TableCell className="px-3 sm:px-4">{member.position}</TableCell>
+                          <TableCell className="px-3 sm:px-4">
                             <Badge className={getStatusColor(member.status)}>
                               {member.status.charAt(0).toUpperCase() +
                                 member.status.slice(1)}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell px-3 sm:px-4">
                             <div className="flex items-center space-x-1">
                               <span className="text-green-600 font-medium">
                                 {member.paymentsOnTime}
@@ -529,15 +561,15 @@ export default function MemberManagementPage({
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>${member.totalContributed}</TableCell>
-                          <TableCell>{formatDate(member.payoutDate)}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell px-3 sm:px-4">${member.totalContributed}</TableCell>
+                          <TableCell className="hidden sm:table-cell px-3 sm:px-4">{formatDate(member.payoutDate)}</TableCell>
+                          <TableCell className="px-3 sm:px-4">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0"
+                                  className="h-11 w-11 p-0"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
@@ -561,7 +593,12 @@ export default function MemberManagementPage({
                                   <Users className="h-4 w-4 mr-2" />
                                   Edit Profile
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedMember(member);
+                                    setShowReminderDialog(true);
+                                  }}
+                                >
                                   <Mail className="h-4 w-4 mr-2" />
                                   Send Reminder
                                 </DropdownMenuItem>
@@ -617,28 +654,31 @@ export default function MemberManagementPage({
                     </Button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Email Address</TableHead>
-                          <TableHead>Sent Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="px-3 sm:px-4">Email Address</TableHead>
+                          <TableHead className="hidden sm:table-cell px-3 sm:px-4">Sent Date</TableHead>
+                          <TableHead className="px-3 sm:px-4">Status</TableHead>
+                          <TableHead className="px-3 sm:px-4">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {invitations.map((invitation) => (
                           <TableRow key={invitation.id}>
-                            <TableCell>
-                              <div className="font-medium">
+                            <TableCell className="px-3 sm:px-4">
+                              <div className="font-medium truncate max-w-[120px] sm:max-w-none">
                                 {invitation.email}
                               </div>
+                              <div className="text-xs text-gray-500 sm:hidden">
+                                {formatDate(invitation.sentDate)}
+                              </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell px-3 sm:px-4">
                               {formatDate(invitation.sentDate)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-3 sm:px-4">
                               <Badge
                                 className={getInvitationStatusColor(
                                   invitation.status
@@ -648,12 +688,13 @@ export default function MemberManagementPage({
                                   invitation.status.slice(1)}
                               </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-3 sm:px-4">
                               <div className="flex space-x-2">
                                 {invitation.status === InvitationStatus.PENDING ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    className="min-h-[44px]"
                                     onClick={() =>
                                       handleCancelInvitation(invitation.id)
                                     }
@@ -664,12 +705,13 @@ export default function MemberManagementPage({
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    className="min-h-[44px]"
                                     onClick={() =>
                                       handleResendInvitation(invitation.id)
                                     }
                                   >
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Resend
+                                    <RefreshCw className="h-4 w-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Resend</span>
                                   </Button>
                                 )}
                               </div>
@@ -707,76 +749,80 @@ export default function MemberManagementPage({
                     </div>
                   </div>
 
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Position</TableHead>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Payout Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...members]
-                        .sort((a, b) => a.position - b.position)
-                        .map((member) => (
-                          <TableRow
-                            key={member.id}
-                            className={
-                              member.name === "You" ? "bg-blue-50" : ""
-                            }
-                          >
-                            <TableCell className="font-medium">
-                              {member.position}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage
-                                    src={member.avatar}
-                                    alt={member.name}
-                                  />
-                                  <AvatarFallback className="bg-blue-200 text-blue-800">
-                                    {getInitials(member.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>{member.name}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(member.status)}>
-                                {member.status.charAt(0).toUpperCase() +
-                                  member.status.slice(1)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(member.payoutDate)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={member.position === 1}
-                                  onClick={() => moveMemberUp(member.id)}
-                                >
-                                  Move Up
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={member.position === members.length}
-                                  onClick={() => moveMemberDown(member.id)}
-                                >
-                                  Move Down
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="px-3 sm:px-4">Position</TableHead>
+                          <TableHead className="px-3 sm:px-4">Member</TableHead>
+                          <TableHead className="px-3 sm:px-4">Status</TableHead>
+                          <TableHead className="hidden sm:table-cell px-3 sm:px-4">Payout Date</TableHead>
+                          <TableHead className="px-3 sm:px-4">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...members]
+                          .sort((a, b) => a.position - b.position)
+                          .map((member) => (
+                            <TableRow
+                              key={member.id}
+                              className={
+                                member.name === "You" ? "bg-blue-50" : ""
+                              }
+                            >
+                              <TableCell className="font-medium px-3 sm:px-4">
+                                {member.position}
+                              </TableCell>
+                              <TableCell className="px-3 sm:px-4">
+                                <div className="flex items-center space-x-2 sm:space-x-3">
+                                  <Avatar className="h-8 w-8 shrink-0">
+                                    <AvatarImage
+                                      src={member.avatar}
+                                      alt={member.name}
+                                    />
+                                    <AvatarFallback className="bg-blue-200 text-blue-800">
+                                      {getInitials(member.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="truncate max-w-[80px] sm:max-w-none">{member.name}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-3 sm:px-4">
+                                <Badge className={getStatusColor(member.status)}>
+                                  {member.status.charAt(0).toUpperCase() +
+                                    member.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell px-3 sm:px-4">
+                                {formatDate(member.payoutDate)}
+                              </TableCell>
+                              <TableCell className="px-3 sm:px-4">
+                                <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="min-h-[44px] text-xs sm:text-sm"
+                                    disabled={member.position === 1}
+                                    onClick={() => moveMemberUp(member.id)}
+                                  >
+                                    Up
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="min-h-[44px] text-xs sm:text-sm"
+                                    disabled={member.position === members.length}
+                                    onClick={() => moveMemberDown(member.id)}
+                                  >
+                                    Down
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="justify-end">
@@ -859,7 +905,7 @@ export default function MemberManagementPage({
         <MemberMessageDialog
           isOpen={showMessageDialog}
           onClose={() => setShowMessageDialog(false)}
-          poolId={params.id}
+          poolId={id}
           member={{
             id: selectedMember.id,
             name: selectedMember.name,
@@ -1031,7 +1077,7 @@ export default function MemberManagementPage({
                       variant="outline" 
                       className="border-yellow-500 text-yellow-600 hover:bg-yellow-50"
                       onClick={() => {
-                        console.log("Sending reset password link to", selectedMember?.email);
+                        // Send reset password link to user
                       }}
                     >
                       Reset Password
@@ -1052,7 +1098,7 @@ export default function MemberManagementPage({
         <MemberMessageDialog
           isOpen={showMessageDialog}
           onClose={() => setShowMessageDialog(false)}
-          poolId={params.id}
+          poolId={id}
           member={{
             id: selectedMember.id,
             name: selectedMember.name,
@@ -1061,6 +1107,88 @@ export default function MemberManagementPage({
           userId={mockUserId}
         />
       )}
+
+      {/* Send Reminder Dialog */}
+      <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Payment Reminder</DialogTitle>
+            <DialogDescription>
+              Send a payment reminder email to this member
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMember && (
+            <div className="py-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage
+                    src={selectedMember.avatar}
+                    alt={selectedMember.name}
+                  />
+                  <AvatarFallback className="bg-blue-200 text-blue-800">
+                    {getInitials(selectedMember.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">{selectedMember.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {selectedMember.email}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="reminderMessage">Personal Message (optional)</Label>
+                  <textarea
+                    id="reminderMessage"
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                    placeholder="Add a personal message to include in the reminder email..."
+                    className="w-full mt-1 p-3 border rounded-md min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <p className="text-sm text-blue-700">
+                    A reminder email will be sent to <strong>{selectedMember.email}</strong> about
+                    their upcoming payment of <strong>${pool?.contributionAmount}</strong> for the pool "{pool?.name}".
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowReminderDialog(false);
+                setReminderMessage("");
+                setSelectedMember(null);
+              }}
+              disabled={isSendingReminder}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendReminder}
+              disabled={isSendingReminder}
+            >
+              {isSendingReminder ? (
+                <>
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Reminder
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,13 +1,19 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { Pool, PoolStatus, PoolMemberStatus, PoolMemberRole, TransactionType } from '../../../types/pool';
+import { Pool as PoolType, PoolStatus, PoolMemberStatus, PoolMemberRole, TransactionType } from '../../../types/pool';
 
 // Member schema
 const PoolMemberSchema = new Schema({
-  id: { type: Number, required: true },
+  id: { type: Number },
+  userId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User',
+    sparse: true 
+  },
   name: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, required: true, lowercase: true },
   phone: { type: String },
-  joinDate: { type: String, required: true },
+  joinDate: { type: String },
+  joinedDate: { type: Date, default: Date.now },
   role: { 
     type: String, 
     enum: Object.values(PoolMemberRole), 
@@ -19,28 +25,34 @@ const PoolMemberSchema = new Schema({
     type: String, 
     enum: Object.values(PoolMemberStatus), 
     required: true,
-    default: PoolMemberStatus.UPCOMING
+    default: PoolMemberStatus.ACTIVE
   },
   paymentsOnTime: { type: Number, default: 0 },
   paymentsMissed: { type: Number, default: 0 },
+  missedPayments: { type: Number, default: 0 },
   totalContributed: { type: Number, default: 0 },
   payoutReceived: { type: Boolean, default: false },
-  payoutDate: { type: String, required: true },
+  hasReceivedPayout: { type: Boolean, default: false },
+  payoutDate: { type: String },
+  contributionAmount: { type: Number },
   avatar: { type: String },
 });
 
 // Transaction schema
 const PoolTransactionSchema = new Schema({
   id: { type: Number, required: true },
-  type: { 
-    type: String, 
-    enum: Object.values(TransactionType), 
-    required: true 
+  type: {
+    type: String,
+    enum: Object.values(TransactionType),
+    required: true
   },
   amount: { type: Number, required: true },
   date: { type: String, required: true },
   member: { type: String, required: true },
   status: { type: String, required: true },
+  round: { type: Number }, // Track which round this transaction belongs to
+  stripePaymentIntentId: { type: String },
+  stripeTransferId: { type: String },
 });
 
 // Message schema
@@ -53,10 +65,14 @@ const PoolMessageSchema = new Schema({
 
 // Main Pool schema
 const PoolSchema = new Schema({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, unique: true, sparse: true },
   name: { type: String, required: true },
   description: { type: String, default: '' },
-  createdAt: { type: String, required: true },
+  createdAt: { type: String },
+  creatorId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User'
+  },
   status: { 
     type: String, 
     enum: Object.values(PoolStatus), 
@@ -66,13 +82,30 @@ const PoolSchema = new Schema({
   totalAmount: { type: Number, default: 0 },
   contributionAmount: { type: Number, required: true },
   frequency: { type: String, required: true },
+  startDate: { type: Date },
   currentRound: { type: Number, default: 0 },
-  totalRounds: { type: Number, required: true },
-  nextPayoutDate: { type: String, required: true },
-  memberCount: { type: Number, required: true },
+  currentCycle: { type: Number, default: 0 },
+  totalRounds: { type: Number },
+  totalCycles: { type: Number },
+  nextPayoutDate: { type: String },
+  memberCount: { type: Number },
+  maxMembers: { type: Number, default: 10 },
   members: [PoolMemberSchema],
   transactions: [PoolTransactionSchema],
   messages: [PoolMessageSchema],
+}, {
+  timestamps: true
+});
+
+// Indexes
+PoolSchema.index({ creatorId: 1, status: 1 });
+PoolSchema.index({ 'members.email': 1 });
+
+// Virtual for active member count
+PoolSchema.virtual('activeMemberCount').get(function() {
+  return this.members.filter(
+    (m: any) => m.status === PoolMemberStatus.ACTIVE
+  ).length;
 });
 
 // Function to initialize the model with checking for existing models
@@ -80,5 +113,7 @@ export function getPoolModel(): Model<any> {
   const modelName = 'Pool';
   return mongoose.models[modelName] || mongoose.model(modelName, PoolSchema);
 }
+
+export const Pool = getPoolModel();
 
 export default getPoolModel;

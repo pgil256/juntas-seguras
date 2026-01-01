@@ -16,6 +16,7 @@ interface UseTicketsProps {
   userId?: string;
   ticketId?: string;
   initialData?: SupportTicket[];
+  isAdmin?: boolean;
 }
 
 interface UseTicketsReturn {
@@ -32,7 +33,7 @@ interface UseTicketsReturn {
   fetchStats: () => Promise<void>;
 }
 
-export function useTickets({ userId, ticketId, initialData }: UseTicketsProps = {}): UseTicketsReturn {
+export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicketsProps = {}): UseTicketsReturn {
   const [tickets, setTickets] = useState<SupportTicket[]>(initialData || []);
   const [isLoading, setIsLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
@@ -41,17 +42,18 @@ export function useTickets({ userId, ticketId, initialData }: UseTicketsProps = 
 
   // Fetch tickets based on current filters
   const fetchTickets = useCallback(async () => {
-    if (!userId && !ticketId) return; // Don't fetch without filters
-    
+    if (!userId && !ticketId && !isAdmin) return; // Don't fetch without filters
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       let url = '/api/support/tickets';
       const params = new URLSearchParams();
-      
+
       if (userId) params.append('userId', userId);
       if (ticketId) params.append('ticketId', ticketId);
+      if (isAdmin) params.append('isAdmin', 'true');
       
       if (params.toString()) {
         url += `?${params.toString()}`;

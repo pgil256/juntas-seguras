@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { PoolMessage } from '../../types/pool';
 
 interface UsePoolMessagesProps {
   poolId: string;
-  userId: string;
 }
 
 interface UsePoolMessagesReturn {
@@ -11,11 +11,12 @@ interface UsePoolMessagesReturn {
   isLoading: boolean;
   error: string | null;
   sendMessage: (content: string) => Promise<PoolMessage | null>;
-  deleteMessage: (messageId: number) => Promise<boolean>;
+  deleteMessage: (messageId: number | string) => Promise<boolean>;
   refreshMessages: () => Promise<void>;
 }
 
-export function usePoolMessages({ poolId, userId }: UsePoolMessagesProps): UsePoolMessagesReturn {
+export function usePoolMessages({ poolId }: UsePoolMessagesProps): UsePoolMessagesReturn {
+  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<PoolMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,17 +28,24 @@ export function usePoolMessages({ poolId, userId }: UsePoolMessagesProps): UsePo
       return;
     }
 
+    if (status === 'unauthenticated') {
+      setError('Authentication required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (status === 'loading') {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const headers: HeadersInit = {};
-      if (userId) {
-        headers['user-id'] = userId;
-      }
-      
       const response = await fetch(`/api/pools/${poolId}/messages`, {
-        headers
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -67,16 +75,11 @@ export function usePoolMessages({ poolId, userId }: UsePoolMessagesProps): UsePo
     }
 
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      if (userId) {
-        headers['user-id'] = userId;
-      }
-      
       const response = await fetch(`/api/pools/${poolId}/messages`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           poolId,
           content
@@ -100,30 +103,42 @@ export function usePoolMessages({ poolId, userId }: UsePoolMessagesProps): UsePo
     }
   };
 
-  const deleteMessage = async (messageId: number): Promise<boolean> => {
+  /**
+   * Delete a message by ID
+   * Accepts either the MongoDB _id string or the legacy numeric id
+   * For more reliable deletion, prefer using the _id if available
+   */
+  const deleteMessage = async (messageId: number | string): Promise<boolean> => {
     if (!poolId) {
       setError('Pool ID is required');
       return false;
     }
 
     try {
-      const headers: HeadersInit = {};
-      if (userId) {
-        headers['user-id'] = userId;
-      }
-      
-      const response = await fetch(`/api/pools/${poolId}/messages?messageId=${messageId}`, {
+      // Find the message to get its _id if we have a numeric id
+      const message = messages.find(m =>
+        m.id === messageId || m._id === messageId
+      );
+
+      // Prefer using MongoDB _id for more reliable deletion
+      const idToDelete = message?._id || messageId.toString();
+
+      const response = await fetch(`/api/pools/${poolId}/messages?messageId=${idToDelete}`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete message');
       }
-      
-      // Remove the message from the state
-      setMessages(prevMessages => prevMessages.filter(m => m.id !== messageId));
+
+      // Remove the message from the state (check both id types)
+      setMessages(prevMessages => prevMessages.filter(m =>
+        m.id !== messageId && m._id !== messageId
+      ));
       return true;
     } catch (err: any) {
       console.error('Error deleting message:', err);
@@ -134,10 +149,10 @@ export function usePoolMessages({ poolId, userId }: UsePoolMessagesProps): UsePo
 
   // Initial fetch
   useEffect(() => {
-    if (poolId) {
+    if (poolId && status === 'authenticated') {
       fetchMessages();
     }
-  }, [poolId, userId]);
+  }, [poolId, status]);
 
   return {
     messages,
