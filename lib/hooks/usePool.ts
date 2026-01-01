@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Pool } from '../../types/pool';
 
@@ -19,7 +19,7 @@ export function usePool({ poolId }: UsePoolProps): UsePoolReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPool = async () => {
+  const fetchPool = useCallback(async () => {
     if (!poolId) {
       setError('Pool ID is required');
       setIsLoading(false);
@@ -61,14 +61,14 @@ export function usePool({ poolId }: UsePoolProps): UsePoolReturn {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId, status]);
 
   // Initial fetch when poolId changes or auth status changes
   useEffect(() => {
     if (poolId && status === 'authenticated') {
       fetchPool();
     }
-  }, [poolId, status]);
+  }, [poolId, status, fetchPool]);
 
   return {
     pool,

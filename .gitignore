@@ -42,6 +42,10 @@ scope.txt
 *.tsbuildinfo
 next-env.d.ts
 
+# virtual environments
+claude-env/
+nul
+
 # unnecessary components and files
 /git_to_text/
 convertToText.js

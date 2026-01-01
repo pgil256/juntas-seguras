@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { PoolMessage } from '../../types/pool';
 
@@ -21,7 +21,7 @@ export function usePoolMessages({ poolId }: UsePoolMessagesProps): UsePoolMessag
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!poolId) {
       setError('Pool ID is required');
       setIsLoading(false);
@@ -61,7 +61,7 @@ export function usePoolMessages({ poolId }: UsePoolMessagesProps): UsePoolMessag
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId, status]);
 
   const sendMessage = async (content: string): Promise<PoolMessage | null> => {
     if (!poolId) {
@@ -152,7 +152,7 @@ export function usePoolMessages({ poolId }: UsePoolMessagesProps): UsePoolMessag
     if (poolId && status === 'authenticated') {
       fetchMessages();
     }
-  }, [poolId, status]);
+  }, [poolId, status, fetchMessages]);
 
   return {
     messages,

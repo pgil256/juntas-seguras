@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PoolMessage } from '../../types/pool';
 
 interface UseDirectMessagesProps {
@@ -20,7 +20,7 @@ export function useDirectMessages({ poolId, userId, memberId }: UseDirectMessage
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!poolId || !memberId) {
       setError('Pool ID and member ID are required');
       setIsLoading(false);
@@ -29,22 +29,22 @@ export function useDirectMessages({ poolId, userId, memberId }: UseDirectMessage
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const headers: HeadersInit = {};
       if (userId) {
         headers['user-id'] = userId;
       }
-      
+
       const response = await fetch(`/api/pools/${poolId}/members/messages?memberId=${memberId}`, {
         headers
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch messages');
       }
-      
+
       const data = await response.json();
       setMessages(data.messages || []);
     } catch (err: any) {
@@ -53,7 +53,7 @@ export function useDirectMessages({ poolId, userId, memberId }: UseDirectMessage
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId, userId, memberId]);
 
   const sendMessage = async (content: string): Promise<PoolMessage | null> => {
     if (!poolId || !memberId) {
@@ -105,7 +105,7 @@ export function useDirectMessages({ poolId, userId, memberId }: UseDirectMessage
     if (poolId && memberId) {
       fetchMessages();
     }
-  }, [poolId, userId, memberId]);
+  }, [poolId, memberId, fetchMessages]);
 
   return {
     messages,

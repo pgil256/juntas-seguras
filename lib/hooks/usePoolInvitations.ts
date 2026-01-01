@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PoolInvitation } from '../../types/pool';
 
 interface UsePoolInvitationsProps {
@@ -18,7 +18,7 @@ export function usePoolInvitations({ poolId, userId }: UsePoolInvitationsProps) 
   const [error, setError] = useState<string | null>(null);
 
   // Fetch all invitations for the pool
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     if (!poolId) {
       setError('Pool ID is required');
       setIsLoading(false);
@@ -51,7 +51,7 @@ export function usePoolInvitations({ poolId, userId }: UsePoolInvitationsProps) 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [poolId, userId]);
 
   // Send a new invitation
   const sendInvitation = async ({ email, name, phone }: SendInvitationParams) => {
@@ -188,7 +188,7 @@ export function usePoolInvitations({ poolId, userId }: UsePoolInvitationsProps) 
     if (poolId) {
       fetchInvitations();
     }
-  }, [poolId, userId]);
+  }, [poolId, fetchInvitations]);
 
   return {
     invitations,

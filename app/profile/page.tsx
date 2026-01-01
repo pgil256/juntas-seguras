@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   User,
   Mail,
@@ -183,12 +184,13 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center">
-                  <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center mb-4 overflow-hidden">
+                  <div className="relative w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center mb-4 overflow-hidden">
                     {profile?.avatar ? (
-                      <img
+                      <Image
                         src={profile.avatar}
                         alt={profile.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <User className="h-16 w-16 text-gray-400" />

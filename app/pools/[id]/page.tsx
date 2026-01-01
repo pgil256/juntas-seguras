@@ -149,7 +149,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   const isAdmin = pool?.members?.some(
     (m) =>
       m.email === session?.user?.email &&
-      (m.role === PoolMemberRole.ADMIN || m.role === PoolMemberRole.CREATOR || m.role === 'admin' || m.role === 'creator')
+      (m.role === PoolMemberRole.ADMIN || m.role === PoolMemberRole.CREATOR)
   ) ?? false;
 
   // Scroll to bottom of messages when messages change

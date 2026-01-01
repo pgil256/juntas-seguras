@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { PaymentMethod, PaymentMethodFormValues, PaymentMethodResponse } from '../../types/payment';
 
@@ -24,7 +24,7 @@ export function usePaymentMethods(props?: UsePaymentMethodsProps): UsePaymentMet
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPaymentMethods = async () => {
+  const fetchPaymentMethods = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -88,7 +88,7 @@ export function usePaymentMethods(props?: UsePaymentMethodsProps): UsePaymentMet
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, session]);
 
   const addPaymentMethod = async (values: PaymentMethodFormValues): Promise<PaymentMethodResponse> => {
     try {
@@ -325,7 +325,7 @@ export function usePaymentMethods(props?: UsePaymentMethodsProps): UsePaymentMet
   // Initial fetch
   useEffect(() => {
     fetchPaymentMethods();
-  }, [userId, session]);
+  }, [fetchPaymentMethods]);
 
   return {
     paymentMethods,

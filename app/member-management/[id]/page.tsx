@@ -85,14 +85,13 @@ export default function MemberManagementPage() {
   const [editedMember, setEditedMember] = useState<PoolMember | null>(null);
   
   // Fetch pool details
-  const { 
-    pool, 
-    isLoading: isLoadingPool, 
-    error: poolError, 
-    refreshPool 
-  } = usePool({ 
-    poolId: id,
-    userId: mockUserId
+  const {
+    pool,
+    isLoading: isLoadingPool,
+    error: poolError,
+    refreshPool
+  } = usePool({
+    poolId: id
   });
   
   // Fetch pool members
@@ -106,9 +105,11 @@ export default function MemberManagementPage() {
     updatePositions,
     refreshMembers
   } = usePoolMembers({
-    poolId: id,
-    userId: mockUserId
+    poolId: id
   });
+
+  // Local state for position management
+  const [localMembers, setLocalMembers] = useState<PoolMember[]>([]);
   
   // Use the pool invitations hook for managing invitations
   const {
@@ -167,67 +168,68 @@ export default function MemberManagementPage() {
     }
   };
   
-  // Save original positions on component mount
+  // Sync localMembers with members from the hook
   useEffect(() => {
     if (members.length > 0) {
+      setLocalMembers([...members]);
       setOriginalPositions([...members]);
     }
   }, [members]);
   
   // Move a member up in position (lower position number)
   const moveMemberUp = (memberId: number) => {
-    const memberIndex = members.findIndex(m => m.id === memberId);
+    const memberIndex = localMembers.findIndex(m => m.id === memberId);
     if (memberIndex <= 0) return; // Already at the top
-    
-    const newMembers = [...members];
+
+    const newMembers = [...localMembers];
     const memberToMove = newMembers[memberIndex];
     const memberAbove = newMembers[memberIndex - 1];
-    
+
     // Swap positions
     const tempPosition = memberToMove.position;
     memberToMove.position = memberAbove.position;
     memberAbove.position = tempPosition;
-    
+
     // Sort by position
     newMembers.sort((a, b) => a.position - b.position);
-    
-    // Update the members list
-    setMembers(newMembers);
+
+    // Update the local members list
+    setLocalMembers(newMembers);
     setPositionsChanged(true);
   };
-  
+
   // Move a member down in position (higher position number)
   const moveMemberDown = (memberId: number) => {
-    const memberIndex = members.findIndex(m => m.id === memberId);
-    if (memberIndex === -1 || memberIndex >= members.length - 1) return; // Already at the bottom
-    
-    const newMembers = [...members];
+    const memberIndex = localMembers.findIndex(m => m.id === memberId);
+    if (memberIndex === -1 || memberIndex >= localMembers.length - 1) return; // Already at the bottom
+
+    const newMembers = [...localMembers];
     const memberToMove = newMembers[memberIndex];
     const memberBelow = newMembers[memberIndex + 1];
-    
+
     // Swap positions
     const tempPosition = memberToMove.position;
     memberToMove.position = memberBelow.position;
     memberBelow.position = tempPosition;
-    
+
     // Sort by position
     newMembers.sort((a, b) => a.position - b.position);
-    
-    // Update the members list
-    setMembers(newMembers);
+
+    // Update the local members list
+    setLocalMembers(newMembers);
     setPositionsChanged(true);
   };
-  
+
   // Reset positions to original
   const resetPositions = () => {
-    setMembers([...originalPositions]);
+    setLocalMembers([...originalPositions]);
     setPositionsChanged(false);
   };
-  
+
   // Save position changes
   const savePositionChanges = async () => {
     // Prepare the position updates
-    const positionUpdates = members.map(member => ({
+    const positionUpdates = localMembers.map(member => ({
       memberId: member.id,
       position: member.position
     }));
@@ -237,7 +239,7 @@ export default function MemberManagementPage() {
     
     if (result.success) {
       // Update the original positions
-      setOriginalPositions([...members]);
+      setOriginalPositions([...localMembers]);
       setPositionsChanged(false);
     } else {
       // Show error message
@@ -761,7 +763,7 @@ export default function MemberManagementPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {[...members]
+                        {[...localMembers]
                           .sort((a, b) => a.position - b.position)
                           .map((member) => (
                             <TableRow
@@ -811,7 +813,7 @@ export default function MemberManagementPage() {
                                     variant="outline"
                                     size="sm"
                                     className="min-h-[44px] text-xs sm:text-sm"
-                                    disabled={member.position === members.length}
+                                    disabled={member.position === localMembers.length}
                                     onClick={() => moveMemberDown(member.id)}
                                   >
                                     Down

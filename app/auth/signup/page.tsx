@@ -165,11 +165,12 @@ export default function SignUp() {
       router.push('/auth/signin');
     } catch (error) {
       console.error("Verification error:", error);
-      setMfaError(error.message || 'Failed to verify your account');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to verify your account';
+      setMfaError(errorMessage);
       toast({
         variant: "destructive",
         title: "Verification failed",
-        description: error.message || 'Failed to verify your account',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -318,8 +319,6 @@ export default function SignUp() {
         onClose={() => setShowVerificationPopup(false)}
         onVerify={handleVerify}
         onResend={handleResendCode}
-        verificationMethod={verificationMethod}
-        verificationData={verificationData}
         isLoading={isLoading}
         error={error}
         emailForDisplay={email}
@@ -573,7 +572,7 @@ export default function SignUp() {
                   </div>
                 )}
                 
-                <form onSubmit={handleVerify} className="space-y-4">
+                <form onSubmit={(e) => { e.preventDefault(); handleVerify(verificationCode); }} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="verification-code-input">Verification Code</Label>
                     <Input
