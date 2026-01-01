@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import VerificationPopup from './auth/VerificationPopup';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 
 export default function MfaVerificationHandler() {
   const { data: session, status, update } = useSession();

@@ -3,7 +3,7 @@ import qrcode from 'qrcode';
 import nodemailer from 'nodemailer';
 import connectToDatabase from '../db/connect';
 import { getUserModel, User } from '../db/models/user';
-import { generateVerificationCode } from '@/lib/utils/verification';
+import { generateVerificationCode } from '../utils/verification';
 import { isValidObjectId } from '../utils/objectId';
 
 // Email configuration

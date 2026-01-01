@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/connect';
-import { getUserModel } from '@/lib/db/models/user';
-import { getCurrentUser } from '@/lib/auth';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getUserModel } from '../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../lib/auth';
 
 /**
  * API route to clear MFA flags in the session

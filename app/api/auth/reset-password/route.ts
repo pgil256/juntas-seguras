@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/connect';
-import { getUserModel } from '@/lib/db/models/user';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getUserModel } from '../../../../lib/db/models/user';
 import * as bcrypt from 'bcryptjs';
 
 // Define the user document type

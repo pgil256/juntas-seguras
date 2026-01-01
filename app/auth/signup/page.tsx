@@ -12,9 +12,9 @@ import { TwoFactorMethod } from "../../../types/security";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
 import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle, Loader2 } from "lucide-react";
-import { VerificationType, VerificationMethod } from "@/types/identity";
-import VerificationPopup from '@/components/auth/VerificationPopup';
-import { useToast } from "@/hooks/use-toast";
+import { VerificationType, VerificationMethod } from "../../../types/identity";
+import VerificationPopup from '../../../components/auth/VerificationPopup';
+import { useToast } from "../../../hooks/use-toast";
 
 import ClientComponentBoundary from '../../ClientComponentBoundary';
 

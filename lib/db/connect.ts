@@ -23,17 +23,20 @@ declare global {
 }
 
 // Global variable to track connection status - ensure it's always defined
-if (!global.mongooseCache) {
-  global.mongooseCache = {
-    conn: null,
-    promise: null,
-    isConnected: false
-  };
+function getMongooseCache(): MongooseCache {
+  if (!global.mongooseCache) {
+    global.mongooseCache = {
+      conn: null,
+      promise: null,
+      isConnected: false
+    };
+  }
+  return global.mongooseCache;
 }
-// We can safely assert non-null here since we just initialized it above
-const cached: MongooseCache = global.mongooseCache!;
 
 async function connectToDatabase() {
+  const cached = getMongooseCache();
+
   if (cached.conn && cached.isConnected) {
     console.log('Using existing MongoDB connection');
     return cached.conn;
@@ -48,10 +51,10 @@ async function connectToDatabase() {
 
     console.log('Connecting to MongoDB...');
     cached.promise = mongoose.connect(MONGODB_URI, opts)
-      .then((mongoose) => {
+      .then((mongooseInstance) => {
         console.log('MongoDB connected successfully');
         cached.isConnected = true;
-        return mongoose;
+        return mongooseInstance;
       })
       .catch(err => {
         console.error('MongoDB connection error:', err);
@@ -62,14 +65,14 @@ async function connectToDatabase() {
 
   try {
     cached.conn = await cached.promise;
-    
+
     // Test the connection by executing a simple query
     const db = mongoose.connection.db;
     if (db) {
       const collections = await db.listCollections().toArray();
       console.log(`MongoDB connection verified with ${collections.length} collections`);
     }
-    
+
     return cached.conn;
   } catch (e) {
     console.error('Failed to establish MongoDB connection:', e);

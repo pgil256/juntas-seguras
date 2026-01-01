@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/connect';
-import { User } from '@/lib/db/models/user';
-import { generateVerificationCode } from '@/lib/utils/verification';
-import { sendVerificationEmail } from '@/lib/email';
+import connectToDatabase from '../../../../../lib/db/connect';
+import { User } from '../../../../../lib/db/models/user';
+import { generateVerificationCode } from '../../../../../lib/utils/verification';
+import { sendVerificationEmail } from '../../../../../lib/email';
 
 export async function POST(req: Request) {
   try {

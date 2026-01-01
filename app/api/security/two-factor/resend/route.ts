@@ -3,7 +3,7 @@ import { TwoFactorMethod, ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getUserModel } from '../../../../../lib/db/models/user';
 import { logServerActivity } from '../../../../../lib/utils';
-import { generateVerificationCode } from '@/lib/utils/verification';
+import { generateVerificationCode } from '../../../../../lib/utils/verification';
 
 export async function POST(request: NextRequest) {
   try {
