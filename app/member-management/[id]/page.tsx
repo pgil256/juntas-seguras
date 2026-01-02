@@ -903,7 +903,7 @@ export default function MemberManagementPage() {
       </Dialog>
 
       {/* Member Message Dialog - Direct Messaging */}
-      {selectedMember && (
+      {selectedMember && currentUserId && (
         <MemberMessageDialog
           isOpen={showMessageDialog}
           onClose={() => setShowMessageDialog(false)}
@@ -913,7 +913,7 @@ export default function MemberManagementPage() {
             name: selectedMember.name,
             avatar: selectedMember.avatar
           }}
-          userId={currentUserId || undefined}
+          userId={currentUserId}
         />
       )}
 
@@ -1096,7 +1096,7 @@ export default function MemberManagementPage() {
       </Dialog>
 
       {/* Member Message Dialog - Direct Messaging */}
-      {selectedMember && (
+      {selectedMember && currentUserId && (
         <MemberMessageDialog
           isOpen={showMessageDialog}
           onClose={() => setShowMessageDialog(false)}
@@ -1106,7 +1106,7 @@ export default function MemberManagementPage() {
             name: selectedMember.name,
             avatar: selectedMember.avatar
           }}
-          userId={currentUserId || undefined}
+          userId={currentUserId}
         />
       )}
 
