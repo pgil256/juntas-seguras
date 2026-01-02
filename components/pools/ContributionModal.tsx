@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Award,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 
 interface ContributionModalProps {
@@ -44,7 +45,7 @@ export function ContributionModal({
     contributionStatus,
     userContributionInfo,
     getContributionStatus,
-    makeContribution,
+    initiateContribution,
   } = usePoolContributions({ poolId, userEmail });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,16 +75,27 @@ export function ContributionModal({
     setResult(null);
 
     try {
-      const response = await makeContribution();
-      setResult({
-        success: response.success,
-        message: response.success ? response.message : response.error,
-      });
+      const response = await initiateContribution();
 
-      if (response.success && onContributionSuccess) {
-        onContributionSuccess();
+      if (response.success && response.approvalUrl) {
+        // Store the order ID in sessionStorage for when user returns
+        if (response.orderId) {
+          sessionStorage.setItem(`paypal_order_${poolId}`, response.orderId);
+        }
+        // Redirect to PayPal for payment approval
+        window.location.href = response.approvalUrl;
+      } else {
+        setResult({
+          success: false,
+          message: response.error || 'Failed to initiate payment',
+        });
+        setIsSubmitting(false);
       }
-    } finally {
+    } catch {
+      setResult({
+        success: false,
+        message: 'Failed to initiate payment',
+      });
       setIsSubmitting(false);
     }
   };
@@ -266,17 +278,17 @@ export function ContributionModal({
                 <Button
                   onClick={handleMakeContribution}
                   disabled={isSubmitting || isLoading}
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                  className="w-full sm:w-auto bg-[#0070ba] hover:bg-[#003087]"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      Connecting to PayPal...
                     </>
                   ) : (
                     <>
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Confirm Contribution
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Pay with PayPal
                     </>
                   )}
                 </Button>

@@ -213,20 +213,11 @@ export default function SignUp() {
 
   const startIdentityVerification = async () => {
     if (!userId) return;
-    
+
     setIsLoading(true);
     setError("");
-    
+
     try {
-      // For development mode, we can bypass or simulate identity verification
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: simulating identity verification');
-        
-        // In development, just mark the account as registered and redirect
-        router.push('/auth/signin?registered=true&mfa=setup');
-        return;
-      }
-      
       // Start identity verification process
       const response = await fetch('/api/identity/verification', {
         method: 'POST',
@@ -552,12 +543,6 @@ export default function SignUp() {
                     <p className="text-sm text-gray-600 mt-1">
                       Enter the 6-digit code below to verify.
                     </p>
-                    {process.env.NODE_ENV === 'development' && mfaData?.verificationCode && (
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-center">
-                        <p className="text-xs text-yellow-800">Development code:</p>
-                        <p className="font-mono font-bold text-yellow-900">{mfaData.verificationCode}</p>
-                      </div>
-                    )}
                     <div className="mt-2">
                       <Button
                         type="button"

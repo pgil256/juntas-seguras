@@ -41,18 +41,22 @@ async function getAccessToken(): Promise<string> {
  * @param currency Currency code (e.g., 'USD')
  * @param description Description of the payment
  * @param metadata Additional metadata
+ * @param returnUrl URL to redirect after payment approval
+ * @param cancelUrl URL to redirect if payment is cancelled
  */
 export async function createOrder(
   amount: number,
   currency: string = 'USD',
   description?: string,
-  metadata?: Record<string, string>
+  metadata?: Record<string, string>,
+  returnUrl?: string,
+  cancelUrl?: string
 ) {
   try {
     const accessToken = await getAccessToken();
 
-    const orderPayload = {
-      intent: 'AUTHORIZE', // Authorize first, capture later (escrow)
+    const orderPayload: Record<string, unknown> = {
+      intent: 'CAPTURE', // Capture immediately for contributions
       purchase_units: [{
         amount: {
           currency_code: currency.toUpperCase(),
@@ -65,6 +69,8 @@ export async function createOrder(
         brand_name: 'Juntas Seguras',
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
+        ...(returnUrl && { return_url: returnUrl }),
+        ...(cancelUrl && { cancel_url: cancelUrl }),
       },
     };
 
@@ -95,6 +101,45 @@ export async function createOrder(
     };
   } catch (error) {
     console.error('Error creating PayPal order:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Capture an order directly after user approval (for immediate payment)
+ * @param orderId The PayPal order ID to capture
+ */
+export async function captureOrder(orderId: string) {
+  try {
+    const accessToken = await getAccessToken();
+
+    const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.details?.[0]?.description || error.message || 'Failed to capture PayPal order');
+    }
+
+    const capture = await response.json();
+    const captureId = capture.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+
+    return {
+      success: true,
+      orderId: capture.id,
+      captureId,
+      status: capture.status,
+    };
+  } catch (error) {
+    console.error('Error capturing PayPal order:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

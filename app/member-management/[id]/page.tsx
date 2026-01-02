@@ -63,11 +63,11 @@ import { usePoolInvitations } from "../../../lib/hooks/usePoolInvitations";
 import { PoolMember, PoolMemberRole, PoolMemberStatus, InvitationStatus } from "../../../types/pool";
 import { MemberMessageDialog } from "../../../components/pools/MemberMessageDialog";
 import { InviteMembersDialog } from "../../../components/pools/InviteMembersDialog";
-
-// For demo purposes - in a real app, this would come from authentication context
-const mockUserId = 'user123';
+import { useSession } from "next-auth/react";
 
 export default function MemberManagementPage() {
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id || null;
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
@@ -121,7 +121,7 @@ export default function MemberManagementPage() {
     refreshInvitations
   } = usePoolInvitations({
     poolId: id,
-    userId: mockUserId
+    userId: currentUserId || undefined
   });
 
   const getInitials = (name: string) => {
@@ -481,7 +481,7 @@ export default function MemberManagementPage() {
                     // Refresh invitations when dialog closes
                     refreshInvitations();
                   }}
-                  userId={mockUserId}
+                  userId={currentUserId || undefined}
                 />
               )}
             </div>
