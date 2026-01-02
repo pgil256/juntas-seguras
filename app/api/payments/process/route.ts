@@ -129,6 +129,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build return and cancel URLs for PayPal redirect
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    const returnUrl = `${baseUrl}/payments/complete?poolId=${poolId}`;
+    const cancelUrl = `${baseUrl}/pools/${poolId}?payment=cancelled`;
+
     // Create PayPal order with authorization intent (for escrow functionality)
     const paymentResult = await createOrder(
       sanitizedAmount,
@@ -138,7 +143,9 @@ export async function POST(request: NextRequest) {
         userId: user._id.toString(),
         poolId,
         isEscrow: useEscrow ? 'true' : 'false',
-      }
+      },
+      returnUrl,
+      cancelUrl
     );
 
     if (!paymentResult.success) {

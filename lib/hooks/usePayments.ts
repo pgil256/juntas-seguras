@@ -69,11 +69,23 @@ export function usePayments({ userId }: UsePaymentsProps): UsePaymentsReturn {
       });
       
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Payment processing failed');
       }
-      
+
+      // If PayPal returns an approval URL, redirect the user to PayPal to complete payment
+      if (data.approvalUrl) {
+        // Redirect to PayPal for user to sign in and approve payment
+        window.location.href = data.approvalUrl;
+        return {
+          success: true,
+          payment: data.payment,
+          message: 'Redirecting to PayPal...',
+          approvalUrl: data.approvalUrl,
+        };
+      }
+
       return {
         success: true,
         payment: data.payment,
