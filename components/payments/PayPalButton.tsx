@@ -28,7 +28,7 @@ declare global {
   interface Window {
     paypal?: {
       Buttons: (config: Record<string, unknown>) => {
-        render: (selector: string) => Promise<void>;
+        render: (selector: string | HTMLElement) => Promise<void>;
         close: () => void;
       };
     };
@@ -45,6 +45,7 @@ export function PayPalButton({
   onError,
   onCancel,
 }: PayPalButtonProps) {
+  const containerId = useRef(`paypal-button-${Math.random().toString(36).substr(2, 9)}`);
   const paypalRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
@@ -181,7 +182,7 @@ export function PayPalButton({
       },
     });
 
-    buttons.render(paypalRef.current).then(() => {
+    buttons.render(`#${containerId.current}`).then(() => {
       buttonInstanceRef.current = buttons;
     });
 
@@ -197,6 +198,6 @@ export function PayPalButton({
   }
 
   return (
-    <div ref={paypalRef} className="w-full min-h-[150px]" />
+    <div id={containerId.current} ref={paypalRef} className="w-full min-h-[150px]" />
   );
 }
