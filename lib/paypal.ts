@@ -6,7 +6,8 @@
 // PayPal API configuration
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
-const PAYPAL_MODE = process.env.NODE_ENV === 'production' ? 'live' : 'sandbox';
+// PAYPAL_MODE can be 'live' or 'sandbox'. Defaults to 'live' in production, 'sandbox' otherwise.
+const PAYPAL_MODE = process.env.PAYPAL_MODE || (process.env.NODE_ENV === 'production' ? 'live' : 'sandbox');
 const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
