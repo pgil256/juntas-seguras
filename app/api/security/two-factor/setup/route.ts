@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { TwoFactorMethod, ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getUserModel } from '../../../../../lib/db/models/user';
@@ -27,7 +28,12 @@ export async function POST(request: NextRequest) {
     // Connect to the database and get the user
     await connectToDatabase();
     const UserModel = getUserModel();
-    const user = await UserModel.findOne({ id: userId });
+
+    // Use findById with proper ObjectId validation
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(userId);
+    const user = isValidObjectId
+      ? await UserModel.findById(userId)
+      : await UserModel.findOne({ email: userId });
 
     if (!user) {
       return NextResponse.json(
@@ -103,7 +109,12 @@ export async function DELETE(request: NextRequest) {
     // Connect to the database and get the user
     await connectToDatabase();
     const UserModel = getUserModel();
-    const user = await UserModel.findOne({ id: userId });
+
+    // Use findById with proper ObjectId validation
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(userId);
+    const user = isValidObjectId
+      ? await UserModel.findById(userId)
+      : await UserModel.findOne({ email: userId });
 
     if (!user || !user.twoFactorAuth || !user.twoFactorAuth.enabled) {
       return NextResponse.json(
@@ -148,7 +159,12 @@ export async function GET(request: NextRequest) {
     // Connect to the database and get the user
     await connectToDatabase();
     const UserModel = getUserModel();
-    const user = await UserModel.findOne({ id: userId });
+
+    // Use findById with proper ObjectId validation
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(userId);
+    const user = isValidObjectId
+      ? await UserModel.findById(userId)
+      : await UserModel.findOne({ email: userId });
 
     if (!user || !user.twoFactorAuth) {
       return NextResponse.json({
