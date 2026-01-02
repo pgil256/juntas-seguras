@@ -3,7 +3,7 @@ import { PoolInvitation } from '../../types/pool';
 
 interface UsePoolInvitationsProps {
   poolId: string;
-  userId: string;
+  userId?: string;
 }
 
 interface SendInvitationParams {
