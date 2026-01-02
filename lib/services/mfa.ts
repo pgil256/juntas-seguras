@@ -96,20 +96,11 @@ export async function sendEmailVerificationCode(userId: string): Promise<boolean
       return false;
     }
 
-    // Always log the code in development mode for testing
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`*** DEV MODE: Verification code is ${verificationCode} for ${user.email} ***`);
-    }
-    
-    // Always attempt to send email (in dev mode this will just log)
+    // Attempt to send email
     try {
       const emailTransporter = getTransporter();
       if (!emailTransporter) {
         console.warn('[MFA] Email transporter not configured. Skipping email send.');
-        // In development, we'll just log the code instead
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`*** MOCK EMAIL: Verification code for ${user.email} is ${verificationCode} ***`);
-        }
       } else {
         const mailOptions = {
           from: process.env.EMAIL_FROM || process.env.EMAIL_USER,

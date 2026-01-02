@@ -2,15 +2,25 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import ActivityLogViewer from '../../../../components/security/ActivityLogViewer';
 import { Button } from '../../../../components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 
-// For demo purposes - in a real app, this would come from authentication context
-const mockUserId = 'user123';
-
 export default function ActivityLogPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userId = session?.user?.id || null;
+
+  if (!userId) {
+    return (
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-4 sm:px-0">
+          <p className="text-gray-500">Please sign in to view your account activity.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -33,7 +43,7 @@ export default function ActivityLogPage() {
           </div>
           
           <div className="mt-6">
-            <ActivityLogViewer userId={mockUserId} />
+            <ActivityLogViewer userId={userId} />
           </div>
           
           <div className="mt-8 bg-gray-100 border border-gray-200 rounded-md p-4">

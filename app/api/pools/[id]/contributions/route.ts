@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
-import { User } from '../../../../../lib/db/models/user';
 import { TransactionType, TransactionStatus } from '../../../../../types/payment';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { createOrder, captureOrder } from '../../../../../lib/paypal';
 
 const Pool = getPoolModel();
 
@@ -123,7 +121,11 @@ export async function GET(
 }
 
 /**
- * POST /api/pools/[id]/contributions - Record a contribution for current round
+ * POST /api/pools/[id]/contributions - Initiate or complete a contribution
+ *
+ * Actions:
+ * - initiate: Creates a PayPal order and returns approval URL
+ * - complete: Captures the PayPal payment and records the contribution
  */
 export async function POST(
   request: NextRequest,
@@ -132,6 +134,7 @@ export async function POST(
   try {
     const { id: poolId } = await params;
     const body = await request.json();
+    const { action = 'initiate', orderId } = body;
 
     if (!poolId) {
       return NextResponse.json(
@@ -197,86 +200,161 @@ export async function POST(
       );
     }
 
-    // Create the contribution transaction
-    const transactionId = Math.max(
-      ...pool.transactions.map((t: any) => t.id || 0),
-      0
-    ) + 1;
+    // Handle initiate action - create PayPal order
+    if (action === 'initiate') {
+      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
 
-    const contribution = {
-      id: transactionId,
-      type: TransactionType.CONTRIBUTION,
-      amount: pool.contributionAmount,
-      date: new Date().toISOString(),
-      member: userMember.name,
-      status: TransactionStatus.COMPLETED,
-      round: currentRound,
-      stripePaymentIntentId: body.paymentIntentId || `contribution_${uuidv4()}`
-    };
+      const returnUrl = `${baseUrl}/pools/${poolId}?paypal_return=true&round=${currentRound}`;
+      const cancelUrl = `${baseUrl}/pools/${poolId}?paypal_cancelled=true`;
 
-    // Add to pool transactions
-    pool.transactions.push(contribution);
+      const paypalResult = await createOrder(
+        pool.contributionAmount,
+        'USD',
+        `Contribution to ${pool.name} - Round ${currentRound}`,
+        {
+          poolId,
+          round: currentRound.toString(),
+          userId: user._id.toString(),
+          memberName: userMember.name,
+        },
+        returnUrl,
+        cancelUrl
+      );
 
-    // Update member's contribution stats
-    const memberIndex = pool.members.findIndex(
-      (m: any) => m.email === userMember.email
-    );
-    if (memberIndex !== -1) {
-      pool.members[memberIndex].totalContributed =
-        (pool.members[memberIndex].totalContributed || 0) + pool.contributionAmount;
-      pool.members[memberIndex].paymentsOnTime =
-        (pool.members[memberIndex].paymentsOnTime || 0) + 1;
+      if (!paypalResult.success) {
+        return NextResponse.json(
+          { error: paypalResult.error || 'Failed to create PayPal order' },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: 'initiate',
+        orderId: paypalResult.orderId,
+        approvalUrl: paypalResult.approvalUrl,
+        amount: pool.contributionAmount,
+        message: 'PayPal order created. Redirect user to approval URL.',
+      });
     }
 
-    // Update pool's total amount
-    pool.totalAmount = (pool.totalAmount || 0) + pool.contributionAmount;
+    // Handle complete action - capture PayPal payment and record contribution
+    if (action === 'complete') {
+      if (!orderId) {
+        return NextResponse.json(
+          { error: 'Order ID is required to complete payment' },
+          { status: 400 }
+        );
+      }
 
-    // Add a system message
-    const messageId = Math.max(
-      ...pool.messages.map((m: any) => m.id || 0),
-      0
-    ) + 1;
-    pool.messages.push({
-      id: messageId,
-      author: 'System',
-      content: `${userMember.name} has contributed $${pool.contributionAmount} for round ${currentRound}.`,
-      date: new Date().toISOString()
-    });
+      // Capture the PayPal payment
+      const captureResult = await captureOrder(orderId);
 
-    await pool.save();
+      if (!captureResult.success) {
+        return NextResponse.json(
+          { error: captureResult.error || 'Failed to capture PayPal payment' },
+          { status: 400 }
+        );
+      }
 
-    // Check if all members have now contributed
-    const payoutRecipient = pool.members.find(
-      (m: any) => m.position === currentRound
-    );
+      if (captureResult.status !== 'COMPLETED') {
+        return NextResponse.json(
+          { error: `Payment not completed. Status: ${captureResult.status}` },
+          { status: 400 }
+        );
+      }
 
-    const allMembersContributed = pool.members.every((member: any) => {
-      if (member.position === currentRound) return true; // Skip recipient
-      return pool.transactions.some(
-        (t: any) =>
-          t.member === member.name &&
-          t.type === TransactionType.CONTRIBUTION &&
-          t.round === currentRound
+      // Create the contribution transaction
+      const transactionId = Math.max(
+        ...pool.transactions.map((t: any) => t.id || 0),
+        0
+      ) + 1;
+
+      const contribution = {
+        id: transactionId,
+        type: TransactionType.CONTRIBUTION,
+        amount: pool.contributionAmount,
+        date: new Date().toISOString(),
+        member: userMember.name,
+        status: TransactionStatus.COMPLETED,
+        round: currentRound,
+        paypalOrderId: orderId,
+        paypalCaptureId: captureResult.captureId,
+      };
+
+      // Add to pool transactions
+      pool.transactions.push(contribution);
+
+      // Update member's contribution stats
+      const memberIndex = pool.members.findIndex(
+        (m: any) => m.email === userMember.email
       );
-    });
+      if (memberIndex !== -1) {
+        pool.members[memberIndex].totalContributed =
+          (pool.members[memberIndex].totalContributed || 0) + pool.contributionAmount;
+        pool.members[memberIndex].paymentsOnTime =
+          (pool.members[memberIndex].paymentsOnTime || 0) + 1;
+      }
 
-    return NextResponse.json({
-      success: true,
-      contribution: {
-        id: contribution.id,
-        amount: contribution.amount,
-        date: contribution.date,
-        status: contribution.status
-      },
-      allMembersContributed,
-      message: allMembersContributed
-        ? `All contributions received! ${payoutRecipient?.name || 'The recipient'} can now receive the payout.`
-        : `Contribution recorded. Waiting for other members to contribute.`
-    });
-  } catch (error) {
-    console.error('Error recording contribution:', error);
+      // Update pool's total amount
+      pool.totalAmount = (pool.totalAmount || 0) + pool.contributionAmount;
+
+      // Add a system message
+      const messageId = Math.max(
+        ...pool.messages.map((m: any) => m.id || 0),
+        0
+      ) + 1;
+      pool.messages.push({
+        id: messageId,
+        author: 'System',
+        content: `${userMember.name} has contributed $${pool.contributionAmount} for round ${currentRound}.`,
+        date: new Date().toISOString()
+      });
+
+      await pool.save();
+
+      // Check if all members have now contributed
+      const payoutRecipient = pool.members.find(
+        (m: any) => m.position === currentRound
+      );
+
+      const allMembersContributed = pool.members.every((member: any) => {
+        if (member.position === currentRound) return true; // Skip recipient
+        return pool.transactions.some(
+          (t: any) =>
+            t.member === member.name &&
+            t.type === TransactionType.CONTRIBUTION &&
+            t.round === currentRound
+        );
+      });
+
+      return NextResponse.json({
+        success: true,
+        action: 'complete',
+        contribution: {
+          id: contribution.id,
+          amount: contribution.amount,
+          date: contribution.date,
+          status: contribution.status,
+          paypalOrderId: orderId,
+        },
+        allMembersContributed,
+        message: allMembersContributed
+          ? `Payment successful! All contributions received. ${payoutRecipient?.name || 'The recipient'} can now receive the payout.`
+          : `Payment successful! Contribution recorded. Waiting for other members to contribute.`
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Failed to record contribution' },
+      { error: 'Invalid action. Use "initiate" or "complete".' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error processing contribution:', error);
+    return NextResponse.json(
+      { error: 'Failed to process contribution' },
       { status: 500 }
     );
   }

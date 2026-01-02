@@ -8,11 +8,11 @@ import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { ChevronLeft, Shield, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
-
-// For demo purposes - in a real app, this would come from authentication context
-const mockUserId = 'user123';
+import { useSession } from 'next-auth/react';
 
 export default function TwoFactorPage() {
+  const { data: session } = useSession();
+  const userId = session?.user?.id || null;
   const router = useRouter();
   const [setupMode, setSetupMode] = useState(false);
   const [twoFactorStatus, setTwoFactorStatus] = useState<{
@@ -30,8 +30,12 @@ export default function TwoFactorPage() {
         setLoading(true);
         setError(null);
         
-        // In a real app, this would be an actual API call
-        const response = await fetch(`/api/security/two-factor/setup?userId=${mockUserId}`);
+        if (!userId) {
+          setError('You must be logged in to manage two-factor authentication');
+          setLoading(false);
+          return;
+        }
+        const response = await fetch(`/api/security/two-factor/setup?userId=${userId}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch two-factor authentication status');
@@ -49,7 +53,7 @@ export default function TwoFactorPage() {
     }
     
     fetchTwoFactorStatus();
-  }, [setupMode]);
+  }, [setupMode, userId]);
 
   const startSetup = () => {
     setSetupMode(true);
@@ -69,8 +73,12 @@ export default function TwoFactorPage() {
       setLoading(true);
       setError(null);
       
+      if (!userId) {
+        setError('You must be logged in to manage two-factor authentication');
+        return;
+      }
       // Make API call to disable 2FA
-      const response = await fetch(`/api/security/two-factor/setup?userId=${mockUserId}`, {
+      const response = await fetch(`/api/security/two-factor/setup?userId=${userId}`, {
         method: 'DELETE'
       });
       
@@ -95,8 +103,8 @@ export default function TwoFactorPage() {
   const renderContent = () => {
     if (setupMode) {
       return (
-        <TwoFactorSetup 
-          userId={mockUserId}
+        <TwoFactorSetup
+          userId={userId || ''}
           onSetupComplete={completedSetup}
           onCancel={cancelSetup}
         />

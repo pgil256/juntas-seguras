@@ -32,6 +32,20 @@ interface UsePoolContributionsProps {
   userEmail?: string;
 }
 
+interface InitiateContributionResult {
+  success: boolean;
+  orderId?: string;
+  approvalUrl?: string;
+  error?: string;
+}
+
+interface CompleteContributionResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  allMembersContributed?: boolean;
+}
+
 interface UsePoolContributionsReturn {
   isLoading: boolean;
   error: string | null;
@@ -42,11 +56,16 @@ interface UsePoolContributionsReturn {
     contributionDate: string | null;
   } | null;
   getContributionStatus: () => Promise<void>;
+  initiateContribution: () => Promise<InitiateContributionResult>;
+  completeContribution: (orderId: string) => Promise<CompleteContributionResult>;
+  // Legacy method for backwards compatibility
   makeContribution: () => Promise<{
     success: boolean;
     message?: string;
     error?: string;
     allMembersContributed?: boolean;
+    approvalUrl?: string;
+    orderId?: string;
   }>;
 }
 
@@ -83,8 +102,8 @@ export function usePoolContributions({
     }
   }, [poolId]);
 
-  // Make a contribution for the current round
-  const makeContribution = useCallback(async () => {
+  // Initiate a contribution - creates PayPal order
+  const initiateContribution = useCallback(async (): Promise<InitiateContributionResult> => {
     if (!poolId) {
       return {
         success: false,
@@ -101,34 +120,102 @@ export function usePoolContributions({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ action: 'initiate' }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to make contribution');
+        throw new Error(data.error || 'Failed to initiate contribution');
       }
 
-      // Refresh contribution status after making contribution
+      return {
+        success: true,
+        orderId: data.orderId,
+        approvalUrl: data.approvalUrl,
+      };
+    } catch (err: any) {
+      console.error('Error initiating contribution:', err);
+      setError(err.message || 'Failed to initiate contribution');
+      return {
+        success: false,
+        error: err.message || 'Failed to initiate contribution',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [poolId]);
+
+  // Complete a contribution - captures PayPal payment
+  const completeContribution = useCallback(async (orderId: string): Promise<CompleteContributionResult> => {
+    if (!poolId) {
+      return {
+        success: false,
+        error: 'Pool ID is required',
+      };
+    }
+
+    if (!orderId) {
+      return {
+        success: false,
+        error: 'Order ID is required',
+      };
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/pools/${poolId}/contributions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'complete', orderId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete contribution');
+      }
+
+      // Refresh contribution status after completing
       await getContributionStatus();
 
       return {
         success: true,
-        message: data.message || 'Contribution recorded successfully',
+        message: data.message || 'Contribution completed successfully',
         allMembersContributed: data.allMembersContributed,
       };
     } catch (err: any) {
-      console.error('Error making contribution:', err);
-      setError(err.message || 'Failed to make contribution');
+      console.error('Error completing contribution:', err);
+      setError(err.message || 'Failed to complete contribution');
       return {
         success: false,
-        error: err.message || 'Failed to make contribution',
+        error: err.message || 'Failed to complete contribution',
       };
     } finally {
       setIsLoading(false);
     }
   }, [poolId, getContributionStatus]);
+
+  // Legacy makeContribution - now initiates PayPal flow
+  const makeContribution = useCallback(async () => {
+    const result = await initiateContribution();
+    if (result.success && result.approvalUrl) {
+      return {
+        success: true,
+        message: 'Redirecting to PayPal...',
+        approvalUrl: result.approvalUrl,
+        orderId: result.orderId,
+      };
+    }
+    return {
+      success: false,
+      error: result.error || 'Failed to initiate payment',
+    };
+  }, [initiateContribution]);
 
   // Calculate user's contribution info from the status
   const userContributionInfo = contributionStatus && userEmail
@@ -151,6 +238,8 @@ export function usePoolContributions({
     contributionStatus,
     userContributionInfo,
     getContributionStatus,
+    initiateContribution,
+    completeContribution,
     makeContribution,
   };
 }

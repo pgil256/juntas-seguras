@@ -5,19 +5,7 @@ export function useUserId(): string | null {
   return session?.user?.id || null;
 }
 
-export function useMockUserId(): string {
-  return 'user123';
-}
-
-// Use this hook in your app to get the current user ID
-// In a demo, you can choose to use the mock user ID for testing
+// Alias for consistency - returns the real user ID from session
 export function useCurrentUserId(): string | null {
-  const realUserId = useUserId();
-  const mockUserId = useMockUserId();
-  
-  // If we're in a demo or test environment, or if auth isn't set up yet
-  const isDemo = process.env.NODE_ENV !== 'production';
-  
-  // Return the real user ID if available, otherwise use the mock ID in demo environments
-  return realUserId || (isDemo ? mockUserId : null);
+  return useUserId();
 }

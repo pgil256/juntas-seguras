@@ -209,12 +209,48 @@ export async function POST(
 
     // Process PayPal payout to recipient
     const recipientEmail = payoutRecipient.email;
-    let paypalPayoutBatchId = `demo_payout_${uuidv4()}`;
-    let paypalSuccess = true;
 
-    // Only process real PayPal payout if we have valid credentials and recipient email
-    if (process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET && recipientEmail) {
-      const payoutResult = await createPayout(
+    // Validate PayPal credentials are configured
+    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+      // Update the transaction to failed status
+      await Pool.updateOne(
+        { id: pool.id, 'transactions.id': transactionId },
+        {
+          $set: {
+            'transactions.$.status': TransactionStatus.FAILED,
+            'transactions.$.paypalPayoutBatchId': null
+          }
+        }
+      );
+
+      return NextResponse.json(
+        { error: 'PayPal credentials are not configured. Please contact support.' },
+        { status: 500 }
+      );
+    }
+
+    if (!recipientEmail) {
+      // Update the transaction to failed status
+      await Pool.updateOne(
+        { id: pool.id, 'transactions.id': transactionId },
+        {
+          $set: {
+            'transactions.$.status': TransactionStatus.FAILED,
+            'transactions.$.paypalPayoutBatchId': null
+          }
+        }
+      );
+
+      return NextResponse.json(
+        { error: 'Recipient email is required for payout' },
+        { status: 400 }
+      );
+    }
+
+    let paypalPayoutBatchId: string | null = null;
+
+    // Process PayPal payout
+    const payoutResult = await createPayout(
         payoutAmount,
         'USD',
         recipientEmail,
@@ -226,29 +262,27 @@ export async function POST(
         }
       );
 
-      if (!payoutResult.success) {
-        console.error('PayPal payout failed:', payoutResult.error);
-        paypalSuccess = false;
+    if (!payoutResult.success) {
+      console.error('PayPal payout failed:', payoutResult.error);
 
-        // Update the transaction to failed status
-        await Pool.updateOne(
-          { id: pool.id, 'transactions.id': transactionId },
-          {
-            $set: {
-              'transactions.$.status': TransactionStatus.FAILED,
-              'transactions.$.paypalPayoutBatchId': null
-            }
+      // Update the transaction to failed status
+      await Pool.updateOne(
+        { id: pool.id, 'transactions.id': transactionId },
+        {
+          $set: {
+            'transactions.$.status': TransactionStatus.FAILED,
+            'transactions.$.paypalPayoutBatchId': null
           }
-        );
+        }
+      );
 
-        return NextResponse.json(
-          { error: `PayPal payout failed: ${payoutResult.error}` },
-          { status: 400 }
-        );
-      } else {
-        paypalPayoutBatchId = payoutResult.payoutBatchId || paypalPayoutBatchId;
-      }
+      return NextResponse.json(
+        { error: `PayPal payout failed: ${payoutResult.error}` },
+        { status: 400 }
+      );
     }
+
+    paypalPayoutBatchId = payoutResult.payoutBatchId || null;
 
     // Update the transaction with PayPal details and mark as completed
     const updateResult = await Pool.findOneAndUpdate(
