@@ -913,7 +913,7 @@ export default function MemberManagementPage() {
             name: selectedMember.name,
             avatar: selectedMember.avatar
           }}
-          userId={mockUserId}
+          userId={currentUserId || undefined}
         />
       )}
 
@@ -1106,7 +1106,7 @@ export default function MemberManagementPage() {
             name: selectedMember.name,
             avatar: selectedMember.avatar
           }}
-          userId={mockUserId}
+          userId={currentUserId || undefined}
         />
       )}
 
