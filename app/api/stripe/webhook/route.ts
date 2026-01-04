@@ -17,6 +17,7 @@ import { Pool } from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
+import { TransactionStatus, TransactionType } from '@/types/payment';
 import { Types } from 'mongoose';
 import Stripe from 'stripe';
 
@@ -136,8 +137,8 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   // Determine new status based on capture method
   const isEscrow = metadata?.isEscrow === 'true';
   const newStatus = isEscrow && paymentIntent.status === 'requires_capture'
-    ? 'ESCROWED'
-    : 'COMPLETED';
+    ? TransactionStatus.ESCROWED
+    : TransactionStatus.COMPLETED;
 
   payment.status = newStatus;
   payment.stripeCaptureId = paymentIntent.latest_charge as string;
@@ -145,7 +146,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   await payment.save();
 
   // Update pool if applicable
-  if (payment.poolId && newStatus === 'COMPLETED') {
+  if (payment.poolId && newStatus === TransactionStatus.COMPLETED) {
     await updatePoolContribution(payment);
   }
 
@@ -175,7 +176,7 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 
   if (!payment) return;
 
-  payment.status = 'FAILED';
+  payment.status = TransactionStatus.FAILED;
   payment.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
   payment.failureCount = (payment.failureCount || 0) + 1;
   await payment.save();
@@ -205,7 +206,7 @@ async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) 
 
   if (!payment) return;
 
-  payment.status = 'CANCELLED';
+  payment.status = TransactionStatus.CANCELLED;
   await payment.save();
 
   const { metadata } = paymentIntent;
@@ -239,8 +240,8 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     poolId: payment.poolId,
     amount: (charge.amount_refunded || 0) / 100,
     currency: payment.currency,
-    type: 'REFUND',
-    status: 'COMPLETED',
+    type: TransactionType.REFUND,
+    status: TransactionStatus.COMPLETED,
     description: `Refund for payment ${payment.paymentId}`,
     relatedPaymentId: payment.paymentId,
     stripeRefundId: charge.refunds?.data[0]?.id,
@@ -269,7 +270,7 @@ async function handleTransferCreated(transfer: Stripe.Transfer) {
   const payment = await Payment.findOne({ paymentId: metadata.paymentId });
   if (!payment) return;
 
-  payment.status = 'COMPLETED';
+  payment.status = TransactionStatus.COMPLETED;
   payment.stripeTransferId = transfer.id;
   payment.processedAt = new Date();
   await payment.save();
@@ -316,7 +317,7 @@ async function handleTransferFailed(transfer: Stripe.Transfer) {
   const payment = await Payment.findOne({ paymentId: metadata.paymentId });
   if (!payment) return;
 
-  payment.status = 'FAILED';
+  payment.status = TransactionStatus.FAILED;
   payment.failureReason = 'Transfer to recipient failed';
   await payment.save();
 
