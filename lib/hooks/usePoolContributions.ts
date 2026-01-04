@@ -102,7 +102,7 @@ export function usePoolContributions({
     }
   }, [poolId]);
 
-  // Initiate a contribution - creates PayPal order
+  // Initiate a contribution - creates Stripe checkout session
   const initiateContribution = useCallback(async (): Promise<InitiateContributionResult> => {
     if (!poolId) {
       return {
@@ -146,7 +146,7 @@ export function usePoolContributions({
     }
   }, [poolId]);
 
-  // Complete a contribution - captures PayPal payment
+  // Complete a contribution - confirms Stripe payment
   const completeContribution = useCallback(async (orderId: string): Promise<CompleteContributionResult> => {
     if (!poolId) {
       return {
@@ -200,13 +200,13 @@ export function usePoolContributions({
     }
   }, [poolId, getContributionStatus]);
 
-  // Legacy makeContribution - now initiates PayPal flow
+  // Legacy makeContribution - now initiates Stripe flow
   const makeContribution = useCallback(async () => {
     const result = await initiateContribution();
     if (result.success && result.approvalUrl) {
       return {
         success: true,
-        message: 'Redirecting to PayPal...',
+        message: 'Redirecting to Stripe...',
         approvalUrl: result.approvalUrl,
         orderId: result.orderId,
       };
