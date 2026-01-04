@@ -1,13 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    instrumentationHook: true,
+  },
   typescript: {
     // Don't ignore TypeScript errors - we want to catch them
     ignoreBuildErrors: false,
   },
   eslint: {
-    // Set to false for production to catch linting errors during build
-    ignoreDuringBuilds: process.env.NODE_ENV === 'development',
+    // Catch linting errors during build
+    ignoreDuringBuilds: false,
   },
   // Image optimization
   images: {
