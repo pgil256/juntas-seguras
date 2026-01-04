@@ -180,6 +180,7 @@ function PaymentForm({
 
 // Main component with Elements provider
 export function StripePaymentForm(props: StripePaymentFormProps) {
+  const { poolId, amount, useEscrow, escrowReleaseDate, onError, onCancel } = props;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,10 +193,10 @@ export function StripePaymentForm(props: StripePaymentFormProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            poolId: props.poolId,
-            amount: props.amount,
-            useEscrow: props.useEscrow,
-            escrowReleaseDate: props.escrowReleaseDate,
+            poolId,
+            amount,
+            useEscrow,
+            escrowReleaseDate,
           }),
         });
 
@@ -209,14 +210,14 @@ export function StripePaymentForm(props: StripePaymentFormProps) {
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to initialize payment';
         setError(message);
-        props.onError?.(message);
+        onError?.(message);
       } finally {
         setLoading(false);
       }
     }
 
     createPaymentIntent();
-  }, [props.poolId, props.amount, props.useEscrow, props.escrowReleaseDate, props.onError]);
+  }, [poolId, amount, useEscrow, escrowReleaseDate, onError]);
 
   if (loading) {
     return (
@@ -239,10 +240,10 @@ export function StripePaymentForm(props: StripePaymentFormProps) {
             <XCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          {props.onCancel && (
+          {onCancel && (
             <Button
               variant="outline"
-              onClick={props.onCancel}
+              onClick={onCancel}
               className="w-full mt-4"
             >
               Go Back
