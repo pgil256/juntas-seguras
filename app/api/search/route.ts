@@ -6,6 +6,7 @@ import getPoolModel from '../../../lib/db/models/pool';
 import { getUserModel } from '../../../lib/db/models/user';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 interface PoolMemberDB {
   id: number;

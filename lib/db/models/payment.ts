@@ -69,12 +69,10 @@ const PaymentSchema = new Schema({
   // PayPal-specific fields
   paypalOrderId: {
     type: String,
-    index: true,
     sparse: true
   },
   paypalAuthorizationId: {
     type: String,
-    index: true,
     sparse: true
   },
   paypalCaptureId: {

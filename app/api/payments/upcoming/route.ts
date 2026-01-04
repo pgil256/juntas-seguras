@@ -7,6 +7,7 @@ import { PoolStatus, PoolMemberStatus, TransactionType } from '../../../../types
 import { TransactionStatus } from '../../../../types/payment';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 interface UpcomingPayment {
   id: string;

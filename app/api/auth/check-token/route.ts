@@ -3,6 +3,7 @@ import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
