@@ -42,6 +42,10 @@ export enum AuditLogType {
   ADMIN_ACTION = 'admin_action',
   SYSTEM_ERROR = 'system_error',
   SECURITY_EVENT = 'security_event',
+
+  // Generic types for Stripe integration
+  PAYMENT = 'payment',
+  ACCOUNT = 'account',
 }
 
 export interface AuditLog {
