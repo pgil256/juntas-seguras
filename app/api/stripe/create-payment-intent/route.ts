@@ -15,6 +15,7 @@ import { Pool } from '@/lib/db/models/pool';
 import { Payment } from '@/lib/db/models/payment';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
+import { TransactionStatus, TransactionType } from '@/types/payment';
 import { Types } from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -111,8 +112,8 @@ export async function POST(request: NextRequest) {
       poolId: poolId ? new Types.ObjectId(poolId) : undefined,
       amount,
       currency: 'USD',
-      type: useEscrow ? 'ESCROW' : 'CONTRIBUTION',
-      status: 'PENDING',
+      type: useEscrow ? TransactionType.ESCROW : TransactionType.CONTRIBUTION,
+      status: TransactionStatus.PENDING,
       description: pool
         ? `Contribution to ${pool.name}`
         : 'Payment',

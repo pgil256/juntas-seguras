@@ -15,6 +15,7 @@ import User from '@/lib/db/models/user';
 import { Payment } from '@/lib/db/models/payment';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
+import { TransactionStatus, TransactionType } from '@/types/payment';
 import { Types } from 'mongoose';
 import mongoose from 'mongoose';
 
@@ -186,8 +187,8 @@ export async function POST(request: NextRequest) {
             poolId: new Types.ObjectId(poolId),
             amount: payoutAmount,
             currency: 'USD',
-            type: 'PAYOUT',
-            status: 'PENDING',
+            type: TransactionType.PAYOUT,
+            status: TransactionStatus.PENDING,
             description: `Pool payout for ${pool.name} (Round ${pool.currentRound})`,
             member: recipient.name,
             round: pool.currentRound,
@@ -226,7 +227,7 @@ export async function POST(request: NextRequest) {
         // Stripe failed - revert DB changes
         await Payment.findOneAndUpdate(
           { paymentId },
-          { status: 'FAILED', failureReason: 'Stripe transfer failed' }
+          { status: TransactionStatus.FAILED, failureReason: 'Stripe transfer failed' }
         );
 
         await Pool.findByIdAndUpdate(poolId, {
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
       await Payment.findOneAndUpdate(
         { paymentId },
         {
-          status: 'COMPLETED',
+          status: TransactionStatus.COMPLETED,
           stripeTransferId: transfer.id,
           processedAt: new Date(),
         }
