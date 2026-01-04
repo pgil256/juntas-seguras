@@ -80,9 +80,9 @@ export function ContributionModal({
       if (response.success && response.approvalUrl) {
         // Store the order ID in sessionStorage for when user returns
         if (response.orderId) {
-          sessionStorage.setItem(`paypal_order_${poolId}`, response.orderId);
+          sessionStorage.setItem(`stripe_order_${poolId}`, response.orderId);
         }
-        // Redirect to PayPal for payment approval
+        // Redirect to Stripe for payment approval
         window.location.href = response.approvalUrl;
       } else {
         setResult({
@@ -278,17 +278,17 @@ export function ContributionModal({
                 <Button
                   onClick={handleMakeContribution}
                   disabled={isSubmitting || isLoading}
-                  className="w-full sm:w-auto bg-[#0070ba] hover:bg-[#003087]"
+                  className="w-full sm:w-auto bg-[#635bff] hover:bg-[#5046e5]"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting to PayPal...
+                      Connecting to Stripe...
                     </>
                   ) : (
                     <>
                       <ExternalLink className="mr-2 h-4 w-4" />
-                      Pay with PayPal
+                      Pay with Stripe
                     </>
                   )}
                 </Button>
