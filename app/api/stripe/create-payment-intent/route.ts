@@ -11,7 +11,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { createPaymentIntent, createCustomer } from '@/lib/stripe';
 import connectToDatabase from '@/lib/db/connect';
 import User from '@/lib/db/models/user';
-import Pool from '@/lib/db/models/pool';
+import { Pool } from '@/lib/db/models/pool';
 import { Payment } from '@/lib/db/models/payment';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
