@@ -31,5 +31,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Authentication**: NextAuth with JWT strategy and custom MFA implementation
 - **Database**: MongoDB with Mongoose for data modeling
 - **API Routes**: Located in app/api directory following Next.js convention
-- **Payment Processing**: PayPal integration for escrow payments and payouts (see PAYPAL_SETUP.md)
+- **Payment Processing**: Stripe integration for payments and Connect for payouts
 - **Security**: Multi-factor authentication, audit logging, and identity verification

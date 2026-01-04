@@ -56,11 +56,11 @@ export default function PaymentsDocumentationPage() {
                   <DollarSign className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900">Digital Payment Services</h4>
+                  <h4 className="font-medium text-gray-900">Stripe Connect</h4>
                   <p className="text-sm text-gray-700 mt-1">
-                    Connect PayPal, Venmo, or Zelle for alternative payment options.
+                    Set up a Stripe Connect account to receive payouts directly to your bank account.
                   </p>
-                  <Badge className="mt-2 bg-gray-50 text-gray-700 hover:bg-gray-100">Varies by service</Badge>
+                  <Badge className="mt-2 bg-gray-50 text-gray-700 hover:bg-gray-100">For payouts</Badge>
                 </div>
               </div>
               

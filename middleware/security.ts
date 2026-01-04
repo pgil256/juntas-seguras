@@ -14,7 +14,7 @@ export function securityHeaders(req: NextRequest): NextResponse {
   // Customize this based on your application needs
   headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.paypalobjects.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://www.paypalobjects.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com https://www.paypal.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://*.stripe.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.stripe.com; frame-src 'self' https://js.stripe.com https://hooks.stripe.com;"
   );
   
   // Prevent browsers from incorrectly detecting non-scripts as scripts

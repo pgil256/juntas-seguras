@@ -147,7 +147,7 @@ export function usePoolContributions({
   }, [poolId]);
 
   // Complete a contribution - confirms Stripe payment
-  const completeContribution = useCallback(async (orderId: string): Promise<CompleteContributionResult> => {
+  const completeContribution = useCallback(async (sessionId: string): Promise<CompleteContributionResult> => {
     if (!poolId) {
       return {
         success: false,
@@ -155,10 +155,10 @@ export function usePoolContributions({
       };
     }
 
-    if (!orderId) {
+    if (!sessionId) {
       return {
         success: false,
-        error: 'Order ID is required',
+        error: 'Session ID is required',
       };
     }
 
@@ -171,7 +171,7 @@ export function usePoolContributions({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ action: 'complete', orderId }),
+        body: JSON.stringify({ action: 'complete', sessionId }),
       });
 
       const data = await response.json();

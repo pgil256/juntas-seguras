@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, AlertCircle, Check } from 'lucide-react';
+import { Loader2, AlertCircle, Check, CreditCard } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
-import { PayPalButton } from './PayPalButton';
 import { PaymentDetails } from '../../types/payment';
 
 // Type definitions
@@ -54,21 +53,35 @@ export function PaymentProcessingModal({
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  const handlePaymentSuccess = () => {
-    setProcessingState('success');
+  const handlePayWithStripe = async () => {
+    setProcessingState('processing');
 
-    // Auto-close after success
-    setTimeout(() => {
-      handleClose();
-      if (onPaymentComplete) {
-        onPaymentComplete();
+    try {
+      // Create checkout session via API
+      const response = await fetch(`/api/pools/${poolId}/contributions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'initiate' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
       }
-    }, 2000);
-  };
 
-  const handlePaymentError = (error: string) => {
-    setProcessingState('error');
-    setErrorMessage(error);
+      // Redirect to Stripe Checkout
+      if (data.approvalUrl) {
+        window.location.href = data.approvalUrl;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      setProcessingState('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Payment failed');
+    }
   };
 
   const handleClose = () => {
@@ -107,21 +120,17 @@ export function PaymentProcessingModal({
 
             <div className="border-t pt-4">
               <p className="text-sm text-gray-600 mb-4 text-center">
-                Click the PayPal button below to pay securely with your PayPal account
+                Click the button below to pay securely with Stripe
               </p>
 
-              <PayPalButton
-                amount={paymentDetails.amount}
-                currency="USD"
-                description={`Contribution to ${paymentDetails.poolName}`}
-                poolId={poolId}
-                userId={userId}
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-                onCancel={() => {
-                  // User cancelled - stay on the form
-                }}
-              />
+              <Button
+                onClick={handlePayWithStripe}
+                className="w-full flex items-center justify-center"
+                size="lg"
+              >
+                <CreditCard className="mr-2 h-5 w-5" />
+                Pay with Stripe
+              </Button>
             </div>
 
             <div className="text-center">
@@ -135,8 +144,8 @@ export function PaymentProcessingModal({
         {processingState === 'processing' && (
           <div className="py-8 flex flex-col items-center justify-center">
             <Loader2 className="h-16 w-16 text-blue-500 animate-spin mb-4" />
-            <p className="text-xl font-medium text-gray-900">Processing Payment</p>
-            <p className="text-gray-500 mt-2">Please wait while we process your payment...</p>
+            <p className="text-xl font-medium text-gray-900">Preparing Checkout</p>
+            <p className="text-gray-500 mt-2">Please wait while we set up your payment...</p>
           </div>
         )}
 

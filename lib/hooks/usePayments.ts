@@ -74,14 +74,14 @@ export function usePayments({ userId }: UsePaymentsProps): UsePaymentsReturn {
         throw new Error(data.error || 'Payment processing failed');
       }
 
-      // If PayPal returns an approval URL, redirect the user to PayPal to complete payment
+      // If Stripe returns an approval URL, redirect the user to Stripe Checkout
       if (data.approvalUrl) {
-        // Redirect to PayPal for user to sign in and approve payment
+        // Redirect to Stripe Checkout for user to complete payment
         window.location.href = data.approvalUrl;
         return {
           success: true,
           payment: data.payment,
-          message: 'Redirecting to PayPal...',
+          message: 'Redirecting to checkout...',
           approvalUrl: data.approvalUrl,
         };
       }

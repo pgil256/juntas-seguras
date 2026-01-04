@@ -16,51 +16,57 @@ function PaymentCompleteContent() {
   const [poolId, setPoolId] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const payerId = searchParams.get('PayerID');
+    const sessionId = searchParams.get('session_id');
     const poolIdParam = searchParams.get('poolId');
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
 
     setPoolId(poolIdParam);
 
-    if (!token) {
+    // Handle canceled payment
+    if (canceled === 'true') {
       setStatus('error');
-      setMessage('Missing payment token. Please try again.');
+      setMessage('Payment was canceled. You can try again when ready.');
       return;
     }
 
-    // Capture the PayPal payment
-    const capturePayment = async () => {
+    // Handle successful redirect from Stripe
+    if (success === 'true' && sessionId) {
+      // For Stripe Checkout, payment is already complete at this point
+      // The webhook will handle the database updates
+      setStatus('success');
+      setMessage('Payment completed successfully! Your contribution has been recorded.');
+      return;
+    }
+
+    if (!sessionId) {
+      setStatus('error');
+      setMessage('Missing payment session. Please try again.');
+      return;
+    }
+
+    // Verify the Stripe session status
+    const verifyPayment = async () => {
       try {
-        const response = await fetch('/api/payments/capture', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            token,
-            payerId,
-            poolId: poolIdParam,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          setStatus('success');
-          setMessage(data.message || 'Payment completed successfully!');
-        } else {
-          setStatus('error');
-          setMessage(data.error || 'Payment capture failed. Please contact support.');
+        // For pool contributions, we redirect back to the pool page
+        // which handles the completion
+        if (poolIdParam) {
+          router.push(`/pools/${poolIdParam}?stripe_success=true&session_id=${sessionId}`);
+          return;
         }
+
+        // Otherwise show success
+        setStatus('success');
+        setMessage('Payment completed successfully!');
       } catch (error) {
-        console.error('Payment capture error:', error);
+        console.error('Payment verification error:', error);
         setStatus('error');
         setMessage('An unexpected error occurred. Please contact support.');
       }
     };
 
-    capturePayment();
-  }, [searchParams]);
+    verifyPayment();
+  }, [searchParams, router]);
 
   const handleContinue = () => {
     if (poolId) {
@@ -76,7 +82,7 @@ function PaymentCompleteContent() {
         <CardTitle>
           {status === 'processing' && 'Processing Payment'}
           {status === 'success' && 'Payment Successful'}
-          {status === 'error' && 'Payment Failed'}
+          {status === 'error' && 'Payment Issue'}
         </CardTitle>
         <CardDescription>
           {status === 'processing' && 'Please wait while we complete your payment...'}

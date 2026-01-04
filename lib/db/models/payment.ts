@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 import { TransactionStatus, TransactionType, PaymentMethodType } from '../../../types/payment';
 
 /**
- * Payment record schema for storing payment transactions with PayPal integration
+ * Payment record schema for storing payment transactions with Stripe integration
  */
 const PaymentSchema = new Schema({
   // Unique payment ID (internal)
@@ -66,26 +66,13 @@ const PaymentSchema = new Schema({
   // Round number (for pool contributions)
   round: { type: Number },
 
-  // PayPal-specific fields
-  paypalOrderId: {
-    type: String,
-    sparse: true
-  },
-  paypalAuthorizationId: {
-    type: String,
-    sparse: true
-  },
-  paypalCaptureId: {
-    type: String,
-    sparse: true
-  },
-  paypalPayoutBatchId: {
-    type: String,
-    sparse: true
-  },
-
   // Stripe-specific fields
   stripePaymentIntentId: {
+    type: String,
+    index: true,
+    sparse: true
+  },
+  stripeSessionId: {
     type: String,
     index: true,
     sparse: true
@@ -132,8 +119,6 @@ const PaymentSchema = new Schema({
 // Compound indexes for common queries
 PaymentSchema.index({ poolId: 1, status: 1 });
 PaymentSchema.index({ userId: 1, status: 1 });
-PaymentSchema.index({ paypalOrderId: 1 }, { sparse: true });
-PaymentSchema.index({ paypalAuthorizationId: 1 }, { sparse: true });
 
 // Document interface
 export interface PaymentDocument extends Document {
@@ -148,11 +133,8 @@ export interface PaymentDocument extends Document {
   description?: string;
   member?: string;
   round?: number;
-  paypalOrderId?: string;
-  paypalAuthorizationId?: string;
-  paypalCaptureId?: string;
-  paypalPayoutBatchId?: string;
   stripePaymentIntentId?: string;
+  stripeSessionId?: string;
   stripeCaptureId?: string;
   stripeTransferId?: string;
   stripeRefundId?: string;
@@ -185,7 +167,7 @@ const PaymentMethodSchema = new Schema({
   // Payment method type
   type: {
     type: String,
-    enum: ['paypal', 'card', 'bank'] as PaymentMethodType[],
+    enum: ['card', 'bank'] as PaymentMethodType[],
     required: true
   },
 
@@ -198,17 +180,14 @@ const PaymentMethodSchema = new Schema({
   // Is this the default payment method?
   isDefault: { type: Boolean, default: false },
 
-  // PayPal-specific fields (email is safe to store)
-  paypalEmail: { type: String },
-
   // Card-specific fields (safe to store)
   cardholderName: { type: String },
   expiryMonth: { type: String },
   expiryYear: { type: String },
   cardBrand: { type: String }, // visa, mastercard, etc.
 
-  // PayPal Vault token (for card/bank tokenization)
-  paypalVaultId: { type: String },
+  // Stripe payment method ID
+  stripePaymentMethodId: { type: String },
 
   // Bank-specific fields (safe to store)
   accountHolderName: { type: String },
@@ -241,12 +220,11 @@ export interface PaymentMethodDocument extends Document {
   name: string;
   last4: string;
   isDefault: boolean;
-  paypalEmail?: string;
   cardholderName?: string;
   expiryMonth?: string;
   expiryYear?: string;
   cardBrand?: string;
-  paypalVaultId?: string;
+  stripePaymentMethodId?: string;
   accountHolderName?: string;
   accountType?: 'checking' | 'savings';
   bankName?: string;

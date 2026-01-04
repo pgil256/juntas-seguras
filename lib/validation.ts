@@ -60,23 +60,6 @@ const ENV_VAR_CONFIG: EnvVarConfig[] = [
     name: 'STRIPE_WEBHOOK_SECRET',
     required: 'production',
   },
-  // PayPal (optional, for legacy support)
-  {
-    name: 'PAYPAL_CLIENT_ID',
-    required: false,
-  },
-  {
-    name: 'PAYPAL_CLIENT_SECRET',
-    required: false,
-  },
-  {
-    name: 'NEXT_PUBLIC_PAYPAL_CLIENT_ID',
-    required: false,
-  },
-  {
-    name: 'PAYPAL_WEBHOOK_ID',
-    required: false,
-  },
   // App URL
   {
     name: 'NEXT_PUBLIC_APP_URL',
@@ -127,11 +110,7 @@ export function validateEnvVars(): ValidationResult {
 
   // Production-specific validations
   if (isProduction) {
-    // Check PayPal mode
-    const paypalMode = process.env.PAYPAL_MODE;
-    if (paypalMode && paypalMode !== 'live') {
-      warnings.push('PAYPAL_MODE is not set to "live" in production');
-    }
+    // Add any production-specific validations here
   }
 
   // Development-specific warnings

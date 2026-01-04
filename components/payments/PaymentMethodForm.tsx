@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CreditCard, Building, User, Mail } from 'lucide-react';
+import { CreditCard, Building, User } from 'lucide-react';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -26,8 +26,7 @@ const years = Array.from({ length: 10 }, (_, i) => {
 });
 
 export interface PaymentMethodFormValues {
-  type: 'paypal' | 'card' | 'bank';
-  paypalEmail?: string;
+  type: 'card' | 'bank';
   cardholderName?: string;
   cardNumber?: string;
   expiryMonth?: string;
@@ -47,16 +46,6 @@ interface PaymentMethodFormProps {
   isEditing?: boolean;
 }
 
-// PayPal logo SVG component
-function PayPalLogo({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.384a.774.774 0 0 1 .763-.635h6.154c2.044 0 3.488.4 4.293 1.191.755.743 1.052 1.858.882 3.312-.064.545-.183 1.074-.357 1.576-.168.482-.397.93-.683 1.334a5.228 5.228 0 0 1-1.053 1.107c-.43.353-.903.626-1.41.815-.513.191-1.076.334-1.691.426-.607.092-1.226.139-1.848.139H7.877l-.801 7.888z" />
-      <path d="M19.25 8.058c-.064.545-.183 1.074-.357 1.576-.168.482-.397.93-.683 1.334-.287.405-.625.761-1.013 1.064-.388.302-.827.552-1.316.749-.488.197-1.015.346-1.578.447-.563.1-1.162.151-1.797.151H10.43l-.801 7.888h-2.5l3.107-17.213h6.154c2.044 0 3.488.4 4.293 1.191.573.563.91 1.296 1.008 2.191.098.896-.005 1.904-.44 3.622z" />
-    </svg>
-  );
-}
-
 export function PaymentMethodForm({
   initialValues,
   onSubmit,
@@ -64,8 +53,7 @@ export function PaymentMethodForm({
   isEditing = false,
 }: PaymentMethodFormProps) {
   const [values, setValues] = useState<PaymentMethodFormValues>({
-    type: initialValues?.type || 'paypal',
-    paypalEmail: initialValues?.paypalEmail || '',
+    type: initialValues?.type || 'card',
     cardholderName: initialValues?.cardholderName || '',
     cardNumber: initialValues?.cardNumber || '',
     expiryMonth: initialValues?.expiryMonth || '',
@@ -93,7 +81,7 @@ export function PaymentMethodForm({
     });
   };
 
-  const handlePaymentTypeChange = (value: 'paypal' | 'card' | 'bank') => {
+  const handlePaymentTypeChange = (value: 'card' | 'bank') => {
     setValues({
       ...values,
       type: value,
@@ -119,16 +107,9 @@ export function PaymentMethodForm({
         <div className="mb-4">
           <RadioGroup
             value={values.type}
-            onValueChange={(value) => handlePaymentTypeChange(value as 'paypal' | 'card' | 'bank')}
+            onValueChange={(value) => handlePaymentTypeChange(value as 'card' | 'bank')}
             className="flex flex-wrap gap-4"
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="paypal" id="payment-paypal" />
-              <Label htmlFor="payment-paypal" className="flex items-center cursor-pointer">
-                <PayPalLogo className="mr-2 h-4 w-4 text-[#003087]" />
-                PayPal
-              </Label>
-            </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="card" id="payment-card" />
               <Label htmlFor="payment-card" className="flex items-center cursor-pointer">
@@ -145,32 +126,6 @@ export function PaymentMethodForm({
             </div>
           </RadioGroup>
         </div>
-
-        {values.type === 'paypal' && (
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-              <p className="text-sm text-blue-800">
-                Enter your PayPal email address. You&apos;ll be redirected to PayPal to authorize payments when making contributions.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="paypalEmail">PayPal Email Address</Label>
-              <div className="relative mt-1">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  id="paypalEmail"
-                  name="paypalEmail"
-                  type="email"
-                  value={values.paypalEmail}
-                  onChange={handleChange}
-                  className="pl-10"
-                  placeholder="your-email@example.com"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {values.type === 'card' && (
           <div className="space-y-4">

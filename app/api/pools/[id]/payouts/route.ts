@@ -6,15 +6,14 @@ import { TransactionStatus, TransactionType } from '../../../../../types/payment
 import { PoolMemberStatus, PoolMemberRole, PoolMember } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
-import { createPayout } from '../../../../../lib/paypal';
-import { v4 as uuidv4 } from 'uuid';
+import { createTransfer } from '../../../../../lib/stripe';
 import { getCurrentUser } from '../../../../../lib/auth';
 
 const Pool = getPoolModel();
 
 /**
  * POST /api/pools/[id]/payouts - Process a payout for the current round
- * Uses PayPal Payouts API to transfer funds to the recipient
+ * Uses Stripe Connect transfers to send funds to the recipient
  *
  * IMPORTANT: Uses MongoDB transactions to prevent race conditions and double payouts
  */
@@ -153,7 +152,7 @@ export async function POST(
         throw new Error('INSUFFICIENT_BALANCE');
       }
 
-      // Mark the payout as pending BEFORE calling PayPal (optimistic locking)
+      // Mark the payout as pending BEFORE calling Stripe (optimistic locking)
       const recipientIndex = pool.members.findIndex(
         (m: any) => m.position === currentRound
       );
@@ -170,7 +169,7 @@ export async function POST(
         member: payoutRecipient.name,
         status: TransactionStatus.PENDING, // Start as pending
         round: currentRound,
-        paypalPayoutBatchId: null // Will be set after PayPal call
+        stripeTransferId: null // Will be set after Stripe call
       };
 
       pool.transactions.push(payoutTransaction);
@@ -195,8 +194,8 @@ export async function POST(
     });
 
     // If we get here, the transaction succeeded and we have a lock
-    // Now process the PayPal payout outside the transaction
-    // (PayPal calls shouldn't be inside DB transactions)
+    // Now process the Stripe transfer outside the transaction
+    // (Stripe calls shouldn't be inside DB transactions)
 
     if (!result) {
       return NextResponse.json(
@@ -207,63 +206,64 @@ export async function POST(
 
     const { pool, payoutRecipient, payoutAmount, transactionId, currentRound, recipientIndex } = result;
 
-    // Process PayPal payout to recipient
-    const recipientEmail = payoutRecipient.email;
-
-    // Validate PayPal credentials are configured
-    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+    // Verify Stripe credentials are configured
+    if (!process.env.STRIPE_SECRET_KEY) {
       // Update the transaction to failed status
       await Pool.updateOne(
         { id: pool.id, 'transactions.id': transactionId },
         {
           $set: {
             'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.paypalPayoutBatchId': null
+            'transactions.$.stripeTransferId': null
           }
         }
       );
 
       return NextResponse.json(
-        { error: 'PayPal credentials are not configured. Please contact support.' },
+        { error: 'Stripe credentials are not configured. Please contact support.' },
         { status: 500 }
       );
     }
 
-    if (!recipientEmail) {
+    // Check if recipient has a Stripe Connect account
+    const recipientStripeAccountId = payoutRecipient.stripeConnectAccountId;
+
+    if (!recipientStripeAccountId) {
       // Update the transaction to failed status
       await Pool.updateOne(
         { id: pool.id, 'transactions.id': transactionId },
         {
           $set: {
             'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.paypalPayoutBatchId': null
+            'transactions.$.stripeTransferId': null
           }
         }
       );
 
       return NextResponse.json(
-        { error: 'Recipient email is required for payout' },
+        { error: 'Recipient has not set up their Stripe Connect account for payouts. Please ask them to complete their payout setup in Settings.' },
         { status: 400 }
       );
     }
 
-    let paypalPayoutBatchId: string | null = null;
+    let stripeTransferId: string | null = null;
 
-    // Process PayPal payout
-    const payoutResult = await createPayout(
+    // Process Stripe transfer
+    try {
+      const transfer = await createTransfer(
         payoutAmount,
-        'USD',
-        recipientEmail,
-        `Pool payout for ${pool.name} - Round ${currentRound}`,
+        recipientStripeAccountId,
         {
           poolId: pool.id,
           round: String(currentRound),
           recipientId: String(payoutRecipient.id || payoutRecipient.email),
+          description: `Pool payout for ${pool.name} - Round ${currentRound}`,
         }
       );
 
-    if (!payoutResult.success) {
-      console.error('PayPal payout failed:', payoutResult.error);
+      stripeTransferId = transfer.id;
+    } catch (transferError: any) {
+      console.error('Stripe transfer error:', transferError);
 
       // Update the transaction to failed status
       await Pool.updateOne(
@@ -271,26 +271,24 @@ export async function POST(
         {
           $set: {
             'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.paypalPayoutBatchId': null
+            'transactions.$.stripeTransferId': null
           }
         }
       );
 
       return NextResponse.json(
-        { error: `PayPal payout failed: ${payoutResult.error}` },
+        { error: `Stripe transfer failed: ${transferError.message}` },
         { status: 400 }
       );
     }
 
-    paypalPayoutBatchId = payoutResult.payoutBatchId || null;
-
-    // Update the transaction with PayPal details and mark as completed
+    // Update the transaction with Stripe details and mark as completed
     const updateResult = await Pool.findOneAndUpdate(
       { id: pool.id },
       {
         $set: {
           [`transactions.${pool.transactions.length - 1}.status`]: TransactionStatus.COMPLETED,
-          [`transactions.${pool.transactions.length - 1}.paypalPayoutBatchId`]: paypalPayoutBatchId,
+          [`transactions.${pool.transactions.length - 1}.stripeTransferId`]: stripeTransferId,
           [`members.${recipientIndex}.payoutReceived`]: true,
           [`members.${recipientIndex}.status`]: PoolMemberStatus.COMPLETED,
           totalAmount: Math.max(0, (pool.totalAmount || 0) - payoutAmount)
@@ -531,7 +529,8 @@ export async function GET(
             name: payoutRecipient.name,
             email: payoutRecipient.email,
             position: payoutRecipient.position,
-            payoutReceived: payoutRecipient.payoutReceived
+            payoutReceived: payoutRecipient.payoutReceived,
+            hasStripeConnect: !!payoutRecipient.stripeConnectAccountId
           }
         : null,
       payoutAmount,

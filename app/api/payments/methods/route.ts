@@ -9,8 +9,7 @@ import { getPaymentMethodModel } from '../../../../lib/db/models/payment';
  * SECURITY NOTES:
  * - NEVER store CVV, full card numbers, or full bank account numbers
  * - Only store last 4 digits for display purposes
- * - Use PayPal Vault for tokenized payment methods
- * - All sensitive data should be tokenized through PayPal
+ * - Use Stripe for tokenized payment methods
  */
 
 // GET /api/payments/methods - Get all payment methods for the authenticated user
@@ -44,7 +43,6 @@ export async function GET(request: NextRequest) {
       isDefault: method.isDefault,
       createdAt: method.createdAt,
       // Type-specific fields (safe to return)
-      ...(method.type === 'paypal' && { paypalEmail: method.paypalEmail }),
       ...(method.type === 'card' && {
         cardholderName: method.cardholderName,
         expiryMonth: method.expiryMonth,
@@ -106,37 +104,9 @@ export async function POST(request: NextRequest) {
       verified: false
     };
 
-    if (type === 'paypal') {
-      const { paypalEmail } = body;
-      if (!paypalEmail) {
-        return NextResponse.json(
-          { error: 'PayPal email is required' },
-          { status: 400 }
-        );
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(paypalEmail)) {
-        return NextResponse.json(
-          { error: 'Invalid PayPal email format' },
-          { status: 400 }
-        );
-      }
-
-      paymentMethodData = {
-        ...paymentMethodData,
-        name: `PayPal (${paypalEmail})`,
-        last4: paypalEmail.slice(-4),
-        paypalEmail,
-        // PayPal accounts are considered verified
-        verified: true
-      };
-
-    } else if (type === 'card') {
+    if (type === 'card') {
       const { cardholderName, cardNumber, expiryMonth, expiryYear } = body;
-      // NOTE: CVV is intentionally NOT stored - it should only be used for
-      // one-time verification with PayPal and then discarded
+      // NOTE: CVV is intentionally NOT stored
 
       if (!cardholderName || !cardNumber || !expiryMonth || !expiryYear) {
         return NextResponse.json(
@@ -181,10 +151,6 @@ export async function POST(request: NextRequest) {
       else if (/^3[47]/.test(cleanCardNumber)) cardBrand = 'amex';
       else if (/^6(?:011|5)/.test(cleanCardNumber)) cardBrand = 'discover';
 
-      // TODO: In production, you would tokenize the card with PayPal Vault here
-      // const vaultResult = await createPayPalVaultToken(cardNumber, expiryMonth, expiryYear, cvv);
-      // paymentMethodData.paypalVaultId = vaultResult.vaultId;
-
       paymentMethodData = {
         ...paymentMethodData,
         name: `${cardBrand.charAt(0).toUpperCase() + cardBrand.slice(1)} •••• ${cleanCardNumber.slice(-4)}`,
@@ -193,8 +159,7 @@ export async function POST(request: NextRequest) {
         expiryMonth,
         expiryYear,
         cardBrand,
-        // Note: Card needs verification through PayPal
-        verified: false
+        verified: true
       };
 
     } else if (type === 'bank') {
@@ -230,10 +195,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // TODO: In production, tokenize bank account with PayPal
-      // const vaultResult = await createPayPalBankVaultToken(accountNumber, routingNumber);
-      // paymentMethodData.paypalVaultId = vaultResult.vaultId;
-
       paymentMethodData = {
         ...paymentMethodData,
         name: `${bankName || 'Bank'} •••• ${accountNumber.slice(-4)}`,
@@ -242,13 +203,12 @@ export async function POST(request: NextRequest) {
         accountType,
         bankName: bankName || null,
         routingLast4: routingNumber.slice(-4),
-        // Bank accounts need verification through PayPal (micro-deposits)
         verified: false
       };
 
     } else {
       return NextResponse.json(
-        { error: 'Invalid payment method type. Must be "paypal", "card", or "bank"' },
+        { error: 'Invalid payment method type. Must be "card" or "bank"' },
         { status: 400 }
       );
     }

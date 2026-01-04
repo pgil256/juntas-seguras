@@ -64,8 +64,8 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   const [showContributionModal, setShowContributionModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [paypalProcessing, setPaypalProcessing] = useState(false);
-  const [paypalResult, setPaypalResult] = useState<{
+  const [stripeProcessing, setStripeProcessing] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
@@ -98,14 +98,14 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
     userEmail: session?.user?.email || '',
   });
 
-  // Handle PayPal return - complete the payment
+  // Handle Stripe return - complete the payment
   useEffect(() => {
-    const paypalReturn = searchParams.get('paypal_return');
-    const paypalCancelled = searchParams.get('paypal_cancelled');
-    const token = searchParams.get('token'); // PayPal includes the order ID as 'token'
+    const stripeSuccess = searchParams.get('stripe_success');
+    const stripeCancelled = searchParams.get('stripe_cancelled');
+    const sessionId = searchParams.get('session_id');
 
-    if (paypalCancelled) {
-      setPaypalResult({
+    if (stripeCancelled) {
+      setPaymentResult({
         success: false,
         message: 'Payment was cancelled. You can try again when ready.',
       });
@@ -114,14 +114,14 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    if (paypalReturn && token && !paypalProcessing && !paypalResult) {
-      setPaypalProcessing(true);
+    if (stripeSuccess && sessionId && !stripeProcessing && !paymentResult) {
+      setStripeProcessing(true);
 
-      // Complete the contribution with the order ID from PayPal
-      completeContribution(token)
+      // Complete the contribution with the session ID from Stripe
+      completeContribution(sessionId)
         .then((result) => {
           if (result.success) {
-            setPaypalResult({
+            setPaymentResult({
               success: true,
               message: result.message || 'Payment successful! Your contribution has been recorded.',
             });
@@ -129,26 +129,26 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
             refreshPool();
             getContributionStatus();
           } else {
-            setPaypalResult({
+            setPaymentResult({
               success: false,
               message: result.error || 'Failed to complete payment. Please contact support.',
             });
           }
         })
         .catch((error) => {
-          console.error('PayPal completion error:', error);
-          setPaypalResult({
+          console.error('Stripe completion error:', error);
+          setPaymentResult({
             success: false,
             message: 'An error occurred while processing your payment.',
           });
         })
         .finally(() => {
-          setPaypalProcessing(false);
+          setStripeProcessing(false);
           // Clean up URL
           router.replace(`/pools/${id}`, { scroll: false });
         });
     }
-  }, [searchParams, id, completeContribution, refreshPool, getContributionStatus, router, paypalProcessing, paypalResult]);
+  }, [searchParams, id, completeContribution, refreshPool, getContributionStatus, router, stripeProcessing, paymentResult]);
 
   // Load contribution status when session is available
   useEffect(() => {
@@ -329,41 +329,41 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <div>
-        {/* PayPal Processing/Result Banner */}
-        {paypalProcessing && (
+        {/* Stripe Processing/Result Banner */}
+        {stripeProcessing && (
           <Alert className="mb-4 bg-blue-50 border-blue-200">
             <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
             <AlertTitle className="text-blue-800">Processing Payment</AlertTitle>
             <AlertDescription className="text-blue-700">
-              Please wait while we complete your PayPal payment...
+              Please wait while we complete your payment...
             </AlertDescription>
           </Alert>
         )}
 
-        {paypalResult && (
+        {paymentResult && (
           <Alert
             className={`mb-4 ${
-              paypalResult.success
+              paymentResult.success
                 ? 'bg-green-50 border-green-200'
                 : 'bg-red-50 border-red-200'
             }`}
           >
-            {paypalResult.success ? (
+            {paymentResult.success ? (
               <CheckCircle2 className="h-4 w-4 text-green-600" />
             ) : (
               <XCircle className="h-4 w-4 text-red-600" />
             )}
-            <AlertTitle className={paypalResult.success ? 'text-green-800' : 'text-red-800'}>
-              {paypalResult.success ? 'Payment Successful!' : 'Payment Issue'}
+            <AlertTitle className={paymentResult.success ? 'text-green-800' : 'text-red-800'}>
+              {paymentResult.success ? 'Payment Successful!' : 'Payment Issue'}
             </AlertTitle>
-            <AlertDescription className={paypalResult.success ? 'text-green-700' : 'text-red-700'}>
-              {paypalResult.message}
+            <AlertDescription className={paymentResult.success ? 'text-green-700' : 'text-red-700'}>
+              {paymentResult.message}
             </AlertDescription>
             <Button
               variant="ghost"
               size="sm"
               className="absolute top-2 right-2"
-              onClick={() => setPaypalResult(null)}
+              onClick={() => setPaymentResult(null)}
             >
               <XCircle className="h-4 w-4" />
             </Button>
