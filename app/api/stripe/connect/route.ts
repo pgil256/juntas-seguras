@@ -15,10 +15,10 @@ import {
   createLoginLink,
   canReceivePayouts,
 } from '@/lib/stripe';
-import { connectToDatabase } from '@/lib/db/connection';
+import connectToDatabase from '@/lib/db/connect';
 import User from '@/lib/db/models/user';
-import { logActivity } from '@/lib/db/models/activityLog';
-import { Types } from 'mongoose';
+import { getAuditLogModel } from '@/lib/db/models/auditLog';
+import { AuditLogType } from '@/types/audit';
 
 /**
  * GET - Get Connect account status
@@ -118,13 +118,17 @@ export async function POST(request: NextRequest) {
           `${appUrl}/settings/payouts?success=true`
         );
 
-        await logActivity({
-          userId: new Types.ObjectId(session.user.id),
+        const AuditLog = getAuditLogModel();
+        await AuditLog.create({
+          id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          userId: session.user.id,
+          type: AuditLogType.ACCOUNT,
           action: 'stripe_connect_created',
-          category: 'account',
-          details: { accountId: account.id },
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          ip: request.headers.get('x-forwarded-for') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown',
+          metadata: { accountId: account.id },
+          success: true,
         });
 
         return NextResponse.json({

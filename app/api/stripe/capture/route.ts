@@ -9,10 +9,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { capturePaymentIntent, getPaymentIntent } from '@/lib/stripe';
-import { connectToDatabase } from '@/lib/db/connection';
+import connectToDatabase from '@/lib/db/connect';
 import Payment from '@/lib/db/models/payment';
 import Pool from '@/lib/db/models/pool';
-import { logActivity } from '@/lib/db/models/activityLog';
+import { getAuditLogModel } from '@/lib/db/models/auditLog';
+import { AuditLogType } from '@/types/audit';
 import { Types } from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -105,18 +106,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Log activity
-    await logActivity({
-      userId: new Types.ObjectId(session.user.id),
+    const AuditLog = getAuditLogModel();
+    await AuditLog.create({
+      id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      userId: session.user.id,
+      type: AuditLogType.PAYMENT,
       action: 'escrow_released',
-      category: 'payment',
-      details: {
+      ip: request.headers.get('x-forwarded-for') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown',
+      metadata: {
         paymentId: payment.paymentId,
         poolId: payment.poolId?.toString(),
         amount: payment.amount,
         stripePaymentIntentId: payment.stripePaymentIntentId,
       },
-      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
+      success: true,
     });
 
     return NextResponse.json({

@@ -9,11 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createTransfer, canReceivePayouts } from '@/lib/stripe';
-import { connectToDatabase } from '@/lib/db/connection';
+import connectToDatabase from '@/lib/db/connect';
 import Pool from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
 import Payment from '@/lib/db/models/payment';
-import { logActivity } from '@/lib/db/models/activityLog';
+import { getAuditLogModel } from '@/lib/db/models/auditLog';
+import { AuditLogType } from '@/types/audit';
 import { Types } from 'mongoose';
 import mongoose from 'mongoose';
 
@@ -291,11 +292,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Log activity
-      await logActivity({
-        userId: new Types.ObjectId(session.user.id),
+      const AuditLog = getAuditLogModel();
+      await AuditLog.create({
+        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        userId: session.user.id,
+        type: AuditLogType.PAYMENT,
         action: 'payout_processed',
-        category: 'payment',
-        details: {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        metadata: {
           poolId,
           poolName: pool.name,
           round: pool.currentRound,
@@ -304,8 +310,7 @@ export async function POST(request: NextRequest) {
           amount: payoutAmount,
           stripeTransferId: transfer.id,
         },
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
+        success: true,
       });
 
       return NextResponse.json({
