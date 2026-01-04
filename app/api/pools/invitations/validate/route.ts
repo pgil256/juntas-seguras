@@ -4,6 +4,8 @@ import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { InvitationStatus } from '../../../../../types/pool';
 
+export const dynamic = 'force-dynamic';
+
 const Pool = getPoolModel();
 
 /**

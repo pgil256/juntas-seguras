@@ -4,6 +4,8 @@ import { getUserModel } from "../../../../lib/db/models/user";
 import connect from "../../../../lib/db/connect";
 import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/users/settings - Get user settings
 export async function GET(req: NextRequest) {
   try {

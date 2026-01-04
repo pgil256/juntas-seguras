@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
