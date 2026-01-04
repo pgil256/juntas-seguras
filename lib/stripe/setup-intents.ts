@@ -33,8 +33,9 @@ export async function createRecurringSetupIntent({
   userId,
   poolId,
   contributionAmount,
-  returnUrl,
 }: CreateSetupIntentParams): Promise<SetupIntentResult> {
+  // Note: return_url is only valid when confirm=true, but we confirm client-side
+  // so we don't pass it here. The client handles the redirect after confirmation.
   const setupIntent = await stripe.setupIntents.create({
     customer: customerId,
     payment_method_types: ['card'],
@@ -46,9 +47,6 @@ export async function createRecurringSetupIntent({
       type: 'recurring_contribution',
       createdAt: new Date().toISOString(),
     },
-    ...(returnUrl && {
-      return_url: returnUrl,
-    }),
   });
 
   return {

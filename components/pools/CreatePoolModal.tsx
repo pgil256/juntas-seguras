@@ -33,6 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { CreatorRulesAcknowledgmentDialog } from "./CreatorRulesAcknowledgmentDialog";
+import { SavePaymentMethodModal } from "../payments/SavePaymentMethodModal";
 
 interface CreatePoolModalProps {
   isOpen: boolean;
@@ -49,20 +51,27 @@ const CreatePoolModal = ({
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [formErrors, setFormErrors] = useState<string[]>([]);
-  
+  const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [showPaymentSetupModal, setShowPaymentSetupModal] = useState(false);
+  const [createdPoolId, setCreatedPoolId] = useState<string | null>(null);
+  const [createdPoolName, setCreatedPoolName] = useState<string>("");
+
   const { createPool, isLoading, error } = useCreatePool({
     onSuccess: (poolId) => {
+      // Save pool info for payment setup
+      setCreatedPoolId(poolId);
+      setCreatedPoolName(poolData.name);
+
       // Notify parent component
       if (onCreatePool) {
         onCreatePool({ id: poolId, ...poolData });
       }
-      
-      // Close modal and redirect to member management
-      onClose();
-      router.push(`/member-management/${poolId}`);
+
+      // Show payment setup modal instead of redirecting immediately
+      setShowPaymentSetupModal(true);
     }
   });
-  
+
   const [poolData, setPoolData] = useState({
     name: "",
     contributionAmount: "",
@@ -128,17 +137,25 @@ const CreatePoolModal = ({
     return validateStep(3);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Show rules dialog before creating pool
+  const handleShowRulesDialog = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
+    setShowRulesDialog(true);
+  };
+
+  // Actually create the pool after rules are acknowledged
+  const handleCreatePoolAfterRules = async () => {
+    setShowRulesDialog(false);
+
     try {
       // Transform form data to match API expected format
       const totalRounds = parseInt(poolData.totalMembers); // Total rounds equals number of members
-      
+
       // Process invitations if provided
       let invitations = undefined;
       if (poolData.inviteMethod === 'email' && poolData.emails) {
@@ -148,7 +165,7 @@ const CreatePoolModal = ({
           .map(email => email.trim())
           .filter(email => email.length > 0);
       }
-      
+
       const createPoolRequest = {
         name: poolData.name,
         description: poolData.description,
@@ -158,28 +175,61 @@ const CreatePoolModal = ({
         startDate: poolData.startDate,
         invitations
       };
-      
-      // Use the hook to create the pool
-      const poolId = await createPool(createPoolRequest);
-      
-      if (poolId) {
-        // Reset form and close modal on success
-        setStep(1);
-        setPoolData({
-          name: "",
-          contributionAmount: "",
-          frequency: "weekly",
-          totalMembers: "4",
-          duration: "3",
-          startDate: "",
-          description: "",
-          inviteMethod: "email",
-          emails: ""
-        });
-        onClose();
-      }
+
+      // Use the hook to create the pool - onSuccess will handle showing payment setup
+      await createPool(createPoolRequest);
     } catch (err) {
       console.error("Error creating pool:", err);
+    }
+  };
+
+  // Handle payment setup completion
+  const handlePaymentSetupComplete = () => {
+    setShowPaymentSetupModal(false);
+
+    // Reset form
+    setStep(1);
+    setPoolData({
+      name: "",
+      contributionAmount: "",
+      frequency: "weekly",
+      totalMembers: "4",
+      duration: "3",
+      startDate: "",
+      description: "",
+      inviteMethod: "email",
+      emails: ""
+    });
+
+    // Close modal and redirect to member management
+    onClose();
+    if (createdPoolId) {
+      router.push(`/member-management/${createdPoolId}`);
+    }
+  };
+
+  // Handle skipping payment setup
+  const handleSkipPaymentSetup = () => {
+    setShowPaymentSetupModal(false);
+
+    // Reset form
+    setStep(1);
+    setPoolData({
+      name: "",
+      contributionAmount: "",
+      frequency: "weekly",
+      totalMembers: "4",
+      duration: "3",
+      startDate: "",
+      description: "",
+      inviteMethod: "email",
+      emails: ""
+    });
+
+    // Close modal and redirect to member management
+    onClose();
+    if (createdPoolId) {
+      router.push(`/member-management/${createdPoolId}`);
     }
   };
 
@@ -246,7 +296,7 @@ const CreatePoolModal = ({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleShowRulesDialog}>
             {/* Step 1: Basic Pool Information */}
             {step === 1 && (
               <div className="space-y-4">
@@ -289,7 +339,7 @@ const CreatePoolModal = ({
                         <SelectValue placeholder="Select amount" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 20 }, (_, i) => i + 1).map((amount) => (
+                        {[1, 3, 5, 10, 15, 20].map((amount) => (
                           <SelectItem key={amount} value={amount.toString()}>
                             ${amount}
                           </SelectItem>
@@ -529,6 +579,30 @@ const CreatePoolModal = ({
           </form>
         </div>
       </DialogContent>
+
+      {/* Creator Rules Acknowledgment Dialog */}
+      <CreatorRulesAcknowledgmentDialog
+        open={showRulesDialog}
+        onOpenChange={setShowRulesDialog}
+        poolName={poolData.name}
+        contributionAmount={Number(poolData.contributionAmount) || 0}
+        frequency={poolData.frequency}
+        onAccept={handleCreatePoolAfterRules}
+        isProcessing={isLoading}
+      />
+
+      {/* Payment Method Setup Modal for Creator */}
+      {createdPoolId && (
+        <SavePaymentMethodModal
+          isOpen={showPaymentSetupModal}
+          onClose={handleSkipPaymentSetup}
+          poolId={createdPoolId}
+          poolName={createdPoolName}
+          contributionAmount={Number(poolData.contributionAmount) || 0}
+          frequency={poolData.frequency}
+          onSuccess={handlePaymentSetupComplete}
+        />
+      )}
     </Dialog>
   );
 };

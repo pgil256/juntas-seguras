@@ -160,8 +160,9 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   }, [session?.user?.email, id, getContributionStatus]);
 
   // Determine if user can contribute
+  // All members must contribute, including the recipient
   const canContribute = userContributionInfo
-    ? !userContributionInfo.isRecipient && !userContributionInfo.hasContributed
+    ? !userContributionInfo.hasContributed
     : false;
 
   const formatDate = (dateString: string | undefined | null) => {
@@ -418,19 +419,6 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Loading...
                 </Button>
-              ) : canContribute ? (
-                <Button
-                  className="flex items-center min-h-[44px] w-full sm:w-auto justify-center"
-                  onClick={() => setShowContributionModal(true)}
-                >
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Make Payment
-                </Button>
-              ) : userContributionInfo?.isRecipient ? (
-                <Button variant="outline" disabled className="flex items-center min-h-[44px] w-full sm:w-auto justify-center">
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  You're the Recipient
-                </Button>
               ) : userContributionInfo?.hasContributed ? (
                 <Button variant="outline" disabled className="flex items-center text-green-600 min-h-[44px] w-full sm:w-auto justify-center">
                   <DollarSign className="h-4 w-4 mr-2" />
@@ -442,7 +430,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                   onClick={() => setShowContributionModal(true)}
                 >
                   <DollarSign className="h-4 w-4 mr-2" />
-                  Make Payment
+                  {userContributionInfo?.isRecipient ? 'Make Payment (Recipient)' : 'Make Payment'}
                 </Button>
               )}
             </div>
@@ -965,11 +953,14 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                       </h3>
                       <ul className="mt-3 space-y-3 text-sm text-gray-700 list-disc pl-5">
                         <li>
-                          All members must contribute{" "}
+                          <strong>All members</strong> must contribute{" "}
                           <strong>
                             {formatCurrency(pool.contributionAmount)}
                           </strong>{" "}
-                          every {pool.frequency.toLowerCase()}.
+                          every {pool.frequency.toLowerCase()}, <strong>including the round's payout recipient</strong>.
+                        </li>
+                        <li>
+                          Contributions are collected automatically via saved payment methods.
                         </li>
                         <li>Payments are due every Friday by 8:00 PM.</li>
                         <li>

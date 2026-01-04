@@ -313,9 +313,10 @@ export default function MyPoolPage() {
   const currentRecipient = contributionStatus?.recipient;
 
   // Calculate contribution progress
+  // All members must contribute, including the recipient
   const contributionProgress = contributionStatus
     ? {
-        contributed: contributionStatus.contributions.filter(c => c.hasContributed || c.isRecipient).length,
+        contributed: contributionStatus.contributions.filter(c => c.hasContributed).length,
         total: contributionStatus.contributions.length,
       }
     : null;
@@ -403,7 +404,7 @@ export default function MyPoolPage() {
                           This Round's Recipient: <span className="font-bold">{currentRecipient.name}</span>
                         </p>
                         <p className="text-xs text-blue-600">
-                          Will receive {formatCurrency(contributionStatus.contributionAmount * (contributionStatus.contributions.length - 1))}
+                          Will receive {formatCurrency(contributionStatus.contributionAmount * contributionStatus.contributions.length)}
                         </p>
                       </div>
                     </div>
@@ -412,32 +413,36 @@ export default function MyPoolPage() {
                   {/* User's status */}
                   {userContributionStatus && (
                     <div className={`flex items-center p-3 rounded-lg border ${
-                      userContributionStatus.isRecipient
-                        ? 'bg-emerald-50 border-emerald-100'
-                        : userContributionStatus.hasContributed
-                          ? 'bg-green-50 border-green-100'
-                          : 'bg-amber-50 border-amber-100'
+                      userContributionStatus.hasContributed
+                        ? userContributionStatus.isRecipient
+                          ? 'bg-emerald-50 border-emerald-100'
+                          : 'bg-green-50 border-green-100'
+                        : 'bg-amber-50 border-amber-100'
                     }`}>
-                      {userContributionStatus.isRecipient ? (
-                        <>
-                          <Award className="h-5 w-5 text-emerald-600 mr-3" />
-                          <p className="text-sm font-medium text-emerald-800">
-                            You're the recipient this round! No contribution needed.
-                          </p>
-                        </>
-                      ) : userContributionStatus.hasContributed ? (
-                        <>
-                          <Check className="h-5 w-5 text-green-600 mr-3" />
-                          <p className="text-sm font-medium text-green-800">
-                            You've contributed {formatCurrency(contributionStatus.contributionAmount)} this round.
-                          </p>
-                        </>
+                      {userContributionStatus.hasContributed ? (
+                        userContributionStatus.isRecipient ? (
+                          <>
+                            <Award className="h-5 w-5 text-emerald-600 mr-3" />
+                            <p className="text-sm font-medium text-emerald-800">
+                              You're the recipient this round and have contributed! Your payout will include all contributions.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-5 w-5 text-green-600 mr-3" />
+                            <p className="text-sm font-medium text-green-800">
+                              You've contributed {formatCurrency(contributionStatus.contributionAmount)} this round.
+                            </p>
+                          </>
+                        )
                       ) : (
                         <>
                           <Clock className="h-5 w-5 text-amber-600 mr-3" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-amber-800">
-                              You haven't contributed yet this round.
+                              {userContributionStatus.isRecipient
+                                ? "You're the recipient! You still need to contribute to receive your payout."
+                                : "You haven't contributed yet this round."}
                             </p>
                           </div>
                           <Button
@@ -685,9 +690,7 @@ export default function MyPoolPage() {
                               {contributionLoading ? (
                                 <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
                               ) : memberContribution ? (
-                                memberContribution.isRecipient ? (
-                                  <span className="text-gray-400 text-sm">N/A</span>
-                                ) : memberContribution.hasContributed ? (
+                                memberContribution.hasContributed ? (
                                   <span className="inline-flex items-center text-green-600">
                                     <Check className="h-4 w-4 mr-1" />
                                     Yes
