@@ -37,8 +37,8 @@ export function UserProfileButton() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 sm:h-8 sm:w-8 rounded-full p-0 hover:ring-2 hover:ring-blue-100 transition-all">
-          <Avatar className="h-9 w-9 sm:h-8 sm:w-8">
+        <Button variant="ghost" className="relative h-10 w-10 sm:h-8 sm:w-8 rounded-full p-0 hover:ring-2 hover:ring-blue-100 transition-all">
+          <Avatar className="h-10 w-10 sm:h-8 sm:w-8">
             <AvatarImage src={user?.image || undefined} alt={user?.name || 'User'} />
             <AvatarFallback className="text-sm">{initials}</AvatarFallback>
           </Avatar>
