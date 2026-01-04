@@ -15,6 +15,11 @@ const Pool = getPoolModel();
  * POST /api/pools/[id]/payouts - Process a payout for the current round
  * Uses Stripe Connect transfers to send funds to the recipient
  *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * The recipient's contribution goes into the pool they receive from.
+ * Payout amount = contribution_amount × total_members (not members - 1)
+ *
  * IMPORTANT: Uses MongoDB transactions to prevent race conditions and double payouts
  */
 export async function POST(
@@ -101,12 +106,12 @@ export async function POST(
         throw new Error('ALREADY_PAID');
       }
 
-      // Check if all members have contributed (except the recipient)
+      // UNIVERSAL CONTRIBUTION MODEL: Check if ALL members have contributed (including recipient)
+      // All members must contribute every round - the recipient's contribution goes into their payout
       const membersMissingContributions: string[] = [];
 
       for (const member of pool.members) {
-        if (member.position === currentRound) continue; // Skip recipient
-
+        // No exclusion - all members including recipient must contribute
         const hasContributed = pool.transactions.some(
           (t: any) =>
             t.member === member.name &&
@@ -137,8 +142,9 @@ export async function POST(
         0
       );
 
+      // UNIVERSAL CONTRIBUTION MODEL: All members contribute, so payout = contribution × memberCount
       // Expected payout (for verification)
-      const expectedPayoutAmount = pool.contributionAmount * (pool.members.length - 1);
+      const expectedPayoutAmount = pool.contributionAmount * pool.members.length;
 
       // Use the lesser of actual vs expected to prevent overpaying
       const payoutAmount = Math.min(actualContributionTotal, expectedPayoutAmount);
@@ -445,6 +451,10 @@ export async function POST(
 
 /**
  * GET /api/pools/[id]/payouts - Get payout status for the current round
+ *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * Payout amount = contribution_amount × total_members (not members - 1)
  */
 export async function GET(
   request: NextRequest,
@@ -485,10 +495,10 @@ export async function GET(
       (m: any) => m.position === currentRound
     );
 
-    // Calculate payout amount
-    const payoutAmount = pool.contributionAmount * (pool.members.length - 1);
+    // UNIVERSAL CONTRIBUTION MODEL: All members contribute, so payout = contribution × memberCount
+    const payoutAmount = pool.contributionAmount * pool.members.length;
 
-    // Check contributions status
+    // Check contributions status - all members must contribute including recipient
     const memberContributions = pool.members.map((member: any) => {
       const isRecipient = member.position === currentRound;
 
@@ -503,13 +513,15 @@ export async function GET(
         name: member.name,
         position: member.position,
         isRecipient,
-        contributed: isRecipient ? null : !!contribution,
+        // All members have contribution status tracked, including recipient
+        contributed: !!contribution,
         contributionDate: contribution?.date || null
       };
     });
 
+    // All members must contribute (including recipient under universal model)
     const allContributionsReceived = memberContributions.every(
-      (c: any) => c.isRecipient || c.contributed
+      (c: any) => c.contributed
     );
 
     // Check if payout already processed

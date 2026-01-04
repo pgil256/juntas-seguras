@@ -3,6 +3,12 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/collections/process",
+      "schedule": "0 */2 * * *"
+    }
+  ],
   "env": {
     "NODE_ENV": "production",
     "SKIP_TYPE_CHECK": "1",

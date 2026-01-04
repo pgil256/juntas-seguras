@@ -15,6 +15,8 @@ import connectToDatabase from '@/lib/db/connect';
 import { Payment } from '@/lib/db/models/payment';
 import { Pool } from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
+import { getPaymentSetupModel, PaymentSetupStatus } from '@/lib/db/models/paymentSetup';
+import { getScheduledCollectionModel, CollectionStatus } from '@/lib/db/models/scheduledCollection';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
 import { TransactionStatus, TransactionType } from '@/types/payment';
@@ -97,11 +99,30 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'transfer.reversed':
-        await handleTransferFailed(event.data.object as Stripe.Transfer);
+        await handleTransferReversed(event.data.object as Stripe.Transfer);
+        break;
+
+      case 'transfer.updated':
+        // Handle transfer status updates (can indicate failure)
+        await handleTransferUpdated(event.data.object as Stripe.Transfer);
         break;
 
       case 'account.updated':
         await handleAccountUpdated(event.data.object as Stripe.Account);
+        break;
+
+      // Setup Intent events for auto-collection
+      case 'setup_intent.succeeded':
+        await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent);
+        break;
+
+      case 'setup_intent.setup_failed':
+        await handleSetupIntentFailed(event.data.object as Stripe.SetupIntent);
+        break;
+
+      // Payment method events
+      case 'payment_method.detached':
+        await handlePaymentMethodDetached(event.data.object as Stripe.PaymentMethod);
         break;
 
       default:
@@ -123,6 +144,12 @@ export async function POST(request: NextRequest) {
  */
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const { metadata } = paymentIntent;
+
+  // Handle automatic contribution payments
+  if (metadata?.type === 'automatic_contribution') {
+    await handleAutomaticContributionSuccess(paymentIntent);
+    return;
+  }
 
   // Find and update payment record
   const payment = await Payment.findOne({
@@ -170,6 +197,14 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
  * Handle failed payment
  */
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
+  const { metadata } = paymentIntent;
+
+  // Handle automatic contribution failures
+  if (metadata?.type === 'automatic_contribution') {
+    await handleAutomaticContributionFailure(paymentIntent);
+    return;
+  }
+
   const payment = await Payment.findOne({
     stripePaymentIntentId: paymentIntent.id,
   });
@@ -181,7 +216,6 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   payment.failureCount = (payment.failureCount || 0) + 1;
   await payment.save();
 
-  const { metadata } = paymentIntent;
   if (metadata?.userId) {
     await logAudit(
       metadata.userId,
@@ -261,43 +295,82 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 
 /**
  * Handle transfer created (payout to connected account)
+ * This handles both regular payouts and early payouts
  */
 async function handleTransferCreated(transfer: Stripe.Transfer) {
   const { metadata } = transfer;
 
-  if (!metadata?.paymentId) return;
-
-  const payment = await Payment.findOne({ paymentId: metadata.paymentId });
-  if (!payment) return;
-
-  payment.status = TransactionStatus.COMPLETED;
-  payment.stripeTransferId = transfer.id;
-  payment.processedAt = new Date();
-  await payment.save();
-
-  // Update pool if applicable
-  if (metadata.poolId) {
-    const pool = await Pool.findById(metadata.poolId);
-    if (pool) {
-      const recipientMember = pool.members.find(
-        (m: { oderId: Types.ObjectId }) => m.oderId?.toString() === metadata.recipientId
-      );
-      if (recipientMember) {
-        recipientMember.payoutReceived = true;
-        recipientMember.status = 'COMPLETED';
-      }
-      pool.totalAmount -= transfer.amount / 100;
-      await pool.save();
+  // Handle payment-based transfers (using Payment model)
+  if (metadata?.paymentId) {
+    const payment = await Payment.findOne({ paymentId: metadata.paymentId });
+    if (payment) {
+      payment.status = TransactionStatus.COMPLETED;
+      payment.stripeTransferId = transfer.id;
+      payment.processedAt = new Date();
+      await payment.save();
     }
   }
 
-  if (metadata.userId) {
+  // Handle pool-based transfers (using Pool model transactions)
+  // This includes both regular and early payouts
+  if (metadata?.poolId && metadata?.cycleNumber) {
+    const pool = await Pool.findOne({ id: metadata.poolId });
+    if (pool) {
+      const cycleNumber = parseInt(metadata.cycleNumber, 10);
+
+      // Find and update the payout transaction
+      const transactionIndex = pool.transactions.findIndex(
+        (t: any) =>
+          t.type === TransactionType.PAYOUT &&
+          t.round === cycleNumber &&
+          t.stripeTransferId === transfer.id
+      );
+
+      if (transactionIndex !== -1) {
+        pool.transactions[transactionIndex].status = TransactionStatus.COMPLETED;
+      }
+
+      // Update recipient status
+      const recipientMember = pool.members.find(
+        (m: any) => m.position === cycleNumber
+      );
+      if (recipientMember) {
+        recipientMember.payoutReceived = true;
+        recipientMember.status = 'completed';
+      }
+
+      await pool.save();
+
+      // Log based on whether this was an early payout
+      const wasEarlyPayout = metadata.wasEarlyPayout === 'true';
+      const action = wasEarlyPayout ? 'early_payout_transfer_completed' : 'payout_transfer_completed';
+      const auditType = wasEarlyPayout ? AuditLogType.PAYMENT_EARLY_PAYOUT : AuditLogType.PAYMENT_PAYOUT;
+
+      if (metadata.initiatedBy || metadata.recipientUserId) {
+        await logAudit(
+          metadata.initiatedBy || metadata.recipientUserId,
+          action,
+          auditType,
+          {
+            poolId: metadata.poolId,
+            cycleNumber,
+            amount: transfer.amount / 100,
+            stripeTransferId: transfer.id,
+            wasEarlyPayout,
+          }
+        );
+      }
+    }
+  }
+
+  // Legacy handling for Payment model
+  if (metadata?.userId && !metadata?.cycleNumber) {
     await logAudit(
       metadata.userId,
       'payout_completed',
       AuditLogType.PAYMENT,
       {
-        paymentId: payment.paymentId,
+        paymentId: metadata.paymentId,
         poolId: metadata.poolId,
         amount: transfer.amount / 100,
         stripeTransferId: transfer.id,
@@ -307,30 +380,168 @@ async function handleTransferCreated(transfer: Stripe.Transfer) {
 }
 
 /**
- * Handle failed transfer
+ * Handle transfer updated
+ * This can handle status changes for both regular payouts and early payouts
+ * Note: Stripe doesn't have a specific transfer.failed event, but transfers can fail
+ * and this will be reflected in the transfer.updated event or transfer.reversed event
  */
-async function handleTransferFailed(transfer: Stripe.Transfer) {
+async function handleTransferUpdated(transfer: Stripe.Transfer) {
   const { metadata } = transfer;
 
-  if (!metadata?.paymentId) return;
+  // Only handle if transfer is in a failed/cancelled state
+  // Transfers are typically successful immediately or reversed later
+  // This handler mainly catches edge cases
+  if (!transfer.reversed) {
+    return; // Transfer is still valid, nothing to do
+  }
 
-  const payment = await Payment.findOne({ paymentId: metadata.paymentId });
-  if (!payment) return;
+  // Handle payment-based transfers
+  if (metadata?.paymentId) {
+    const payment = await Payment.findOne({ paymentId: metadata.paymentId });
+    if (payment && payment.status !== TransactionStatus.FAILED) {
+      payment.status = TransactionStatus.FAILED;
+      payment.failureReason = 'Transfer was reversed or failed';
+      await payment.save();
+    }
+  }
 
-  payment.status = TransactionStatus.FAILED;
-  payment.failureReason = 'Transfer to recipient failed';
-  await payment.save();
+  // Handle pool-based transfers (including early payouts)
+  if (metadata?.poolId && metadata?.cycleNumber) {
+    const pool = await Pool.findOne({ id: metadata.poolId });
+    if (pool) {
+      const cycleNumber = parseInt(metadata.cycleNumber, 10);
 
-  if (metadata.userId) {
-    await logAudit(
-      metadata.userId,
-      'payout_failed',
-      AuditLogType.PAYMENT,
-      {
-        paymentId: payment.paymentId,
-        stripeTransferId: transfer.id,
+      // Find and update the payout transaction
+      const transactionIndex = pool.transactions.findIndex(
+        (t: any) =>
+          t.type === TransactionType.PAYOUT &&
+          t.round === cycleNumber &&
+          t.stripeTransferId === transfer.id
+      );
+
+      if (transactionIndex !== -1 && pool.transactions[transactionIndex].status !== TransactionStatus.FAILED) {
+        pool.transactions[transactionIndex].status = TransactionStatus.FAILED;
+        await pool.save();
+
+        // Log the failure
+        const wasEarlyPayout = metadata.wasEarlyPayout === 'true';
+        const action = wasEarlyPayout ? 'early_payout_transfer_failed' : 'payout_transfer_failed';
+
+        if (metadata.initiatedBy || metadata.recipientUserId) {
+          await logAudit(
+            metadata.initiatedBy || metadata.recipientUserId,
+            action,
+            AuditLogType.PAYMENT,
+            {
+              poolId: metadata.poolId,
+              cycleNumber,
+              stripeTransferId: transfer.id,
+              wasEarlyPayout,
+              reason: 'Transfer was reversed or failed',
+            }
+          );
+        }
       }
-    );
+    }
+  }
+}
+
+/**
+ * Handle reversed transfer (rare but possible)
+ * This handles transfer reversals for both regular and early payouts
+ */
+async function handleTransferReversed(transfer: Stripe.Transfer) {
+  const { metadata } = transfer;
+
+  // Handle pool-based transfers (including early payouts)
+  if (metadata?.poolId && metadata?.cycleNumber) {
+    const pool = await Pool.findOne({ id: metadata.poolId });
+    if (pool) {
+      const cycleNumber = parseInt(metadata.cycleNumber, 10);
+
+      // Find the payout transaction
+      const transactionIndex = pool.transactions.findIndex(
+        (t: any) =>
+          t.type === TransactionType.PAYOUT &&
+          t.round === cycleNumber &&
+          t.stripeTransferId === transfer.id
+      );
+
+      if (transactionIndex !== -1) {
+        pool.transactions[transactionIndex].status = TransactionStatus.FAILED;
+      }
+
+      // Revert recipient status
+      const recipientMember = pool.members.find(
+        (m: any) => m.position === cycleNumber
+      );
+      if (recipientMember) {
+        recipientMember.payoutReceived = false;
+        recipientMember.status = 'current';
+      }
+
+      // Restore pool balance
+      pool.totalAmount = (pool.totalAmount || 0) + (transfer.amount / 100);
+
+      await pool.save();
+
+      // Add system message
+      const messageId = Math.max(...pool.messages.map((m: any) => m.id || 0), 0) + 1;
+      await Pool.updateOne(
+        { id: metadata.poolId },
+        {
+          $push: {
+            messages: {
+              id: messageId,
+              author: 'System',
+              content: `Payout for Round ${cycleNumber} was reversed. Please contact support for assistance.`,
+              date: new Date().toISOString(),
+            },
+          },
+        }
+      );
+
+      // Log the reversal
+      const wasEarlyPayout = metadata.wasEarlyPayout === 'true';
+
+      if (metadata.initiatedBy || metadata.recipientUserId) {
+        await logAudit(
+          metadata.initiatedBy || metadata.recipientUserId,
+          'payout_transfer_reversed',
+          AuditLogType.PAYMENT,
+          {
+            poolId: metadata.poolId,
+            cycleNumber,
+            amount: transfer.amount / 100,
+            stripeTransferId: transfer.id,
+            wasEarlyPayout,
+            reason: 'Transfer was reversed',
+          }
+        );
+      }
+    }
+  }
+
+  // Handle payment-based transfers
+  if (metadata?.paymentId) {
+    const payment = await Payment.findOne({ paymentId: metadata.paymentId });
+    if (payment) {
+      payment.status = TransactionStatus.FAILED;
+      payment.failureReason = 'Transfer was reversed';
+      await payment.save();
+
+      if (metadata.userId) {
+        await logAudit(
+          metadata.userId,
+          'payout_reversed',
+          AuditLogType.PAYMENT,
+          {
+            paymentId: payment.paymentId,
+            stripeTransferId: transfer.id,
+          }
+        );
+      }
+    }
   }
 }
 
@@ -391,6 +602,218 @@ async function updatePoolContribution(payment: { poolId: string; userId: Types.O
   pool.totalAmount = (pool.totalAmount || 0) + payment.amount;
 
   await pool.save();
+}
+
+/**
+ * Handle successful Setup Intent (payment method saved for recurring)
+ */
+async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
+  const { metadata } = setupIntent;
+
+  if (!metadata?.userId || !metadata?.poolId) {
+    console.log('Setup Intent without required metadata:', setupIntent.id);
+    return;
+  }
+
+  const PaymentSetup = getPaymentSetupModel();
+
+  // Check if PaymentSetup already exists (created via confirm-setup endpoint)
+  const existing = await PaymentSetup.findOne({
+    userId: metadata.userId,
+    poolId: metadata.poolId,
+    setupIntentId: setupIntent.id,
+  });
+
+  if (existing) {
+    // Already processed
+    return;
+  }
+
+  // If not created via API, log it for tracking
+  await logAudit(
+    metadata.userId,
+    'setup_intent_succeeded_webhook',
+    AuditLogType.PAYMENT,
+    {
+      setupIntentId: setupIntent.id,
+      poolId: metadata.poolId,
+      paymentMethodId: setupIntent.payment_method,
+    }
+  );
+}
+
+/**
+ * Handle failed Setup Intent
+ */
+async function handleSetupIntentFailed(setupIntent: Stripe.SetupIntent) {
+  const { metadata } = setupIntent;
+
+  if (!metadata?.userId) {
+    return;
+  }
+
+  await logAudit(
+    metadata.userId,
+    'setup_intent_failed',
+    AuditLogType.PAYMENT,
+    {
+      setupIntentId: setupIntent.id,
+      poolId: metadata?.poolId,
+      error: setupIntent.last_setup_error?.message,
+    }
+  );
+}
+
+/**
+ * Handle detached payment method
+ * When a payment method is detached from a customer, mark any associated PaymentSetups as inactive
+ */
+async function handlePaymentMethodDetached(paymentMethod: Stripe.PaymentMethod) {
+  const PaymentSetup = getPaymentSetupModel();
+
+  // Find all PaymentSetups using this payment method
+  const affectedSetups = await PaymentSetup.find({
+    stripePaymentMethodId: paymentMethod.id,
+    status: PaymentSetupStatus.ACTIVE,
+  });
+
+  if (affectedSetups.length === 0) {
+    return;
+  }
+
+  // Mark them as requiring update
+  for (const setup of affectedSetups) {
+    setup.status = PaymentSetupStatus.REQUIRES_UPDATE;
+    setup.updateRequestedAt = new Date();
+    await setup.save();
+
+    await logAudit(
+      setup.userId.toString(),
+      'payment_method_detached',
+      AuditLogType.PAYMENT,
+      {
+        poolId: setup.poolId,
+        paymentMethodId: paymentMethod.id,
+      }
+    );
+  }
+}
+
+/**
+ * Handle automatic contribution payment success
+ * Updates the ScheduledCollection record when an off-session payment succeeds
+ */
+async function handleAutomaticContributionSuccess(paymentIntent: Stripe.PaymentIntent) {
+  const { metadata } = paymentIntent;
+
+  if (metadata?.type !== 'automatic_contribution' || !metadata?.collectionId) {
+    return;
+  }
+
+  const ScheduledCollection = getScheduledCollectionModel();
+  const PaymentSetup = getPaymentSetupModel();
+
+  const collection = await ScheduledCollection.findOne({
+    collectionId: metadata.collectionId,
+  });
+
+  if (!collection) {
+    console.log('Collection not found for automatic payment:', metadata.collectionId);
+    return;
+  }
+
+  // Update collection status
+  collection.status = CollectionStatus.COMPLETED;
+  collection.completedAt = new Date();
+  collection.stripePaymentIntentId = paymentIntent.id;
+  await collection.save();
+
+  // Update PaymentSetup stats
+  const paymentSetup = await PaymentSetup.findOne({
+    userId: collection.userId,
+    poolId: collection.poolId,
+    status: PaymentSetupStatus.ACTIVE,
+  });
+
+  if (paymentSetup) {
+    paymentSetup.lastUsedAt = new Date();
+    paymentSetup.lastSuccessAt = new Date();
+    paymentSetup.consecutiveFailures = 0;
+    paymentSetup.totalSuccessfulCharges++;
+    await paymentSetup.save();
+  }
+
+  await logAudit(
+    collection.userId.toString(),
+    'automatic_collection_completed',
+    AuditLogType.PAYMENT,
+    {
+      collectionId: metadata.collectionId,
+      poolId: metadata.poolId,
+      round: metadata.round,
+      amount: paymentIntent.amount / 100,
+      paymentIntentId: paymentIntent.id,
+    }
+  );
+}
+
+/**
+ * Handle automatic contribution payment failure
+ */
+async function handleAutomaticContributionFailure(paymentIntent: Stripe.PaymentIntent) {
+  const { metadata } = paymentIntent;
+
+  if (metadata?.type !== 'automatic_contribution' || !metadata?.collectionId) {
+    return;
+  }
+
+  const ScheduledCollection = getScheduledCollectionModel();
+  const PaymentSetup = getPaymentSetupModel();
+
+  const collection = await ScheduledCollection.findOne({
+    collectionId: metadata.collectionId,
+  });
+
+  if (!collection) {
+    return;
+  }
+
+  const errorCode = paymentIntent.last_payment_error?.code || 'unknown';
+  const declineCode = paymentIntent.last_payment_error?.decline_code;
+
+  // Update collection
+  collection.lastErrorCode = errorCode;
+  collection.lastDeclineCode = declineCode || undefined;
+  collection.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
+  await collection.save();
+
+  // Update PaymentSetup stats
+  const paymentSetup = await PaymentSetup.findOne({
+    userId: collection.userId,
+    poolId: collection.poolId,
+  });
+
+  if (paymentSetup) {
+    paymentSetup.lastUsedAt = new Date();
+    paymentSetup.lastFailedAt = new Date();
+    paymentSetup.consecutiveFailures++;
+    paymentSetup.totalFailedCharges++;
+    await paymentSetup.save();
+  }
+
+  await logAudit(
+    collection.userId.toString(),
+    'automatic_collection_failed',
+    AuditLogType.PAYMENT,
+    {
+      collectionId: metadata.collectionId,
+      poolId: metadata.poolId,
+      round: metadata.round,
+      errorCode,
+      declineCode,
+      paymentIntentId: paymentIntent.id,
+    }
+  );
 }
 
 // Allow GET for webhook verification

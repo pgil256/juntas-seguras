@@ -68,46 +68,34 @@ export default function Navbar() {
                 ))}
             </div>
           </div>
-          <div className="flex items-center space-x-1 sm:space-x-4">
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
-              aria-controls="mobile-menu"
-              aria-expanded="false"
-              onClick={toggleMobileMenu}
-            >
-              <span className="sr-only">{mobileMenuOpen ? 'Close menu' : 'Open menu'}</span>
-              {mobileMenuOpen ? (
-                <X className="block h-5 w-5" aria-hidden="true" />
-              ) : (
-                <Menu className="block h-5 w-5" aria-hidden="true" />
-              )}
-            </button>
-            
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Only show search and notifications for authenticated users */}
             {isAuthenticated && (
               <>
                 {searchExpanded ? (
-                  <div className="absolute left-0 right-0 top-0 bg-white p-2 sm:relative sm:p-0 sm:bg-transparent">
-                    <div className="relative w-full sm:w-64 lg:w-80">
+                  <div className="fixed inset-0 bg-white z-50 p-4 flex flex-col sm:relative sm:inset-auto sm:p-0 sm:bg-transparent sm:z-auto sm:block">
+                    <div className="flex items-center gap-2 sm:hidden mb-4">
+                      <button
+                        onClick={() => setSearchExpanded(false)}
+                        className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                        aria-label="Close search"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                      <span className="text-lg font-medium text-gray-900">Search</span>
+                    </div>
+                    <div className="relative w-full max-w-md mx-auto sm:w-64 lg:w-80 sm:max-w-none sm:mx-0">
                       <SearchInput
                         autoFocus
                         onSearch={() => setSearchExpanded(false)}
                         className="w-full"
                       />
-                      <button
-                        onClick={() => setSearchExpanded(false)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-500 sm:hidden"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
                     </div>
                   </div>
                 ) : (
                   <button
                     onClick={toggleSearch}
-                    className="p-2 text-gray-400 hover:text-gray-500 transition-colors duration-200"
+                    className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Search"
                   >
                     <Search className="h-5 w-5" />
@@ -116,7 +104,7 @@ export default function Navbar() {
                 <NotificationBell />
               </>
             )}
-            
+
             {/* Show auth buttons or user profile */}
             {isAuthenticated ? (
               <UserProfileButton />
@@ -130,18 +118,46 @@ export default function Navbar() {
                 </Link>
               </div>
             )}
+
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
+              aria-controls="mobile-menu"
+              aria-expanded={mobileMenuOpen}
+              onClick={toggleMobileMenu}
+            >
+              <span className="sr-only">{mobileMenuOpen ? 'Close menu' : 'Open menu'}</span>
+              {mobileMenuOpen ? (
+                <X className="block h-6 w-6" aria-hidden="true" />
+              ) : (
+                <Menu className="block h-6 w-6" aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Mobile menu, show/hide based on menu state */}
-      <div 
+      <div
         className={`sm:hidden transition-all duration-200 ease-in-out ${
           mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
         } overflow-hidden`}
         id="mobile-menu"
       >
-        <div className="py-2 space-y-1 shadow-lg bg-white border-t border-gray-100">
+        <div className="py-2 space-y-0.5 shadow-lg bg-white border-t border-gray-100">
+          {/* Show auth buttons prominently at top for non-authenticated users */}
+          {!isAuthenticated && (
+            <div className="flex gap-3 px-4 py-3 mb-1 border-b border-gray-100">
+              <Link href="/auth/signin" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="outline" className="w-full h-12 text-base font-medium">Log in</Button>
+              </Link>
+              <Link href="/auth/signup" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
+                <Button className="w-full h-12 text-base font-medium">Sign up</Button>
+              </Link>
+            </div>
+          )}
+
           {navItems
             .filter(item => !item.requiresAuth || isAuthenticated)
             .map((item) => (
@@ -150,26 +166,14 @@ export default function Navbar() {
                 href={item.href}
                 className={`${
                   pathname === item.href
-                    ? "bg-blue-50 border-blue-500 text-blue-700"
+                    ? "bg-blue-50 border-blue-500 text-blue-700 font-semibold"
                     : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                } block pl-3 pr-4 py-2.5 border-l-4 text-base font-medium transition-colors duration-200`}
+                } block pl-4 pr-4 py-3.5 border-l-4 text-base font-medium transition-colors duration-200 active:bg-gray-100`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.label}
               </Link>
             ))}
-
-          {/* Only show auth buttons on mobile if not authenticated */}
-          {!isAuthenticated && (
-            <div className="flex flex-col px-3 pt-3 pb-2 space-y-2 border-t border-gray-200">
-              <Link href="/auth/signin" className="w-full">
-                <Button variant="outline" className="w-full py-2">Log in</Button>
-              </Link>
-              <Link href="/auth/signup" className="w-full">
-                <Button className="w-full py-2">Sign up</Button>
-              </Link>
-            </div>
-          )}
         </div>
       </div>
     </nav>

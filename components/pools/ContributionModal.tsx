@@ -106,9 +106,11 @@ export function ContributionModal({
   };
 
   // Determine user state
+  // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
   const isRecipient = userContributionInfo?.isRecipient ?? false;
   const hasContributed = userContributionInfo?.hasContributed ?? false;
-  const canContribute = !isRecipient && !hasContributed;
+  // Recipients can and must contribute - they just also receive the payout
+  const canContribute = !hasContributed;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -179,15 +181,20 @@ export function ContributionModal({
               )}
 
               {/* User is recipient */}
-              {isRecipient && (
-                <Alert className="bg-amber-50 border-amber-200">
-                  <Info className="h-4 w-4 text-amber-600" />
-                  <AlertTitle className="text-amber-800">
+              {/* UNIVERSAL CONTRIBUTION MODEL: Recipients also contribute */}
+              {isRecipient && !hasContributed && (
+                <Alert className="bg-emerald-50 border-emerald-200">
+                  <Award className="h-4 w-4 text-emerald-600" />
+                  <AlertTitle className="text-emerald-800">
                     You're the Recipient!
                   </AlertTitle>
-                  <AlertDescription className="text-amber-700">
-                    You don't need to contribute this round. You will receive the
-                    payout once all other members have contributed.
+                  <AlertDescription className="text-emerald-700">
+                    You will receive the payout this round! Your contribution of{' '}
+                    {contributionStatus && formatCurrency(contributionStatus.contributionAmount)} goes
+                    into the pool you receive. Total payout:{' '}
+                    {contributionStatus && formatCurrency(
+                      contributionStatus.contributionAmount * contributionStatus.contributions.length
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
@@ -223,6 +230,7 @@ export function ContributionModal({
               )}
 
               {/* Contribution progress */}
+              {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
               {canContribute && (
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-sm text-gray-600 mb-2">
@@ -235,7 +243,7 @@ export function ContributionModal({
                         style={{
                           width: `${
                             (contributionStatus.contributions.filter(
-                              (c) => c.hasContributed || c.isRecipient
+                              (c) => c.hasContributed
                             ).length /
                               contributionStatus.contributions.length) *
                             100
@@ -246,7 +254,7 @@ export function ContributionModal({
                     <span className="text-sm font-medium text-gray-700">
                       {
                         contributionStatus.contributions.filter(
-                          (c) => c.hasContributed || c.isRecipient
+                          (c) => c.hasContributed
                         ).length
                       }
                       /{contributionStatus.contributions.length}

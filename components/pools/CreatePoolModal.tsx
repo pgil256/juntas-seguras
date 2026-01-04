@@ -108,8 +108,9 @@ const CreatePoolModal = ({
         errors.push('Pool name is required');
       }
       
-      if (!poolData.contributionAmount || isNaN(Number(poolData.contributionAmount)) || Number(poolData.contributionAmount) <= 0) {
-        errors.push('Valid contribution amount is required');
+      const amount = Number(poolData.contributionAmount);
+      if (!poolData.contributionAmount || isNaN(amount) || !Number.isInteger(amount) || amount < 1 || amount > 20) {
+        errors.push('Contribution amount must be between $1 and $20');
       }
     }
     
@@ -278,18 +279,23 @@ const CreatePoolModal = ({
                   </Label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input
-                      id="contributionAmount"
-                      name="contributionAmount"
+                    <Select
                       value={poolData.contributionAmount}
-                      onChange={handleInputChange}
-                      className="pl-10"
-                      type="number"
-                      min="1"
-                      step="1"
-                      placeholder="0.00"
-                      required
-                    />
+                      onValueChange={(value) =>
+                        handleSelectChange("contributionAmount", value)
+                      }
+                    >
+                      <SelectTrigger className="pl-10">
+                        <SelectValue placeholder="Select amount" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 20 }, (_, i) => i + 1).map((amount) => (
+                          <SelectItem key={amount} value={amount.toString()}>
+                            ${amount}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

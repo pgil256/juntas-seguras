@@ -38,6 +38,8 @@ import { InviteMembersDialog } from "../../../components/pools/InviteMembersDial
 import { ContributionModal } from "../../../components/pools/ContributionModal";
 import { ContributionStatusCard } from "../../../components/pools/ContributionStatusCard";
 import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
+import { AutoCollectionStatus } from "../../../components/pools/AutoCollectionStatus";
+import { AdminCollectionsDashboard } from "../../../components/pools/AdminCollectionsDashboard";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
 import {
   AlertDialog,
@@ -563,6 +565,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="contributions">Contributions</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
+              <TabsTrigger value="auto-pay">Auto-Pay</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="discussion">Discussion</TabsTrigger>
@@ -587,6 +590,33 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                 poolName={pool.name}
                 onPayoutSuccess={handlePayoutSuccess}
               />
+            </TabsContent>
+
+            {/* Auto-Pay Tab */}
+            <TabsContent value="auto-pay">
+              <div className="space-y-6">
+                {/* Member view: their auto-collection status */}
+                <AutoCollectionStatus
+                  poolId={id}
+                  poolName={pool.name}
+                  contributionAmount={pool.contributionAmount}
+                  frequency={pool.frequency}
+                  nextPayoutDate={pool.nextPayoutDate}
+                  currentRound={pool.currentRound}
+                  userId={session?.user?.id || ''}
+                />
+
+                {/* Admin view: collections management dashboard */}
+                {isAdmin && (
+                  <AdminCollectionsDashboard
+                    poolId={id}
+                    poolName={pool.name}
+                    currentRound={pool.currentRound}
+                    contributionAmount={pool.contributionAmount}
+                    memberCount={pool.memberCount}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             {/* Members Tab */}

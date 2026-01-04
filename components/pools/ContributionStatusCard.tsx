@@ -57,21 +57,25 @@ export function ContributionStatusCard({
   };
 
   // Calculate contribution progress percentage
+  // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including recipient
   const getContributionProgress = () => {
     if (!contributionStatus) return 0;
 
     const totalMembers = contributionStatus.contributions.length;
+    // All members must contribute - no special handling for recipient
     const completedMembers = contributionStatus.contributions.filter(
-      (c) => c.hasContributed || c.isRecipient
+      (c) => c.hasContributed
     ).length;
 
     return (completedMembers / totalMembers) * 100;
   };
 
   // Determine user state
+  // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
   const isRecipient = userContributionInfo?.isRecipient ?? false;
   const hasContributed = userContributionInfo?.hasContributed ?? false;
-  const canContribute = !isRecipient && !hasContributed;
+  // Recipients can and must contribute - they just also receive the payout
+  const canContribute = !hasContributed;
 
   if (isLoading && !contributionStatus) {
     return (
@@ -123,6 +127,7 @@ export function ContributionStatusCard({
         {contributionStatus && (
           <>
             {/* Recipient info */}
+            {/* UNIVERSAL CONTRIBUTION MODEL: Payout = contribution × memberCount */}
             {contributionStatus.recipient && (
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <div className="flex items-center mb-2">
@@ -138,22 +143,39 @@ export function ContributionStatusCard({
                   Will receive{' '}
                   {formatCurrency(
                     contributionStatus.contributionAmount *
-                      (contributionStatus.contributions.length - 1)
+                      contributionStatus.contributions.length
                   )}
                 </p>
               </div>
             )}
 
             {/* User status banner */}
-            {isRecipient && (
+            {/* UNIVERSAL CONTRIBUTION MODEL: Recipients also contribute */}
+            {isRecipient && !hasContributed && (
               <Alert className="bg-emerald-50 border-emerald-200">
                 <Award className="h-4 w-4 text-emerald-600" />
                 <AlertTitle className="text-emerald-800">
                   You're the Recipient!
                 </AlertTitle>
                 <AlertDescription className="text-emerald-700">
-                  You don't need to contribute this round. Wait for other members
-                  to complete their contributions.
+                  You will receive the payout this round! You still need to make your
+                  contribution of {formatCurrency(contributionStatus.contributionAmount)} which
+                  goes into the pool you receive. Total payout:{' '}
+                  {formatCurrency(contributionStatus.contributionAmount * contributionStatus.contributions.length)}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isRecipient && hasContributed && (
+              <Alert className="bg-emerald-50 border-emerald-200">
+                <Award className="h-4 w-4 text-emerald-600" />
+                <AlertTitle className="text-emerald-800">
+                  You're the Recipient!
+                </AlertTitle>
+                <AlertDescription className="text-emerald-700">
+                  You've contributed and will receive the payout once all members
+                  have contributed. Total payout:{' '}
+                  {formatCurrency(contributionStatus.contributionAmount * contributionStatus.contributions.length)}
                 </AlertDescription>
               </Alert>
             )}
@@ -172,7 +194,7 @@ export function ContributionStatusCard({
               </Alert>
             )}
 
-            {canContribute && (
+            {canContribute && !isRecipient && (
               <Alert className="bg-amber-50 border-amber-200">
                 <Clock className="h-4 w-4 text-amber-600" />
                 <AlertTitle className="text-amber-800">
@@ -186,6 +208,7 @@ export function ContributionStatusCard({
             )}
 
             {/* Contribution progress */}
+            {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
             <div className="border rounded-lg p-4">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center">
@@ -195,7 +218,7 @@ export function ContributionStatusCard({
                 <span className="text-sm font-medium">
                   {
                     contributionStatus.contributions.filter(
-                      (c) => c.hasContributed || c.isRecipient
+                      (c) => c.hasContributed
                     ).length
                   }
                   /{contributionStatus.contributions.length} complete
@@ -233,11 +256,8 @@ export function ContributionStatusCard({
                         )}
                       </span>
                       <span>
-                        {member.isRecipient ? (
-                          <span className="text-xs text-gray-500">
-                            No contribution required
-                          </span>
-                        ) : member.hasContributed ? (
+                        {/* UNIVERSAL CONTRIBUTION MODEL: All members show contribution status */}
+                        {member.hasContributed ? (
                           <span className="flex items-center text-green-600 text-sm">
                             <Check className="h-4 w-4 mr-1" />
                             Paid

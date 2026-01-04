@@ -28,6 +28,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
+import { RulesAcknowledgmentDialog } from '../../../components/pools/RulesAcknowledgmentDialog';
+import { SavePaymentMethodModal } from '../../../components/payments/SavePaymentMethodModal';
 
 function JoinPoolContent() {
   const router = useRouter();
@@ -40,6 +42,9 @@ function JoinPoolContent() {
   const [error, setError] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [showPaymentSetupModal, setShowPaymentSetupModal] = useState(false);
+  const [joinedPoolData, setJoinedPoolData] = useState<{ id: string; name: string; contributionAmount: number; frequency: string } | null>(null);
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -105,14 +110,36 @@ function JoinPoolContent() {
       if (!response.ok) {
         setError(data.error || 'Failed to accept invitation');
       } else {
-        // Redirect to the pool page (works for both new joins and already-member cases)
-        router.push(`/pools/${data.pool.id}`);
+        // Store pool data for payment setup modal
+        setJoinedPoolData({
+          id: data.pool.id,
+          name: validationResult.pool.name,
+          contributionAmount: validationResult.pool.contributionAmount,
+          frequency: validationResult.pool.frequency,
+        });
+        // Show payment setup modal
+        setShowRulesDialog(false);
+        setShowPaymentSetupModal(true);
       }
     } catch (err) {
       setError('Failed to process invitation');
       console.error('Accept error:', err);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentSetupComplete = () => {
+    setShowPaymentSetupModal(false);
+    if (joinedPoolData) {
+      router.push(`/pools/${joinedPoolData.id}`);
+    }
+  };
+
+  const handleSkipPaymentSetup = () => {
+    setShowPaymentSetupModal(false);
+    if (joinedPoolData) {
+      router.push(`/pools/${joinedPoolData.id}`);
     }
   };
 
@@ -349,17 +376,38 @@ function JoinPoolContent() {
               Decline Invitation
             </Button>
             <Button
-              onClick={handleAcceptInvitation}
+              onClick={() => setShowRulesDialog(true)}
               disabled={isProcessing}
             >
-              {isProcessing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-              )}
+              <CheckCircle2 className="h-4 w-4 mr-2" />
               Accept & Join Pool
             </Button>
           </CardFooter>
+        )}
+
+        {validationResult && (
+          <RulesAcknowledgmentDialog
+            open={showRulesDialog}
+            onOpenChange={setShowRulesDialog}
+            poolName={validationResult.pool.name}
+            contributionAmount={validationResult.pool.contributionAmount}
+            frequency={validationResult.pool.frequency}
+            onAccept={handleAcceptInvitation}
+            isProcessing={isProcessing}
+          />
+        )}
+
+        {/* Payment Setup Modal - shown after successfully joining */}
+        {joinedPoolData && (
+          <SavePaymentMethodModal
+            isOpen={showPaymentSetupModal}
+            onClose={handleSkipPaymentSetup}
+            onSuccess={handlePaymentSetupComplete}
+            poolId={joinedPoolData.id}
+            poolName={joinedPoolData.name}
+            contributionAmount={joinedPoolData.contributionAmount}
+            frequency={joinedPoolData.frequency}
+          />
         )}
       </Card>
     </div>

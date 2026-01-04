@@ -37,32 +37,38 @@ export function UserProfileButton() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" className="relative h-9 w-9 sm:h-8 sm:w-8 rounded-full p-0 hover:ring-2 hover:ring-blue-100 transition-all">
+          <Avatar className="h-9 w-9 sm:h-8 sm:w-8">
             <AvatarImage src={user?.image || undefined} alt={user?.name || 'User'} />
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className="text-sm">{initials}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
+      <DropdownMenuContent className="w-56" align="end" forceMount sideOffset={8}>
+        <DropdownMenuLabel className="font-normal px-3 py-2">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
+            <p className="text-xs leading-none text-muted-foreground truncate">
               {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/profile')}>
+        <DropdownMenuItem
+          onSelect={() => router.push('/profile')}
+          className="py-2.5 cursor-pointer"
+        >
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => router.push('/settings')}>
+        <DropdownMenuItem
+          onSelect={() => router.push('/settings')}
+          className="py-2.5 cursor-pointer"
+        >
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-red-600"
+          className="text-red-600 py-2.5 cursor-pointer focus:text-red-600 focus:bg-red-50"
           onSelect={() => signOut({ redirect: true, callbackUrl: '/auth/signin' })}
         >
           Sign out
