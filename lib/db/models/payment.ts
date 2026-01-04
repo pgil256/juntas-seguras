@@ -86,6 +86,25 @@ const PaymentSchema = new Schema({
     sparse: true
   },
 
+  // Stripe-specific fields
+  stripePaymentIntentId: {
+    type: String,
+    index: true,
+    sparse: true
+  },
+  stripeCaptureId: {
+    type: String,
+    sparse: true
+  },
+  stripeTransferId: {
+    type: String,
+    sparse: true
+  },
+  stripeRefundId: {
+    type: String,
+    sparse: true
+  },
+
   // Escrow fields
   escrowId: { type: String },
   releaseDate: { type: Date },
@@ -135,6 +154,10 @@ export interface PaymentDocument extends Document {
   paypalAuthorizationId?: string;
   paypalCaptureId?: string;
   paypalPayoutBatchId?: string;
+  stripePaymentIntentId?: string;
+  stripeCaptureId?: string;
+  stripeTransferId?: string;
+  stripeRefundId?: string;
   escrowId?: string;
   releaseDate?: Date;
   releasedAt?: Date;
