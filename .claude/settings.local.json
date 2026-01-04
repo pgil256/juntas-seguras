@@ -55,7 +55,9 @@
       "Bash(npm rebuild:*)",
       "Bash(node_modules/.bin/tsc:*)",
       "Bash(node:*)",
-      "Bash(./node_modules/.bin/next lint:*)"
+      "Bash(./node_modules/.bin/next lint:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh api:*)"
     ]
   },
   "enableAllProjectMcpServers": false

@@ -12,7 +12,7 @@ import { headers } from 'next/headers';
 import { processScheduledCollections } from '@/lib/jobs/collection-processor';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minute timeout for processing
+export const maxDuration = 60; // 60 second timeout (Hobby plan limit)
 
 /**
  * POST /api/collections/process
