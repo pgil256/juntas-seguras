@@ -42,11 +42,11 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-14 sm:h-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-lg sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
+              <Link href="/" className="text-base sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
                 Juntas Seguras
               </Link>
             </div>
@@ -68,7 +68,7 @@ export default function Navbar() {
                 ))}
             </div>
           </div>
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-1 sm:space-x-4">
             {/* Only show search and notifications for authenticated users */}
             {isAuthenticated && (
               <>
@@ -95,7 +95,7 @@ export default function Navbar() {
                 ) : (
                   <button
                     onClick={toggleSearch}
-                    className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 h-10 w-10 flex items-center justify-center"
                     aria-label="Search"
                   >
                     <Search className="h-5 w-5" />

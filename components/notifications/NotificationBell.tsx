@@ -40,7 +40,7 @@ export const NotificationBell = () => {
     <div className="relative">
       <button
         onClick={toggleOpen}
-        className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full relative transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+        className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full relative transition-colors h-10 w-10 flex items-center justify-center"
         aria-label="Notifications"
       >
         <Bell className="h-5 w-5" />
