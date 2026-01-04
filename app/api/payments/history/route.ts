@@ -5,6 +5,8 @@ import { getPaymentModel } from '../../../../lib/db/models/payment';
 import { getPoolModel } from '../../../../lib/db/models/pool';
 import { TransactionType } from '../../../../types/payment';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/payments/history - Fetch user's transaction history across all pools
  *

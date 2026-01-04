@@ -6,6 +6,8 @@ import { getPaymentModel } from '../../../../lib/db/models/payment';
 import { PoolStatus, PoolMemberStatus, TransactionType } from '../../../../types/pool';
 import { TransactionStatus } from '../../../../types/payment';
 
+export const dynamic = 'force-dynamic';
+
 interface UpcomingPayment {
   id: string;
   poolId: string;

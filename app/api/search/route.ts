@@ -5,6 +5,8 @@ import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
 import { getUserModel } from '../../../lib/db/models/user';
 
+export const dynamic = 'force-dynamic';
+
 interface PoolMemberDB {
   id: number;
   name: string;
