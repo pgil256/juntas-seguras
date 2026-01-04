@@ -14,6 +14,7 @@ import { Payment } from '@/lib/db/models/payment';
 import { Pool } from '@/lib/db/models/pool';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
+import { TransactionStatus } from '@/types/payment';
 import { Types } from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Update payment record
-    payment.status = 'RELEASED';
+    payment.status = TransactionStatus.RELEASED;
     payment.releasedAt = new Date();
     payment.releasedBy = new Types.ObjectId(session.user.id);
     payment.stripeCaptureId = capturedIntent.latest_charge as string;
