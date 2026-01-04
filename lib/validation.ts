@@ -3,71 +3,162 @@
  * This module validates required environment variables on application startup
  */
 
+type EnvVarConfig = {
+  name: string;
+  required: boolean | 'production';
+  validate?: (value: string) => boolean;
+  errorMessage?: string;
+};
+
 /**
- * Required environment variables for the application
+ * Environment variable configuration with validation rules
  */
-const REQUIRED_ENV_VARS = [
-  'MONGODB_URI',
-  'NEXTAUTH_URL',
-  'NEXTAUTH_SECRET',
-  'STRIPE_SECRET_KEY',
-  'STRIPE_PUBLISHABLE_KEY',
-  'STRIPE_WEBHOOK_SECRET',
+const ENV_VAR_CONFIG: EnvVarConfig[] = [
+  // Database
+  {
+    name: 'MONGODB_URI',
+    required: true,
+    validate: (v) => v.startsWith('mongodb://') || v.startsWith('mongodb+srv://'),
+    errorMessage: 'MONGODB_URI must be a valid MongoDB connection string (mongodb:// or mongodb+srv://)',
+  },
+  // Authentication
+  {
+    name: 'NEXTAUTH_URL',
+    required: true,
+    validate: (v) => v.startsWith('http://') || v.startsWith('https://'),
+    errorMessage: 'NEXTAUTH_URL must be a valid URL',
+  },
+  {
+    name: 'NEXTAUTH_SECRET',
+    required: true,
+    validate: (v) => v.length >= 32,
+    errorMessage: 'NEXTAUTH_SECRET must be at least 32 characters long',
+  },
+  // Email
+  {
+    name: 'EMAIL_USER',
+    required: true,
+  },
+  {
+    name: 'EMAIL_PASSWORD',
+    required: true,
+  },
+  {
+    name: 'EMAIL_FROM',
+    required: 'production',
+  },
+  // PayPal
+  {
+    name: 'PAYPAL_CLIENT_ID',
+    required: true,
+  },
+  {
+    name: 'PAYPAL_CLIENT_SECRET',
+    required: true,
+  },
+  {
+    name: 'NEXT_PUBLIC_PAYPAL_CLIENT_ID',
+    required: true,
+  },
+  {
+    name: 'PAYPAL_WEBHOOK_ID',
+    required: 'production',
+  },
+  // App URL
+  {
+    name: 'NEXT_PUBLIC_APP_URL',
+    required: 'production',
+    validate: (v) => v.startsWith('https://'),
+    errorMessage: 'NEXT_PUBLIC_APP_URL must use HTTPS in production',
+  },
 ];
 
 /**
- * Production-only required environment variables
+ * Result of environment variable validation
  */
-const PRODUCTION_REQUIRED_ENV_VARS = [
-  'EMAIL_SERVER',
-  'EMAIL_FROM',
-];
+export type ValidationResult = {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+};
 
 /**
  * Validates that all required environment variables are set
- * Throws an error if any required variable is missing
+ * Returns validation result with errors and warnings
  */
-export function validateEnvVars() {
-  const missingVars: string[] = [];
+export function validateEnvVars(): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  // Check required vars for all environments
-  REQUIRED_ENV_VARS.forEach(envVar => {
-    if (!process.env[envVar]) {
-      missingVars.push(envVar);
+  for (const config of ENV_VAR_CONFIG) {
+    const value = process.env[config.name];
+    const isRequired = config.required === true || (config.required === 'production' && isProduction);
+
+    // Check if required variable is missing
+    if (isRequired && !value) {
+      errors.push(`Missing required environment variable: ${config.name}`);
+      continue;
     }
-  });
 
-  // Check production-only vars
-  if (process.env.NODE_ENV === 'production') {
-    PRODUCTION_REQUIRED_ENV_VARS.forEach(envVar => {
-      if (!process.env[envVar]) {
-        missingVars.push(envVar);
-      }
-    });
-  }
+    // Skip validation if value is not set (optional var)
+    if (!value) {
+      continue;
+    }
 
-  // Throw error if any required vars are missing
-  if (missingVars.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(', ')}. Please check your .env file.`
-    );
-  }
-
-  // Validate MongoDB URI format
-  const mongoUri = process.env.MONGODB_URI || '';
-  if (!mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
-    throw new Error('MONGODB_URI must be a valid MongoDB connection string');
-  }
-
-  // In production, validate that we're not using test keys for Stripe
-  if (process.env.NODE_ENV === 'production') {
-    const stripeKey = process.env.STRIPE_SECRET_KEY || '';
-    if (stripeKey.startsWith('sk_test_')) {
-      throw new Error('Production environment is using Stripe test keys. Please use production keys.');
+    // Run custom validation if provided
+    if (config.validate && !config.validate(value)) {
+      errors.push(config.errorMessage || `Invalid value for ${config.name}`);
     }
   }
 
-  return true;
+  // Production-specific validations
+  if (isProduction) {
+    // Check PayPal mode
+    const paypalMode = process.env.PAYPAL_MODE;
+    if (paypalMode && paypalMode !== 'live') {
+      warnings.push('PAYPAL_MODE is not set to "live" in production');
+    }
+  }
+
+  // Development-specific warnings
+  if (!isProduction) {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      warnings.push('Google OAuth not configured (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET missing)');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Validates environment variables and throws if invalid
+ * Call this on application startup to prevent running with missing vars
+ */
+export function validateEnvVarsOrThrow(): void {
+  const result = validateEnvVars();
+
+  // Log warnings
+  if (result.warnings.length > 0) {
+    console.warn('\n⚠️  Environment variable warnings:');
+    result.warnings.forEach((warning) => console.warn(`   - ${warning}`));
+    console.warn('');
+  }
+
+  // Throw on errors
+  if (!result.valid) {
+    console.error('\n❌ Environment variable validation failed:');
+    result.errors.forEach((error) => console.error(`   - ${error}`));
+    console.error('\nPlease check your .env file and ensure all required variables are set.');
+    console.error('See .env.example for a template.\n');
+    throw new Error(`Missing or invalid environment variables: ${result.errors.join('; ')}`);
+  }
+
+  console.log('✓ Environment variables validated successfully');
 }
 
 /**
