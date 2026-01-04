@@ -216,7 +216,7 @@ export function StripePaymentForm(props: StripePaymentFormProps) {
     }
 
     createPaymentIntent();
-  }, [props.poolId, props.amount, props.useEscrow, props.escrowReleaseDate]);
+  }, [props.poolId, props.amount, props.useEscrow, props.escrowReleaseDate, props.onError]);
 
   if (loading) {
     return (
