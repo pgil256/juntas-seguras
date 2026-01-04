@@ -11,16 +11,31 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent } from '@/lib/stripe';
-import { connectToDatabase } from '@/lib/db/connection';
+import connectToDatabase from '@/lib/db/connect';
 import Payment from '@/lib/db/models/payment';
 import Pool from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
-import { logActivity } from '@/lib/db/models/activityLog';
+import { getAuditLogModel } from '@/lib/db/models/auditLog';
+import { AuditLogType } from '@/types/audit';
 import { Types } from 'mongoose';
 import Stripe from 'stripe';
 
 // Disable body parsing - we need raw body for webhook verification
 export const runtime = 'nodejs';
+
+// Helper to create audit log
+async function logAudit(userId: string, action: string, type: AuditLogType, metadata: Record<string, unknown>) {
+  const AuditLog = getAuditLogModel();
+  await AuditLog.create({
+    id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: new Date().toISOString(),
+    userId,
+    type,
+    action,
+    metadata,
+    success: true,
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,17 +151,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
   // Log activity
   if (metadata?.userId) {
-    await logActivity({
-      userId: new Types.ObjectId(metadata.userId),
-      action: isEscrow ? 'payment_escrowed' : 'payment_completed',
-      category: 'payment',
-      details: {
+    await logAudit(
+      metadata.userId,
+      isEscrow ? 'payment_escrowed' : 'payment_completed',
+      AuditLogType.PAYMENT,
+      {
         paymentId: payment.paymentId,
         poolId: metadata.poolId,
         amount: paymentIntent.amount / 100,
         stripePaymentIntentId: paymentIntent.id,
-      },
-    });
+      }
+    );
   }
 }
 
@@ -167,16 +182,16 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 
   const { metadata } = paymentIntent;
   if (metadata?.userId) {
-    await logActivity({
-      userId: new Types.ObjectId(metadata.userId),
-      action: 'payment_failed',
-      category: 'payment',
-      details: {
+    await logAudit(
+      metadata.userId,
+      'payment_failed',
+      AuditLogType.PAYMENT,
+      {
         paymentId: payment.paymentId,
         reason: payment.failureReason,
         stripePaymentIntentId: paymentIntent.id,
-      },
-    });
+      }
+    );
   }
 }
 
@@ -195,15 +210,15 @@ async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) 
 
   const { metadata } = paymentIntent;
   if (metadata?.userId) {
-    await logActivity({
-      userId: new Types.ObjectId(metadata.userId),
-      action: 'payment_cancelled',
-      category: 'payment',
-      details: {
+    await logAudit(
+      metadata.userId,
+      'payment_cancelled',
+      AuditLogType.PAYMENT,
+      {
         paymentId: payment.paymentId,
         stripePaymentIntentId: paymentIntent.id,
-      },
-    });
+      }
+    );
   }
 }
 
@@ -231,16 +246,16 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     stripeRefundId: charge.refunds?.data[0]?.id,
   });
 
-  await logActivity({
-    userId: payment.userId,
-    action: 'payment_refunded',
-    category: 'payment',
-    details: {
+  await logAudit(
+    payment.userId.toString(),
+    'payment_refunded',
+    AuditLogType.PAYMENT,
+    {
       originalPaymentId: payment.paymentId,
       refundPaymentId: refundPayment.paymentId,
       amount: refundPayment.amount,
-    },
-  });
+    }
+  );
 }
 
 /**
@@ -276,17 +291,17 @@ async function handleTransferCreated(transfer: Stripe.Transfer) {
   }
 
   if (metadata.userId) {
-    await logActivity({
-      userId: new Types.ObjectId(metadata.userId),
-      action: 'payout_completed',
-      category: 'payment',
-      details: {
+    await logAudit(
+      metadata.userId,
+      'payout_completed',
+      AuditLogType.PAYMENT,
+      {
         paymentId: payment.paymentId,
         poolId: metadata.poolId,
         amount: transfer.amount / 100,
         stripeTransferId: transfer.id,
-      },
-    });
+      }
+    );
   }
 }
 
@@ -306,15 +321,15 @@ async function handleTransferFailed(transfer: Stripe.Transfer) {
   await payment.save();
 
   if (metadata.userId) {
-    await logActivity({
-      userId: new Types.ObjectId(metadata.userId),
-      action: 'payout_failed',
-      category: 'payment',
-      details: {
+    await logAudit(
+      metadata.userId,
+      'payout_failed',
+      AuditLogType.PAYMENT,
+      {
         paymentId: payment.paymentId,
         stripeTransferId: transfer.id,
-      },
-    });
+      }
+    );
   }
 }
 
@@ -330,15 +345,15 @@ async function handleAccountUpdated(account: Stripe.Account) {
   user.stripeDetailsSubmitted = account.details_submitted || false;
   await user.save();
 
-  await logActivity({
-    userId: user._id,
-    action: 'stripe_account_updated',
-    category: 'account',
-    details: {
+  await logAudit(
+    user._id.toString(),
+    'stripe_account_updated',
+    AuditLogType.ACCOUNT,
+    {
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
-    },
-  });
+    }
+  );
 }
 
 /**

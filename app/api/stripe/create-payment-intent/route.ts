@@ -8,12 +8,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createPaymentIntent, createCustomer, getCustomer } from '@/lib/stripe';
-import { connectToDatabase } from '@/lib/db/connection';
+import { createPaymentIntent, createCustomer } from '@/lib/stripe';
+import connectToDatabase from '@/lib/db/connect';
 import User from '@/lib/db/models/user';
 import Pool from '@/lib/db/models/pool';
 import Payment from '@/lib/db/models/payment';
-import { logActivity } from '@/lib/db/models/activityLog';
+import { getAuditLogModel } from '@/lib/db/models/auditLog';
+import { AuditLogType } from '@/types/audit';
 import { Types } from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -121,18 +122,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Log activity
-    await logActivity({
-      userId: new Types.ObjectId(session.user.id),
+    const AuditLog = getAuditLogModel();
+    await AuditLog.create({
+      id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      userId: session.user.id,
+      type: AuditLogType.PAYMENT,
       action: useEscrow ? 'payment_escrow_initiated' : 'payment_initiated',
-      category: 'payment',
-      details: {
+      ip: request.headers.get('x-forwarded-for') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown',
+      metadata: {
         paymentId: payment.paymentId,
         poolId,
         amount,
         stripePaymentIntentId: paymentIntent.id,
       },
-      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
+      success: true,
     });
 
     return NextResponse.json({
