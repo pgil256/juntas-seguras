@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
+    if (!payment.stripePaymentIntentId) {
+      return NextResponse.json(
+        { error: 'Payment does not have a Stripe payment intent' },
+        { status: 400 }
+      );
+    }
+
     // Verify user is admin of the pool
     if (payment.poolId) {
       const pool = await Pool.findById(payment.poolId);
