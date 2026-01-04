@@ -360,7 +360,7 @@ async function handleAccountUpdated(account: Stripe.Account) {
 /**
  * Update pool with completed contribution
  */
-async function updatePoolContribution(payment: { poolId: Types.ObjectId; userId: Types.ObjectId; amount: number; stripePaymentIntentId: string; round?: number }) {
+async function updatePoolContribution(payment: { poolId: string; userId: Types.ObjectId | string; amount: number; stripePaymentIntentId?: string; round?: number }) {
   const pool = await Pool.findById(payment.poolId);
   if (!pool) return;
 
