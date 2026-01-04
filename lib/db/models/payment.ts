@@ -279,4 +279,5 @@ export function getPaymentMethodModel(): Model<PaymentMethodDocument> {
 export const Payment = getPaymentModel();
 export const PaymentMethod = getPaymentMethodModel();
 
-export default { Payment, PaymentMethod, getPaymentModel, getPaymentMethodModel, generatePaymentId };
+const paymentExports = { Payment, PaymentMethod, getPaymentModel, getPaymentMethodModel, generatePaymentId };
+export default paymentExports;

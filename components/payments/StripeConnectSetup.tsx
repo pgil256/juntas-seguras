@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -39,7 +39,7 @@ export function StripeConnectSetup({ onStatusChange }: StripeConnectSetupProps) 
   const [error, setError] = useState<string | null>(null);
 
   // Fetch current status
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/stripe/connect');
       const data = await response.json();
@@ -55,7 +55,7 @@ export function StripeConnectSetup({ onStatusChange }: StripeConnectSetupProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [onStatusChange]);
 
   useEffect(() => {
     fetchStatus();
@@ -70,7 +70,7 @@ export function StripeConnectSetup({ onStatusChange }: StripeConnectSetupProps) 
       // User needs to complete onboarding
       fetchStatus();
     }
-  }, []);
+  }, [fetchStatus]);
 
   // Create new Connect account
   const handleCreateAccount = async () => {
