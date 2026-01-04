@@ -156,7 +156,7 @@ const faqData = {
     {
       question: "What payment methods are accepted?",
       answer:
-        "We accept bank transfers, debit cards, and major digital payment platforms like PayPal, Venmo, and Zelle. Credit cards are also accepted, but may include an additional processing fee of 2.5%.",
+        "We accept credit and debit cards through Stripe's secure payment processing. Bank transfers are also available for certain transactions.",
     },
     {
       question: "How often do I need to contribute?",

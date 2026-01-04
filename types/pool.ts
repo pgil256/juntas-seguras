@@ -52,6 +52,7 @@ export interface PoolMember {
   payoutReceived: boolean;
   payoutDate: string;
   avatar?: string;
+  stripeConnectAccountId?: string; // Stripe Connect account for payouts
 }
 
 export interface PoolInvitation {

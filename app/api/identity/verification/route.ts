@@ -1,6 +1,6 @@
-// Identity verification route - disabled (Stripe not configured)
-// This project uses PayPal for payments, not Stripe
-// To re-enable, create lib/stripe.ts with Stripe Identity integration
+// Identity verification route
+// This project uses Stripe for payments
+// Identity verification requires Stripe Identity integration
 
 import { NextRequest, NextResponse } from 'next/server';
 

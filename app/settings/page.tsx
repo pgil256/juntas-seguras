@@ -233,9 +233,7 @@ export default function SettingsPage() {
               routingNumber: values.routingNumber,
               accountType: values.accountType
             }
-          : {
-              paypalEmail: values.paypalEmail
-            }
+          : {}
         ),
         isDefault: values.isDefault
       });
@@ -258,9 +256,7 @@ export default function SettingsPage() {
               routingNumber: values.routingNumber,
               accountType: values.accountType
             }
-          : {
-              paypalEmail: values.paypalEmail
-            }
+          : {}
         ),
         isDefault: values.isDefault
       });

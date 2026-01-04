@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { TransactionType, TransactionStatus } from '../../../../../types/payment';
-import { v4 as uuidv4 } from 'uuid';
 import { getCurrentUser } from '../../../../../lib/auth';
-import { createOrder, captureOrder } from '../../../../../lib/paypal';
+import { stripe } from '../../../../../lib/stripe';
 
 const Pool = getPoolModel();
 
@@ -124,8 +123,8 @@ export async function GET(
  * POST /api/pools/[id]/contributions - Initiate or complete a contribution
  *
  * Actions:
- * - initiate: Creates a PayPal order and returns approval URL
- * - complete: Captures the PayPal payment and records the contribution
+ * - initiate: Creates a Stripe Checkout session and returns the URL
+ * - complete: Verifies Stripe payment and records the contribution
  */
 export async function POST(
   request: NextRequest,
@@ -134,7 +133,7 @@ export async function POST(
   try {
     const { id: poolId } = await params;
     const body = await request.json();
-    const { action = 'initiate', orderId } = body;
+    const { action = 'initiate', sessionId } = body;
 
     if (!poolId) {
       return NextResponse.json(
@@ -200,70 +199,93 @@ export async function POST(
       );
     }
 
-    // Handle initiate action - create PayPal order
+    // Handle initiate action - create Stripe Checkout session
     if (action === 'initiate') {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
+      const baseUrl = process.env.NEXTAUTH_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-      const returnUrl = `${baseUrl}/pools/${poolId}?paypal_return=true&round=${currentRound}`;
-      const cancelUrl = `${baseUrl}/pools/${poolId}?paypal_cancelled=true`;
+      const successUrl = `${baseUrl}/pools/${poolId}?stripe_success=true&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${baseUrl}/pools/${poolId}?stripe_cancelled=true`;
 
-      const paypalResult = await createOrder(
-        pool.contributionAmount,
-        'USD',
-        `Contribution to ${pool.name} - Round ${currentRound}`,
-        {
+      // Create Stripe Checkout session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        customer_email: user.email,
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `${pool.name} - Round ${currentRound} Contribution`,
+                description: `Contribution to ${pool.name}`,
+              },
+              unit_amount: Math.round(pool.contributionAmount * 100), // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
           poolId,
           round: currentRound.toString(),
           userId: user._id.toString(),
           memberName: userMember.name,
+          type: 'contribution',
         },
-        returnUrl,
-        cancelUrl
-      );
-
-      if (!paypalResult.success) {
-        return NextResponse.json(
-          { error: paypalResult.error || 'Failed to create PayPal order' },
-          { status: 400 }
-        );
-      }
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
 
       return NextResponse.json({
         success: true,
         action: 'initiate',
-        orderId: paypalResult.orderId,
-        approvalUrl: paypalResult.approvalUrl,
+        orderId: session.id,
+        approvalUrl: session.url,
         amount: pool.contributionAmount,
-        message: 'PayPal order created. Redirect user to approval URL.',
+        message: 'Stripe checkout session created. Redirect user to approval URL.',
       });
     }
 
-    // Handle complete action - capture PayPal payment and record contribution
+    // Handle complete action - verify Stripe payment and record contribution
     if (action === 'complete') {
-      if (!orderId) {
+      if (!sessionId) {
         return NextResponse.json(
-          { error: 'Order ID is required to complete payment' },
+          { error: 'Session ID is required to complete payment' },
           { status: 400 }
         );
       }
 
-      // Capture the PayPal payment
-      const captureResult = await captureOrder(orderId);
+      // Retrieve the Stripe session to verify payment
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      if (!captureResult.success) {
+      if (session.payment_status !== 'paid') {
         return NextResponse.json(
-          { error: captureResult.error || 'Failed to capture PayPal payment' },
+          { error: `Payment not completed. Status: ${session.payment_status}` },
           { status: 400 }
         );
       }
 
-      if (captureResult.status !== 'COMPLETED') {
+      // Verify the session is for this pool and round
+      if (session.metadata?.poolId !== poolId ||
+          session.metadata?.round !== currentRound.toString()) {
         return NextResponse.json(
-          { error: `Payment not completed. Status: ${captureResult.status}` },
+          { error: 'Invalid session for this pool/round' },
           { status: 400 }
         );
+      }
+
+      // Check if this session was already processed
+      const existingSessionContribution = pool.transactions.find(
+        (t: any) => t.stripeSessionId === sessionId
+      );
+
+      if (existingSessionContribution) {
+        return NextResponse.json({
+          success: true,
+          action: 'complete',
+          message: 'This payment has already been recorded.',
+          alreadyProcessed: true,
+        });
       }
 
       // Create the contribution transaction
@@ -280,8 +302,8 @@ export async function POST(
         member: userMember.name,
         status: TransactionStatus.COMPLETED,
         round: currentRound,
-        paypalOrderId: orderId,
-        paypalCaptureId: captureResult.captureId,
+        stripeSessionId: sessionId,
+        stripePaymentIntentId: session.payment_intent as string,
       };
 
       // Add to pool transactions
@@ -338,7 +360,7 @@ export async function POST(
           amount: contribution.amount,
           date: contribution.date,
           status: contribution.status,
-          paypalOrderId: orderId,
+          stripeSessionId: sessionId,
         },
         allMembersContributed,
         message: allMembersContributed

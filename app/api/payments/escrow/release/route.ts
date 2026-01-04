@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
 import { PoolMemberRole } from '../../../../../types/pool';
-import { captureAuthorization } from '../../../../../lib/paypal';
+import { stripe } from '../../../../../lib/stripe';
 import { getCurrentUser } from '../../../../../lib/auth';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPaymentModel, generatePaymentId } from '../../../../../lib/db/models/payment';
@@ -111,80 +111,94 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Verify we have a PayPal authorization ID
-    if (!payment.paypalAuthorizationId) {
+    // Verify we have a Stripe payment intent ID for capture
+    if (!payment.stripePaymentIntentId) {
       return NextResponse.json(
-        { error: 'Payment authorization not found. The user may not have completed the payment approval.' },
+        { error: 'Payment intent not found. The user may not have completed the payment.' },
         { status: 400 }
       );
     }
 
-    // Release the payment by capturing the PayPal authorization
-    const captureResult = await captureAuthorization(payment.paypalAuthorizationId);
+    // Release the payment by capturing the Stripe payment intent
+    try {
+      const paymentIntent = await stripe.paymentIntents.capture(payment.stripePaymentIntentId);
 
-    if (!captureResult.success) {
+      if (paymentIntent.status !== 'succeeded') {
+        payment.failureCount = (payment.failureCount || 0) + 1;
+        payment.failureReason = `Capture failed with status: ${paymentIntent.status}`;
+        await payment.save();
+
+        return NextResponse.json(
+          { error: 'Failed to capture payment' },
+          { status: 400 }
+        );
+      }
+
+      // Update payment record
+      payment.status = TransactionStatus.RELEASED;
+      payment.processedAt = new Date();
+      payment.stripeCaptureId = paymentIntent.id;
+      payment.releasedAt = new Date();
+      payment.releasedBy = requestingUser._id;
+      await payment.save();
+
+      // Update pool balance now that funds are released
+      pool.totalAmount = (pool.totalAmount || 0) + payment.amount;
+      await pool.save();
+
+      // Create new transaction record for the release
+      const releasePaymentId = generatePaymentId();
+      const releaseRecord = new Payment({
+        paymentId: releasePaymentId,
+        userId: payment.userId,
+        poolId: payment.poolId,
+        amount: payment.amount,
+        currency: payment.currency,
+        type: TransactionType.ESCROW_RELEASE,
+        status: TransactionStatus.COMPLETED,
+        description: `Release of escrowed funds for payment ${paymentId}`,
+        member: payment.member,
+        relatedPaymentId: paymentId,
+        processedAt: new Date(),
+        releasedBy: requestingUser._id,
+        stripePaymentIntentId: paymentIntent.id,
+      });
+
+      await releaseRecord.save();
+
+      // Log activity
+      await logActivity(requestingUser._id.toString(), 'payment_escrow_released', {
+        poolId,
+        amount: payment.amount,
+        paymentId,
+        releasePaymentId,
+      });
+
+      return NextResponse.json({
+        success: true,
+        payment: {
+          id: releaseRecord.paymentId,
+          amount: releaseRecord.amount,
+          status: releaseRecord.status,
+          type: releaseRecord.type,
+          processedAt: releaseRecord.processedAt,
+        },
+        message: 'Payment successfully released from escrow',
+      });
+
+    } catch (captureError: any) {
+      console.error('Stripe capture error:', captureError);
+
       // Update payment with failure info
       payment.failureCount = (payment.failureCount || 0) + 1;
-      payment.failureReason = captureResult.error;
+      payment.failureReason = captureError.message;
       await payment.save();
 
       return NextResponse.json(
-        { error: captureResult.error || 'Failed to release payment from escrow' },
+        { error: captureError.message || 'Failed to release payment from escrow' },
         { status: 400 }
       );
     }
-
-    // Update payment record
-    payment.status = TransactionStatus.RELEASED;
-    payment.processedAt = new Date();
-    payment.paypalCaptureId = captureResult.captureId;
-    payment.releasedAt = new Date();
-    payment.releasedBy = requestingUser._id;
-    await payment.save();
-
-    // Update pool balance now that funds are released
-    pool.totalAmount = (pool.totalAmount || 0) + payment.amount;
-    await pool.save();
-
-    // Create new transaction record for the release
-    const releasePaymentId = generatePaymentId();
-    const releaseRecord = new Payment({
-      paymentId: releasePaymentId,
-      userId: payment.userId,
-      poolId: payment.poolId,
-      amount: payment.amount,
-      currency: payment.currency,
-      type: TransactionType.ESCROW_RELEASE,
-      status: TransactionStatus.COMPLETED,
-      description: `Release of escrowed funds for payment ${paymentId}`,
-      member: payment.member,
-      relatedPaymentId: paymentId,
-      processedAt: new Date(),
-      releasedBy: requestingUser._id,
-      paypalCaptureId: captureResult.captureId,
-    });
-
-    await releaseRecord.save();
-
-    // Log activity
-    await logActivity(requestingUser._id.toString(), 'payment_escrow_released', {
-      poolId,
-      amount: payment.amount,
-      paymentId,
-      releasePaymentId,
-    });
-
-    return NextResponse.json({
-      success: true,
-      payment: {
-        id: releaseRecord.paymentId,
-        amount: releaseRecord.amount,
-        status: releaseRecord.status,
-        type: releaseRecord.type,
-        processedAt: releaseRecord.processedAt,
-      },
-      message: 'Payment successfully released from escrow',
-    });
 
   } catch (error) {
     console.error('Escrow release error:', error);
