@@ -6,6 +6,7 @@ import { getPoolModel } from '../../../../lib/db/models/pool';
 import { TransactionType } from '../../../../types/payment';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * GET /api/payments/history - Fetch user's transaction history across all pools

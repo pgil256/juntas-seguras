@@ -5,6 +5,7 @@ import connect from "../../../../lib/db/connect";
 import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // GET /api/users/settings - Get user settings
 export async function GET(req: NextRequest) {
