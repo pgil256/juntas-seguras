@@ -12,7 +12,7 @@ import { createTransfer, canReceivePayouts } from '@/lib/stripe';
 import connectToDatabase from '@/lib/db/connect';
 import Pool from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
-import Payment from '@/lib/db/models/payment';
+import { Payment } from '@/lib/db/models/payment';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
 import { Types } from 'mongoose';

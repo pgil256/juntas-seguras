@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent } from '@/lib/stripe';
 import connectToDatabase from '@/lib/db/connect';
-import Payment from '@/lib/db/models/payment';
+import { Payment } from '@/lib/db/models/payment';
 import Pool from '@/lib/db/models/pool';
 import User from '@/lib/db/models/user';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';

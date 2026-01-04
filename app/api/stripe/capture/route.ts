@@ -10,7 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 import { capturePaymentIntent, getPaymentIntent } from '@/lib/stripe';
 import connectToDatabase from '@/lib/db/connect';
-import Payment from '@/lib/db/models/payment';
+import { Payment } from '@/lib/db/models/payment';
 import Pool from '@/lib/db/models/pool';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
