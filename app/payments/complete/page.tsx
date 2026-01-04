@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 
 type CompletionStatus = 'processing' | 'success' | 'error';
 
-export default function PaymentCompletePage() {
+function PaymentCompleteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<CompletionStatus>('processing');
@@ -71,44 +71,66 @@ export default function PaymentCompletePage() {
   };
 
   return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle>
+          {status === 'processing' && 'Processing Payment'}
+          {status === 'success' && 'Payment Successful'}
+          {status === 'error' && 'Payment Failed'}
+        </CardTitle>
+        <CardDescription>
+          {status === 'processing' && 'Please wait while we complete your payment...'}
+          {status === 'success' && 'Your contribution has been processed.'}
+          {status === 'error' && 'There was an issue with your payment.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center space-y-6">
+        {status === 'processing' && (
+          <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+        )}
+        {status === 'success' && (
+          <div className="bg-green-100 p-4 rounded-full">
+            <CheckCircle className="h-16 w-16 text-green-600" />
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="bg-red-100 p-4 rounded-full">
+            <XCircle className="h-16 w-16 text-red-600" />
+          </div>
+        )}
+
+        <p className="text-center text-gray-600">{message}</p>
+
+        {status !== 'processing' && (
+          <Button onClick={handleContinue} className="w-full">
+            {status === 'success' ? 'View Pool' : 'Return to Pool'}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentCompleteLoading() {
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle>Loading...</CardTitle>
+        <CardDescription>Please wait...</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center space-y-6">
+        <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function PaymentCompletePage() {
+  return (
     <div className="container max-w-md mx-auto py-12">
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle>
-            {status === 'processing' && 'Processing Payment'}
-            {status === 'success' && 'Payment Successful'}
-            {status === 'error' && 'Payment Failed'}
-          </CardTitle>
-          <CardDescription>
-            {status === 'processing' && 'Please wait while we complete your payment...'}
-            {status === 'success' && 'Your contribution has been processed.'}
-            {status === 'error' && 'There was an issue with your payment.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center space-y-6">
-          {status === 'processing' && (
-            <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
-          )}
-          {status === 'success' && (
-            <div className="bg-green-100 p-4 rounded-full">
-              <CheckCircle className="h-16 w-16 text-green-600" />
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="bg-red-100 p-4 rounded-full">
-              <XCircle className="h-16 w-16 text-red-600" />
-            </div>
-          )}
-
-          <p className="text-center text-gray-600">{message}</p>
-
-          {status !== 'processing' && (
-            <Button onClick={handleContinue} className="w-full">
-              {status === 'success' ? 'View Pool' : 'Return to Pool'}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      <Suspense fallback={<PaymentCompleteLoading />}>
+        <PaymentCompleteContent />
+      </Suspense>
     </div>
   );
 }
