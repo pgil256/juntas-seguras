@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
       throw new ApiError('Pool name is required', 400);
     }
     
-    if (!body.contributionAmount || isNaN(Number(body.contributionAmount)) || Number(body.contributionAmount) <= 0) {
-      throw new ApiError('Valid contribution amount is required', 400);
+    const contributionAmount = Number(body.contributionAmount);
+    if (!body.contributionAmount || isNaN(contributionAmount) || !Number.isInteger(contributionAmount) || contributionAmount < 1 || contributionAmount > 20) {
+      throw new ApiError('Contribution amount must be a whole number between $1 and $20', 400);
     }
 
     if (!body.totalRounds || isNaN(Number(body.totalRounds)) || Number(body.totalRounds) <= 0) {

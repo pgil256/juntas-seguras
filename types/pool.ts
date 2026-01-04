@@ -69,6 +69,32 @@ export interface PoolTransaction {
   date: string;
   member: string;
   status: string;
+  round?: number;
+  stripePaymentIntentId?: string;
+  stripeTransferId?: string;
+  // Early payout tracking fields
+  scheduledPayoutDate?: string;
+  actualPayoutDate?: string;
+  wasEarlyPayout?: boolean;
+  earlyPayoutInitiatedBy?: string;
+  earlyPayoutReason?: string;
+}
+
+// Early payout verification result
+export interface EarlyPayoutVerification {
+  allowed: boolean;
+  reason?: string;
+  missingContributions?: string[];
+  recipientConnectStatus?: string;
+  recipient?: {
+    name: string;
+    email: string;
+    stripeConnectAccountId?: string;
+    stripeLast4?: string;
+  };
+  payoutAmount?: number;
+  scheduledDate?: string;
+  currentRound?: number;
 }
 
 export interface PoolMessage {

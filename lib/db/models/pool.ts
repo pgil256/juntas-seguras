@@ -53,6 +53,12 @@ const PoolTransactionSchema = new Schema({
   round: { type: Number }, // Track which round this transaction belongs to
   stripePaymentIntentId: { type: String },
   stripeTransferId: { type: String },
+  // Early payout tracking fields
+  scheduledPayoutDate: { type: String }, // Original scheduled date
+  actualPayoutDate: { type: String }, // When payout actually occurred
+  wasEarlyPayout: { type: Boolean, default: false },
+  earlyPayoutInitiatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  earlyPayoutReason: { type: String },
 });
 
 // Message schema
@@ -80,7 +86,7 @@ const PoolSchema = new Schema({
     default: PoolStatus.ACTIVE
   },
   totalAmount: { type: Number, default: 0 },
-  contributionAmount: { type: Number, required: true },
+  contributionAmount: { type: Number, required: true, min: 1, max: 20 },
   frequency: { type: String, required: true },
   startDate: { type: Date },
   currentRound: { type: Number, default: 0 },
@@ -93,6 +99,11 @@ const PoolSchema = new Schema({
   members: [PoolMemberSchema],
   transactions: [PoolTransactionSchema],
   messages: [PoolMessageSchema],
+
+  // Auto-collection settings
+  autoCollectionEnabled: { type: Boolean, default: true },
+  gracePeriodHours: { type: Number, default: 24 }, // Hours after due date before auto-collection
+  collectionReminderHours: { type: Number, default: 48 }, // Hours before due date to send reminder
 }, {
   timestamps: true
 });

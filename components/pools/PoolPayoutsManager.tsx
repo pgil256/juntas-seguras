@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { usePoolPayouts } from '../../lib/hooks/usePoolPayouts';
+import { useEarlyPayout } from '../../lib/hooks/useEarlyPayout';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
-import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock } from 'lucide-react';
+import { EarlyPayoutModal } from './EarlyPayoutModal';
+import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap } from 'lucide-react';
 
 interface PoolPayoutsManagerProps {
   poolId: string;
@@ -17,21 +19,31 @@ interface PoolPayoutsManagerProps {
 }
 
 export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayoutSuccess }: PoolPayoutsManagerProps) {
-  const { 
-    isLoading, 
-    error, 
-    payoutStatus, 
-    checkPayoutStatus, 
-    processPayout 
+  const {
+    isLoading,
+    error,
+    payoutStatus,
+    checkPayoutStatus,
+    processPayout
   } = usePoolPayouts({ poolId, userId });
-  
+
+  const {
+    earlyPayoutStatus,
+    checkEarlyPayoutStatus,
+  } = useEarlyPayout({ poolId, userId });
+
   const [processingPayout, setProcessingPayout] = useState(false);
   const [payoutResult, setPayoutResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [showEarlyPayoutModal, setShowEarlyPayoutModal] = useState(false);
 
   // Load status on mount
   useEffect(() => {
     checkPayoutStatus();
-  }, [checkPayoutStatus]);
+    // Also check early payout status if user is admin
+    if (isAdmin) {
+      checkEarlyPayoutStatus();
+    }
+  }, [checkPayoutStatus, checkEarlyPayoutStatus, isAdmin]);
 
   // Format currency amounts
   const formatCurrency = (amount: number) => {
@@ -54,14 +66,15 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
   };
 
   // Calculate contribution progress percentage
+  // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including recipient
   const getContributionProgress = () => {
     if (!payoutStatus) return 0;
-    
+
     const totalMembers = payoutStatus.contributionStatus.length;
-    const nonRecipientMembers = payoutStatus.contributionStatus.filter(m => !m.isRecipient).length;
+    // All members must contribute - no special handling for recipient
     const contributedMembers = payoutStatus.contributionStatus.filter(m => m.contributed).length;
-    
-    return (contributedMembers / nonRecipientMembers) * 100;
+
+    return (contributedMembers / totalMembers) * 100;
   };
 
   // Handle payout button click
@@ -83,6 +96,26 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
       setProcessingPayout(false);
     }
   };
+
+  // Handle early payout success
+  const handleEarlyPayoutSuccess = async () => {
+    await checkPayoutStatus();
+    await checkEarlyPayoutStatus();
+    onPayoutSuccess?.();
+  };
+
+  // Check if early payout is available
+  // Early payout is available when:
+  // 1. User is admin
+  // 2. Payout not already processed
+  // 3. All contributions are received
+  // 4. Current date is before scheduled payout date
+  const canShowEarlyPayoutButton = isAdmin &&
+    payoutStatus &&
+    !payoutStatus.payoutProcessed &&
+    payoutStatus.allContributionsReceived &&
+    payoutStatus.nextPayoutDate &&
+    new Date() < new Date(payoutStatus.nextPayoutDate);
 
   if (isLoading && !payoutStatus) {
     return (
@@ -166,6 +199,7 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
             </div>
 
             {/* Contribution status */}
+            {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
             <div className="border rounded-md p-4">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center">
@@ -173,8 +207,8 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
                   <h3 className="font-medium">Member Contributions</h3>
                 </div>
                 <span className="text-sm font-medium">
-                  {payoutStatus.contributionStatus.filter(m => m.contributed || m.isRecipient).length} 
-                  / 
+                  {payoutStatus.contributionStatus.filter(m => m.contributed).length}
+                  /
                   {payoutStatus.contributionStatus.length} complete
                 </span>
               </div>
@@ -196,9 +230,8 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
                       )}
                     </span>
                     <span>
-                      {status.isRecipient ? (
-                        <span className="text-xs text-gray-500">No contribution required</span>
-                      ) : status.contributed ? (
+                      {/* UNIVERSAL CONTRIBUTION MODEL: All members show contribution status */}
+                      {status.contributed ? (
                         <span className="flex items-center text-green-600 text-sm">
                           <Check className="h-4 w-4 mr-1" />
                           Paid
@@ -245,9 +278,9 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
         )}
       </CardContent>
 
-      <CardFooter className="flex justify-between items-center">
-        <Button 
-          variant="outline" 
+      <CardFooter className="flex justify-between items-center flex-wrap gap-2">
+        <Button
+          variant="outline"
           onClick={checkPayoutStatus}
           disabled={isLoading}
         >
@@ -261,26 +294,51 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
           )}
         </Button>
 
-        {isAdmin && payoutStatus && !payoutStatus.payoutProcessed && payoutStatus.allContributionsReceived && (
-          <Button 
-            onClick={handleProcessPayout}
-            disabled={processingPayout || !payoutStatus.allContributionsReceived}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {processingPayout ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <DollarSign className="mr-2 h-4 w-4" />
-                Process Payout
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {/* Early Payout Button - Only visible to admin when contributions are complete and before scheduled date */}
+          {canShowEarlyPayoutButton && (
+            <Button
+              variant="outline"
+              onClick={() => setShowEarlyPayoutModal(true)}
+              className="border-amber-500 text-amber-700 hover:bg-amber-50"
+            >
+              <Zap className="mr-2 h-4 w-4" />
+              Initiate Early Payout
+            </Button>
+          )}
+
+          {/* Regular Process Payout Button */}
+          {isAdmin && payoutStatus && !payoutStatus.payoutProcessed && payoutStatus.allContributionsReceived && (
+            <Button
+              onClick={handleProcessPayout}
+              disabled={processingPayout || !payoutStatus.allContributionsReceived}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {processingPayout ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  Process Payout
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </CardFooter>
+
+      {/* Early Payout Modal */}
+      <EarlyPayoutModal
+        poolId={poolId}
+        poolName={poolName}
+        userId={userId}
+        isOpen={showEarlyPayoutModal}
+        onClose={() => setShowEarlyPayoutModal(false)}
+        onPayoutSuccess={handleEarlyPayoutSuccess}
+      />
     </Card>
   );
 }

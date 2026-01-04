@@ -3,6 +3,11 @@
  *
  * Processes pool payouts to members via Stripe Connect transfers
  * Only pool admins can initiate payouts
+ *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * The recipient's contribution goes into the pool they receive from.
+ * Payout amount = contribution_amount × total_members (not members - 1)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -129,10 +134,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Verify all other members have contributed
-      const nonRecipientMembers = pool.members.filter(
-        (m: PoolMember) => m.userId.toString() !== recipient.userId.toString()
-      );
+      // UNIVERSAL CONTRIBUTION MODEL: Verify ALL members have contributed (including recipient)
+      // All members must contribute every round - the recipient's contribution goes into their payout
 
       // Check contributions for current round
       const roundContributions = pool.transactions.filter(
@@ -146,7 +149,8 @@ export async function POST(request: NextRequest) {
         roundContributions.map((tx: { member: string }) => tx.member)
       );
 
-      const missingContributors = nonRecipientMembers.filter(
+      // Check ALL members including recipient
+      const missingContributors = pool.members.filter(
         (m: PoolMember) => !contributorIds.has(m.name)
       );
 
@@ -162,8 +166,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Calculate payout amount
-      const payoutAmount = pool.contributionAmount * (pool.members.length - 1);
+      // UNIVERSAL CONTRIBUTION MODEL: Payout = contribution × memberCount (all members contribute)
+      const payoutAmount = pool.contributionAmount * pool.members.length;
 
       // Verify pool has sufficient balance
       if (pool.totalAmount < payoutAmount) {

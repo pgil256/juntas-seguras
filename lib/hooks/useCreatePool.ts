@@ -30,8 +30,9 @@ export function useCreatePool({ onSuccess }: UseCreatePoolProps = {}): UseCreate
       return null;
     }
 
-    if (!data.contributionAmount || isNaN(Number(data.contributionAmount)) || Number(data.contributionAmount) <= 0) {
-      setError('Valid contribution amount is required');
+    const contributionAmount = Number(data.contributionAmount);
+    if (!data.contributionAmount || isNaN(contributionAmount) || !Number.isInteger(contributionAmount) || contributionAmount < 1 || contributionAmount > 20) {
+      setError('Contribution amount must be between $1 and $20');
       return null;
     }
 

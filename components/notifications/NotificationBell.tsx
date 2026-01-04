@@ -40,10 +40,10 @@ export const NotificationBell = () => {
     <div className="relative">
       <button
         onClick={toggleOpen}
-        className="p-2 text-gray-400 hover:text-gray-500 relative"
+        className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full relative transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
         aria-label="Notifications"
       >
-        <Bell className="h-6 w-6" />
+        <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
             {unreadCount}
@@ -52,12 +52,13 @@ export const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg overflow-hidden z-20">
+        <div className="fixed inset-x-3 top-16 bottom-auto sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white rounded-lg shadow-lg ring-1 ring-black/5 overflow-hidden z-50">
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-gray-500"
+              className="text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
+              aria-label="Close notifications"
             >
               <X className="h-4 w-4" />
             </button>
@@ -68,34 +69,36 @@ export const NotificationBell = () => {
               notifications.slice(0, 5).map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 border-b border-gray-200 hover:bg-gray-50 ${
-                    !notification.read ? 'bg-blue-50' : ''
+                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                    !notification.read ? 'bg-blue-50/50' : ''
                   }`}
                   onClick={() => !notification.read && markAsRead(notification.id)}
                 >
-                  <p className="text-sm text-gray-800">{notification.message}</p>
+                  <p className="text-sm text-gray-800 leading-relaxed">{notification.message}</p>
                   <div className="flex justify-between items-center mt-2">
                     <p className="text-xs text-gray-500">
                       {formatDate(notification.date)}
                     </p>
-                    <div className="flex space-x-1">
+                    <div className="flex gap-1">
                       {!notification.read && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0"
+                          className="h-8 w-8 p-0 hover:bg-blue-100"
                           onClick={(e) => handleMarkAsRead(notification.id, e)}
+                          aria-label="Mark as read"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="h-4 w-4" />
                         </Button>
                       )}
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
                         onClick={(e) => handleDelete(notification.id, e)}
+                        aria-label="Delete notification"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -108,10 +111,10 @@ export const NotificationBell = () => {
             )}
           </div>
           
-          <div className="p-3 border-t border-gray-200">
+          <div className="p-3 border-t border-gray-100">
             <Link
               href="/notifications"
-              className="block text-center text-sm text-blue-600 hover:text-blue-500"
+              className="block text-center text-sm font-medium text-blue-600 hover:text-blue-700 py-1.5 rounded-md hover:bg-blue-50 transition-colors"
               onClick={() => setIsOpen(false)}
             >
               View all notifications

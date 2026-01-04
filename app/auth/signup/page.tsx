@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/aler
 import { TwoFactorMethod } from "../../../types/security";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
-import { Shield, Phone, Mail, Smartphone, CreditCard, FileText, AlertTriangle, Loader2 } from "lucide-react";
+import { Mail, CreditCard, FileText, AlertTriangle, Loader2, Shield } from "lucide-react";
 import { VerificationType, VerificationMethod } from "../../../types/identity";
 import VerificationPopup from '../../../components/auth/VerificationPopup';
 import { useToast } from "../../../hooks/use-toast";
@@ -36,9 +36,8 @@ export default function SignUp() {
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [verificationType, setVerificationType] = useState<VerificationType>(VerificationType.GOVERNMENT_ID);
   const [identityVerificationUrl, setIdentityVerificationUrl] = useState<string | null>(null);
-  const [verificationMethod, setVerificationMethod] = useState<'email' | 'app'>('email');
+  const [verificationMethod] = useState<'email'>('email');
   const [showVerificationPopup, setShowVerificationPopup] = useState(false);
-  const [verificationData, setVerificationData] = useState<any>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [mfaError, setMfaError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -119,16 +118,11 @@ export default function SignUp() {
       // Store user ID and MFA info for the next step
       setUserId(data.user.userId);
       setMfaMethod(data.user.mfaMethod);
-      setVerificationMethod(data.user.mfaMethod);
       setMfaData(data.mfaSetup || {});
-      
-      if (data.user.mfaMethod === 'app') {
-        setVerificationData(data.mfaSetup);
-      }
       
       // Show verification popup
       setShowVerificationPopup(true);
-      toast({ title: "Registration initiated", description: "Please check your email or authenticator app for the verification code." });
+      toast({ title: "Registration initiated", description: "Please check your email for the verification code." });
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(err.message || 'Failed to create account');
@@ -414,30 +408,7 @@ export default function SignUp() {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="verificationMethod">Verification Method</Label>
-                  <RadioGroup
-                    value={verificationMethod}
-                    onValueChange={(value: 'email' | 'app') => setVerificationMethod(value)}
-                    className="flex flex-col sm:flex-row gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="email" id="email" />
-                      <label htmlFor="email" className="flex items-center">
-                        <Mail className="w-4 h-4 mr-2" />
-                        Email
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="app" id="app" />
-                      <label htmlFor="app" className="flex items-center">
-                        <Shield className="w-4 h-4 mr-2" />
-                        Authenticator App
-                      </label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                
+                                
                 <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700"
@@ -502,39 +473,10 @@ export default function SignUp() {
                       </Label>
                     </div>
                     
-                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
-                      <RadioGroupItem value="app" id="r3" />
-                      <Label htmlFor="r3" className="flex items-center cursor-pointer">
-                        <Phone className="h-5 w-5 mr-2 text-gray-600" />
-                        <div>
-                          <span className="block font-medium">Authentication App</span>
-                          <span className="block text-gray-500 text-sm">
-                            Use an app like Google Authenticator or Authy
-                          </span>
-                        </div>
-                      </Label>
-                    </div>
                   </RadioGroup>
                 </div>
                 
-                {mfaMethod === 'app' && mfaData?.qrCodeUrl && (
-                  <div className="p-4 border rounded-md bg-gray-50 space-y-4">
-                    <h3 className="font-medium">Set up Authentication App</h3>
-                    <ol className="space-y-2 text-sm text-gray-600">
-                      <li>1. Open your authentication app</li>
-                      <li>2. Scan this QR code or enter the code manually</li>
-                      <li>3. Enter the 6-digit verification code below</li>
-                    </ol>
-                    
-                    <div className="border p-2 bg-white rounded-md">
-                      <div className="text-center">QR code would be displayed here</div>
-                      <div className="mt-2 p-2 bg-gray-100 rounded font-mono text-sm text-center">
-                        {mfaData.secret}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
+                                
                 {mfaMethod === 'email' && (
                   <div className="p-4 border rounded-md bg-gray-50">
                     <p className="text-sm">

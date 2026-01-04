@@ -9,6 +9,11 @@ const Pool = getPoolModel();
 
 /**
  * GET /api/pools/[id]/contributions - Get contribution status for current round
+ *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * The recipient contributes to the pool they receive from.
+ * Payout amount = contribution_amount × total_members (not members - 1)
  */
 export async function GET(
   request: NextRequest,
@@ -64,10 +69,12 @@ export async function GET(
     );
 
     // Get contribution status for all members for current round
+    // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including the recipient
     const contributionStatus = pool.members.map((member: any) => {
       const isRecipient = member.position === currentRound;
 
       // Check if this member has contributed for the current round
+      // Note: Even the recipient must contribute under the universal model
       const contribution = pool.transactions.find(
         (t: any) =>
           t.member === member.name &&
@@ -81,16 +88,17 @@ export async function GET(
         email: member.email,
         position: member.position,
         isRecipient,
-        hasContributed: isRecipient ? null : !!contribution,
+        // All members have contribution status tracked, including recipient
+        hasContributed: !!contribution,
         contributionDate: contribution?.date || null,
         contributionStatus: contribution?.status || null,
         amount: contribution?.amount || pool.contributionAmount
       };
     });
 
-    // Check if all required members have contributed
+    // Check if ALL members have contributed (including recipient under universal model)
     const allContributionsReceived = contributionStatus.every(
-      (c: any) => c.isRecipient || c.hasContributed
+      (c: any) => c.hasContributed
     );
 
     return NextResponse.json({
@@ -121,6 +129,11 @@ export async function GET(
 
 /**
  * POST /api/pools/[id]/contributions - Initiate or complete a contribution
+ *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * The recipient's contribution goes into the pool they receive from.
+ * This ensures the payout amount = contribution_amount × total_members
  *
  * Actions:
  * - initiate: Creates a Stripe Checkout session and returns the URL
@@ -176,13 +189,9 @@ export async function POST(
 
     const currentRound = pool.currentRound;
 
-    // Check if user is the recipient for this round (they don't contribute)
-    if (userMember.position === currentRound) {
-      return NextResponse.json(
-        { error: 'You are the recipient for this round and do not need to contribute' },
-        { status: 400 }
-      );
-    }
+    // UNIVERSAL CONTRIBUTION MODEL: Recipients also contribute
+    // The recipient check has been removed - all members must contribute every round
+    // This ensures payout = contributionAmount × memberCount
 
     // Check if user has already contributed for this round
     const existingContribution = pool.transactions.find(
@@ -338,12 +347,13 @@ export async function POST(
       await pool.save();
 
       // Check if all members have now contributed
+      // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including the recipient
       const payoutRecipient = pool.members.find(
         (m: any) => m.position === currentRound
       );
 
       const allMembersContributed = pool.members.every((member: any) => {
-        if (member.position === currentRound) return true; // Skip recipient
+        // No exclusion - all members including recipient must contribute
         return pool.transactions.some(
           (t: any) =>
             t.member === member.name &&

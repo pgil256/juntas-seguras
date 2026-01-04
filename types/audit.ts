@@ -32,6 +32,7 @@ export enum AuditLogType {
   // Payment-related actions
   PAYMENT_CONTRIBUTION = 'payment_contribution',
   PAYMENT_PAYOUT = 'payment_payout',
+  PAYMENT_EARLY_PAYOUT = 'payment_early_payout',
   PAYMENT_ESCROW = 'payment_escrow',
   PAYMENT_ESCROW_RELEASE = 'payment_escrow_release',
   PAYMENT_REFUND = 'payment_refund',

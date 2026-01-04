@@ -25,10 +25,17 @@ interface UpcomingPayment {
   hasContributed: boolean;
   status: 'due' | 'upcoming' | 'overdue' | 'contributed';
   daysUntilDue: number;
+  // UNIVERSAL CONTRIBUTION MODEL: Payout amount for recipients (contribution × memberCount)
+  payoutAmount?: number;
 }
 
 /**
  * GET /api/payments/upcoming - Calculate and return upcoming payment obligations
+ *
+ * UNIVERSAL CONTRIBUTION MODEL:
+ * All members contribute every week, INCLUDING the payout recipient.
+ * The recipient's contribution goes into the pool they receive from.
+ * Payout amount = contribution_amount × total_members (not members - 1)
  *
  * Returns a list of upcoming payments the user needs to make across all their pools
  */
@@ -82,28 +89,8 @@ export async function GET(request: NextRequest) {
       // Check if user is the recipient for this round
       const isRecipient = userMember.position === currentRound;
 
-      // If user is the recipient, they don't need to contribute
-      if (isRecipient) {
-        upcomingPayments.push({
-          id: `${pool.id}_round_${currentRound}`,
-          poolId: pool.id,
-          poolName: pool.name,
-          amount: pool.contributionAmount * (pool.members.length - 1),
-          dueDate: pool.nextPayoutDate || calculateNextPayoutDate(pool.startDate, pool.frequency, currentRound),
-          frequency: pool.frequency,
-          currentRound,
-          totalRounds,
-          recipientName: 'You',
-          recipientPosition: currentRound,
-          userPosition: userMember.position,
-          isRecipient: true,
-          hasContributed: false,
-          status: 'upcoming',
-          daysUntilDue: calculateDaysUntilDue(pool.nextPayoutDate || calculateNextPayoutDate(pool.startDate, pool.frequency, currentRound))
-        });
-        continue;
-      }
-
+      // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
+      // They contribute to the pool and receive the full payout (contribution × memberCount)
       // Check if user has already contributed for this round
       const hasContributedInPool = pool.transactions?.some(
         (t: { member: string; type: string; round: number; status: string }) =>
@@ -139,22 +126,28 @@ export async function GET(request: NextRequest) {
         status = 'upcoming';
       }
 
+      // UNIVERSAL CONTRIBUTION MODEL: All members contribute, including recipient
+      // For recipients, also include the payout amount they will receive
       upcomingPayments.push({
         id: `${pool.id}_round_${currentRound}`,
         poolId: pool.id,
         poolName: pool.name,
-        amount: pool.contributionAmount,
+        amount: pool.contributionAmount, // Everyone pays the same contribution
         dueDate,
         frequency: pool.frequency,
         currentRound,
         totalRounds,
-        recipientName: recipient?.name || 'Unknown',
+        recipientName: isRecipient ? 'You' : (recipient?.name || 'Unknown'),
         recipientPosition: currentRound,
         userPosition: userMember.position,
-        isRecipient: false,
+        isRecipient,
         hasContributed,
         status,
-        daysUntilDue
+        daysUntilDue,
+        // If user is recipient, include the payout amount they'll receive
+        ...(isRecipient && {
+          payoutAmount: pool.contributionAmount * pool.members.length
+        })
       });
     }
 
