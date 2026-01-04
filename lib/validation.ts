@@ -47,22 +47,35 @@ const ENV_VAR_CONFIG: EnvVarConfig[] = [
     name: 'EMAIL_FROM',
     required: 'production',
   },
-  // PayPal
+  // Stripe (primary payment processor)
+  {
+    name: 'STRIPE_SECRET_KEY',
+    required: true,
+  },
+  {
+    name: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
+    required: true,
+  },
+  {
+    name: 'STRIPE_WEBHOOK_SECRET',
+    required: 'production',
+  },
+  // PayPal (optional, for legacy support)
   {
     name: 'PAYPAL_CLIENT_ID',
-    required: true,
+    required: false,
   },
   {
     name: 'PAYPAL_CLIENT_SECRET',
-    required: true,
+    required: false,
   },
   {
     name: 'NEXT_PUBLIC_PAYPAL_CLIENT_ID',
-    required: true,
+    required: false,
   },
   {
     name: 'PAYPAL_WEBHOOK_ID',
-    required: 'production',
+    required: false,
   },
   // App URL
   {
