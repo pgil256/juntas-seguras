@@ -92,6 +92,9 @@ const UserSchema = new Schema({
   stripeCustomerId: { type: String },
   // Stripe Connect account ID for receiving payouts
   stripeConnectAccountId: { type: String },
+  // Stripe Connect account status
+  stripePayoutsEnabled: { type: Boolean, default: false },
+  stripeDetailsSubmitted: { type: Boolean, default: false },
   // Address for KYC verification
   address: {
     street: { type: String },
@@ -169,6 +172,8 @@ export interface UserDocument extends Document {
   identityVerified: boolean;
   stripeCustomerId?: string;
   stripeConnectAccountId?: string;
+  stripePayoutsEnabled?: boolean;
+  stripeDetailsSubmitted?: boolean;
   address?: {
     street?: string;
     city?: string;
