@@ -155,7 +155,7 @@ async function canInitiateEarlyPayout(
   if (processingContributions.length > 0) {
     return {
       allowed: false,
-      reason: 'Some contributions are still being processed. Please wait for auto-collection to complete.',
+      reason: 'Some contributions are still being processed. Please wait for them to be verified.',
       missingContributions: processingContributions,
       currentRound,
     };

@@ -95,19 +95,19 @@ const faqData = {
     {
       question: "Is Juntas Seguras free to use?",
       answer:
-        "Basic features are free for all users. We charge a small service fee of 1% on payouts to maintain the platform and ensure secure transactions. Premium features are available to subscribers at $5 per month.",
+        "Yes, Juntas Seguras is completely free to use. There are no service fees or subscription costs. All features are available to all users at no charge.",
     },
     {
       question: "How safe is my information?",
       answer:
-        "We use bank-level encryption to protect your personal and financial information. We also implement two-factor authentication, regular security audits, and strict access controls to ensure your data stays secure.",
+        "We use bank-level encryption to protect your personal and financial information. We require mandatory two-factor authentication for all users, conduct regular security audits, and enforce strict access controls to ensure your data stays secure.",
     },
   ],
   account: [
     {
       question: "How do I create an account?",
       answer:
-        "Click on 'Sign Up' on the homepage and follow the instructions. You'll need to provide your email address, create a password, and verify your email. For enhanced security, we recommend setting up two-factor authentication once your account is created.",
+        "Click on 'Sign Up' on the homepage and follow the instructions. You'll need to provide your email address, create a password, and verify your email. Two-factor authentication is required for all accounts and will be set up during registration.",
     },
     {
       question: "How can I reset my password?",
@@ -122,7 +122,7 @@ const faqData = {
     {
       question: "How do I delete my account?",
       answer:
-        "To delete your account, go to Account Settings → Privacy, and click on 'Delete Account'. Note that you cannot delete your account if you have active pools or pending transactions.",
+        "To delete your account, go to Settings → Security, scroll down to the 'Danger Zone' section, and click on 'Delete Account'. Note that you cannot delete your account if you have active pools or pending transactions.",
     },
   ],
   pools: [
@@ -156,7 +156,7 @@ const faqData = {
     {
       question: "What payment methods are accepted?",
       answer:
-        "We accept credit and debit cards through Stripe's secure payment processing. Bank transfers are also available for certain transactions.",
+        "Juntas Seguras supports Venmo, PayPal, Zelle, and Cash App for pool contributions and payouts. Pool administrators select which payment methods to accept when creating a pool, and members can save their preferred payout method in their account settings.",
     },
     {
       question: "How often do I need to contribute?",
@@ -164,36 +164,41 @@ const faqData = {
         "Contribution frequency depends on how your pool is set up. Pools can be weekly, bi-weekly, or monthly. The system will automatically remind you when your contribution is due.",
     },
     {
-      question: "Are there any fees for using Juntas Seguras?",
+      question: "What are the contribution limits?",
       answer:
-        "Basic account features are free. We charge a 1% service fee on payouts to cover transaction costs and platform maintenance. Premium features require a subscription of $5 per month.",
+        "Contribution amounts range from $1 to $20 per period. This range helps keep pools accessible and manageable for all members.",
     },
     {
-      question: "What happens to my money between contributions and payouts?",
+      question: "Are there any fees for using Juntas Seguras?",
       answer:
-        "All funds are held in a secure escrow account until they're distributed to the designated member according to the pool schedule. We never use pool funds for any other purpose.",
+        "No, Juntas Seguras is completely free to use. There are no platform fees, service charges, or subscription costs. Any transaction fees from your chosen payment method (Venmo, PayPal, etc.) are handled by those services directly.",
+    },
+    {
+      question: "How do contributions and payouts work?",
+      answer:
+        "Pool members send their contributions directly to the pool administrator using their preferred payment method (Venmo, PayPal, Zelle, or Cash App). The administrator tracks payments and sends the pooled amount to each recipient when it's their turn. Members confirm their payments in the app for easy tracking.",
     },
   ],
   security: [
     {
       question: "How do you protect my financial information?",
       answer:
-        "We use bank-level encryption (256-bit SSL) for all data transmission and storage. We don't store complete payment information on our servers. All transactions are processed through our secure payment partners.",
+        "We use encryption for all data transmission and storage. Your payout method details (Venmo, PayPal, etc.) are stored securely and visible to pool administrators when they need to send you payouts.",
     },
     {
       question: "What if someone scams me in a pool?",
       answer:
-        "We have multiple safeguards to prevent scams, including identity verification, payment protection, and dispute resolution. If you suspect fraudulent activity, contact our support team immediately, and we'll investigate.",
+        "We have multiple safeguards including identity verification through Stripe Identity, payment tracking and confirmation workflows, and support for dispute resolution. If you suspect fraudulent activity, contact our support team immediately. We strongly recommend only joining pools with people you know and trust.",
     },
     {
       question: "Should I join pools with people I don't know?",
       answer:
-        "We recommend joining pools with people you know and trust. If you join public pools, review the pool history and member ratings carefully. Our secure payment system helps reduce risks, but personal trust is still important.",
+        "We strongly recommend only joining pools with people you know and trust, such as friends, family, or community members. The success of a savings pool depends on mutual trust and accountability among members.",
     },
     {
       question: "How do you verify users' identities?",
       answer:
-        "We use a combination of email verification, phone verification, and optional ID verification for enhanced security. For pools with higher contribution amounts, we require additional verification steps.",
+        "All accounts require mandatory two-factor authentication (email or authenticator app). We also offer optional identity verification through Stripe Identity for enhanced trust among pool members. Email verification is required for all accounts.",
     },
   ],
 };

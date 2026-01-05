@@ -2,11 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, CreditCard, DollarSign, Calendar, AlertCircle, Clock, CheckCircle, Smartphone, Building } from 'lucide-react';
+import { ChevronLeft, ChevronRight, DollarSign, AlertCircle, Clock, CheckCircle, Smartphone } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Card } from '../../../../components/ui/card';
 import { Separator } from '../../../../components/ui/separator';
-import { Badge } from '../../../../components/ui/badge';
 
 export default function PaymentsDocumentationPage() {
   return (
@@ -21,53 +20,62 @@ export default function PaymentsDocumentationPage() {
           <section>
             <h3 className="text-xl font-semibold text-gray-900">Payment Methods for Contributions</h3>
             <p className="mt-2 text-gray-700">
-              Juntas Seguras uses Stripe for secure payment processing. You can add multiple payment methods:
+              Juntas Seguras uses peer-to-peer payment apps for contributions. Pool administrators select which methods to accept:
             </p>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-start">
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
+                  <Smartphone className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900">Bank Account (ACH)</h4>
+                  <h4 className="font-medium text-gray-900">Venmo</h4>
                   <p className="text-sm text-gray-700 mt-1">
-                    Connect your bank account for direct debits. Lower fees and best for regular payments.
+                    Send contributions via Venmo to the pool administrator. Quick and easy for most users.
                   </p>
-                  <Badge className="mt-2 bg-blue-50 text-blue-700 hover:bg-blue-100">Recommended</Badge>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-start">
                 <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center mr-3 flex-shrink-0">
-                  <CreditCard className="h-4 w-4 text-green-600" />
+                  <Smartphone className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900">Debit Card</h4>
+                  <h4 className="font-medium text-gray-900">Cash App</h4>
                   <p className="text-sm text-gray-700 mt-1">
-                    Link a debit card for convenient payments. Good for quick setup and flexibility.
+                    Use your Cash App $cashtag for instant transfers to the pool administrator.
                   </p>
-                  <Badge className="mt-2 bg-gray-50 text-gray-700 hover:bg-gray-100">No extra fees</Badge>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-start">
-                <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center mr-3 flex-shrink-0">
-                  <CreditCard className="h-4 w-4 text-red-600" />
+                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
+                  <Smartphone className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900">Credit Card</h4>
+                  <h4 className="font-medium text-gray-900">PayPal</h4>
                   <p className="text-sm text-gray-700 mt-1">
-                    Use credit cards when other methods aren't available. Standard processing fees apply.
+                    Send via PayPal using the administrator's PayPal.me link or email address.
                   </p>
-                  <Badge className="mt-2 bg-red-50 text-red-700 hover:bg-red-100">Processing fees apply</Badge>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-start">
+                <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center mr-3 flex-shrink-0">
+                  <Smartphone className="h-4 w-4 text-purple-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900">Zelle</h4>
+                  <p className="text-sm text-gray-700 mt-1">
+                    Transfer directly from your bank using Zelle. Scan the admin's QR code for easy sending.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-yellow-50 rounded-md border border-yellow-100">
-              <p className="text-sm text-yellow-800">
-                <span className="font-medium">Important:</span> For security reasons, Juntas Seguras doesn't store your complete payment information. All transactions are processed securely through Stripe.
+            <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
+              <p className="text-sm text-blue-800">
+                <span className="font-medium">Note:</span> Contribution amounts range from $1 to $20 per period. After sending your contribution, confirm the payment in the app so the administrator can track it.
               </p>
             </div>
           </section>
@@ -77,34 +85,19 @@ export default function PaymentsDocumentationPage() {
           <section>
             <h3 className="text-xl font-semibold text-gray-900">Payout Methods</h3>
             <p className="mt-2 text-gray-700">
-              When it's your turn to receive the pool payout, you have multiple options:
+              When it's your turn to receive the pool payout, the administrator will send funds using your preferred payment method:
             </p>
 
             <div className="mt-4 space-y-4">
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-start">
-                  <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center mr-3 flex-shrink-0">
-                    <Building className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">Stripe Connect (Automatic)</h4>
-                    <p className="text-sm text-gray-700 mt-1">
-                      Set up a Stripe Connect account to receive payouts directly to your bank account. This is the fastest and most automated option.
-                    </p>
-                    <Badge className="mt-2 bg-purple-50 text-purple-700 hover:bg-purple-100">Recommended for auto-pay</Badge>
-                  </div>
-                </div>
-              </div>
-
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-start">
                   <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center mr-3 flex-shrink-0">
                     <Smartphone className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">Manual Payout Methods</h4>
+                    <h4 className="font-medium text-gray-900">Payout Methods</h4>
                     <p className="text-sm text-gray-700 mt-1">
-                      Prefer to receive payouts through your favorite payment app? You can set up:
+                      Save your payment app details so administrators know where to send your payout:
                     </p>
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div className="text-center p-2 bg-blue-50 rounded-md">
@@ -121,7 +114,7 @@ export default function PaymentsDocumentationPage() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      Pool administrators will send payouts manually using your provided details. Zelle users can generate a QR code for easy payments.
+                      Pool administrators will send payouts using your provided details. Zelle users can upload a QR code for easy payments.
                     </p>
                   </div>
                 </div>
@@ -132,31 +125,28 @@ export default function PaymentsDocumentationPage() {
           <Separator />
 
           <section>
-            <h3 className="text-xl font-semibold text-gray-900">Setting Up Payment Methods</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Setting Up Payout Methods</h3>
             <p className="mt-2 text-gray-700">
-              Follow these steps to add a payment method to your account:
+              Follow these steps to set up your payout method so administrators know where to send your winnings:
             </p>
             <ol className="mt-2 space-y-3 text-gray-700 list-decimal pl-5">
               <li>
-                <span className="font-medium">Access Payment Settings:</span> Go to Settings → Payment Methods
+                <span className="font-medium">Access Settings:</span> Go to Settings → Payout Method
               </li>
               <li>
-                <span className="font-medium">Add New Method:</span> Click "Add Payment Method" and select the type
+                <span className="font-medium">Add Your Details:</span> Enter your username/handle for Venmo, Cash App, PayPal, or Zelle
               </li>
               <li>
-                <span className="font-medium">Enter Details:</span> Provide the required information for your selected payment method
+                <span className="font-medium">Upload Zelle QR (Optional):</span> If you use Zelle, you can upload your QR code for easy payments
               </li>
               <li>
-                <span className="font-medium">Verification:</span> Complete any verification steps required by Stripe
-              </li>
-              <li>
-                <span className="font-medium">Set Default:</span> Optionally set this method as your default for automatic payments
+                <span className="font-medium">Set Preferred Method:</span> Choose which method you'd like to be your default for payouts
               </li>
             </ol>
 
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">For Payouts:</span> Go to Settings → Payout Method to set up how you'd like to receive pool payouts. You can choose between Stripe Connect or manual methods like Venmo, PayPal, Zelle, or Cash App.
+                <span className="font-medium">Tip:</span> You can save multiple payout methods and set a preferred one. Pool administrators will see your details when it's time to send your payout.
               </p>
             </div>
           </section>
@@ -166,66 +156,42 @@ export default function PaymentsDocumentationPage() {
           <section>
             <h3 className="text-xl font-semibold text-gray-900">Making Contributions</h3>
             <p className="mt-2 text-gray-700">
-              Contributing to your pools is simple and can be automated:
+              Contributing to your pools is straightforward:
             </p>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mt-4">
               <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h4 className="font-medium text-gray-900 mb-2">Manual Contributions</h4>
+                <h4 className="font-medium text-gray-900 mb-2">How to Contribute</h4>
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
                       <span className="text-xs font-medium text-blue-600">1</span>
                     </div>
-                    <span>Receive notification when payment is due</span>
+                    <span>Receive a reminder notification when your contribution is due</span>
                   </li>
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
                       <span className="text-xs font-medium text-blue-600">2</span>
                     </div>
-                    <span>Go to the pool page and click "Make Payment"</span>
+                    <span>Go to the pool page to view the administrator's payment details</span>
                   </li>
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
                       <span className="text-xs font-medium text-blue-600">3</span>
                     </div>
-                    <span>Select your payment method</span>
+                    <span>Send your contribution via Venmo, Cash App, PayPal, or Zelle</span>
                   </li>
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
                       <span className="text-xs font-medium text-blue-600">4</span>
                     </div>
-                    <span>Confirm the transaction</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h4 className="font-medium text-gray-900 mb-2">Automatic Contributions</h4>
-                <ul className="space-y-2 text-sm text-gray-700">
-                  <li className="flex items-start">
-                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
-                      <span className="text-xs font-medium text-green-600">1</span>
-                    </div>
-                    <span>Go to pool settings and enable "Auto-pay"</span>
+                    <span>Confirm your payment in the app so the admin can track it</span>
                   </li>
                   <li className="flex items-start">
-                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
-                      <span className="text-xs font-medium text-green-600">2</span>
+                    <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
+                      <span className="text-xs font-medium text-blue-600">5</span>
                     </div>
-                    <span>Choose your preferred payment method</span>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
-                      <span className="text-xs font-medium text-green-600">3</span>
-                    </div>
-                    <span>Contributions are collected automatically on due dates</span>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5 flex-shrink-0">
-                      <span className="text-xs font-medium text-green-600">4</span>
-                    </div>
-                    <span>Receive confirmations when payments process</span>
+                    <span>The administrator will verify receipt of your payment</span>
                   </li>
                 </ul>
               </div>
@@ -233,7 +199,7 @@ export default function PaymentsDocumentationPage() {
 
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">Tip:</span> Setting up automatic payments ensures you never miss a contribution deadline, maintaining your good standing in the pool.
+                <span className="font-medium">Tip:</span> Pay on time to maintain your good standing in the pool. The system sends automatic reminders before payments are due.
               </p>
             </div>
           </section>
@@ -250,17 +216,13 @@ export default function PaymentsDocumentationPage() {
                 <span className="font-medium">Payout Notification:</span> You'll receive a notification when your payout is scheduled
               </li>
               <li>
-                <span className="font-medium">All Contributions Received:</span> The pool admin will process your payout once all members have contributed
+                <span className="font-medium">All Contributions Received:</span> The pool admin will process your payout once all members have contributed for the round
               </li>
               <li>
-                <span className="font-medium">Payout Processing:</span>
-                <ul className="list-disc pl-5 mt-1">
-                  <li>Stripe Connect: Automatic transfer to your bank (1-2 business days)</li>
-                  <li>Manual methods: Admin sends via your selected app (Venmo, PayPal, etc.)</li>
-                </ul>
+                <span className="font-medium">Payout Processing:</span> The administrator sends funds via your preferred payment app (Venmo, PayPal, Zelle, or Cash App)
               </li>
               <li>
-                <span className="font-medium">Confirmation:</span> You'll receive a confirmation when the funds are sent
+                <span className="font-medium">Confirmation:</span> The administrator marks the payout as complete in the system
               </li>
             </ol>
 
@@ -352,26 +314,23 @@ export default function PaymentsDocumentationPage() {
           <section>
             <h3 className="text-xl font-semibold text-gray-900">Payment Security</h3>
             <p className="mt-2 text-gray-700">
-              Your financial information is protected by multiple security measures:
+              Your account and information are protected by multiple security measures:
             </p>
             <ul className="mt-2 space-y-3 text-gray-700 list-disc pl-5">
               <li>
-                <span className="font-medium">Stripe Processing:</span> All payments processed through PCI-compliant Stripe
+                <span className="font-medium">Peer-to-Peer Payments:</span> Contributions are sent directly between members using trusted payment apps
               </li>
               <li>
-                <span className="font-medium">Encryption:</span> Bank-level encryption for all payment data
-              </li>
-              <li>
-                <span className="font-medium">Tokenization:</span> Payment details are tokenized, never stored directly
-              </li>
-              <li>
-                <span className="font-medium">Escrow Protection:</span> Contributions held in escrow until all members pay
+                <span className="font-medium">Payment Tracking:</span> All contributions and payouts are tracked in the app for transparency
               </li>
               <li>
                 <span className="font-medium">Two-Factor Authentication:</span> Required for all users to protect accounts
               </li>
               <li>
-                <span className="font-medium">Identity Verification:</span> KYC verification helps prevent fraud
+                <span className="font-medium">Identity Verification:</span> Optional Stripe Identity verification helps build trust among pool members
+              </li>
+              <li>
+                <span className="font-medium">Audit Trail:</span> All financial actions are logged for accountability
               </li>
             </ul>
           </section>

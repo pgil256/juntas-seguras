@@ -105,7 +105,7 @@ export function PoolCard({
       <div
         onClick={handleClick}
         className={cn(
-          'p-4 rounded-lg border bg-white cursor-pointer transition-all hover:shadow-md hover:border-gray-300',
+          'p-4 rounded-lg border bg-white card-interactive btn-press',
           userIsRecipient && 'border-emerald-200 bg-emerald-50/50',
           !userHasContributed && !userIsRecipient && 'border-amber-200 bg-amber-50/50',
           className
@@ -178,7 +178,7 @@ export function PoolCard({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-lg overflow-hidden',
+        'cursor-pointer hover-glow btn-press overflow-hidden',
         userIsRecipient && 'ring-2 ring-emerald-200',
         className
       )}

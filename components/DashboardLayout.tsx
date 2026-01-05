@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import ClientOnly from "./ClientOnly";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 // Move data outside the component
 const poolStats = {
@@ -59,14 +60,19 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <ClientOnly>
         <Navbar />
       </ClientOnly>
-      
-      {/* Main Content */}
-      <div className="flex-grow px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+
+      {/* Main Content - extra bottom padding on mobile for bottom nav */}
+      <div className="flex-grow px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 sm:pb-6">
         {children}
       </div>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-6 sm:mt-8">
+      {/* Mobile Bottom Navigation */}
+      <ClientOnly>
+        <MobileBottomNav />
+      </ClientOnly>
+
+      {/* Footer - hidden on mobile to make room for bottom nav */}
+      <footer className="hidden sm:block bg-white border-t border-gray-200 mt-6 sm:mt-8">
         <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between space-y-4 space-y-reverse md:space-y-0">
             <div className="flex justify-center space-x-4 sm:space-x-6 order-1 md:order-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,17 +10,43 @@ import {
   CheckCircle2,
   ChevronRight,
   CreditCard,
+  DollarSign,
   Gift,
   Info,
+  Loader2,
   Mail,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Button } from '../ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { cn } from '../../lib/utils';
 import { NotificationType } from '../../types/notification';
+
+interface PendingInvitation {
+  id: string;
+  invitationCode: string;
+  poolId: string;
+  poolName: string;
+  poolDescription?: string;
+  contributionAmount: number;
+  frequency: string;
+  memberCount: number;
+  inviterName: string;
+  message?: string;
+  sentDate: string;
+  expiresAt: string;
+}
 
 interface Pool {
   id: string;
@@ -117,6 +143,108 @@ export function DashboardAlerts({ pools, userEmail, isLoading }: DashboardAlerts
   const { notifications, getNotifications } = useNotifications();
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [selectedInvitation, setSelectedInvitation] = useState<PendingInvitation | null>(null);
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
+
+  // Fetch pending invitations for the current user
+  const fetchPendingInvitations = useCallback(async () => {
+    try {
+      const response = await fetch('/api/user/invitations');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingInvitations(data.invitations || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+    }
+  }, []);
+
+  // Handle accepting an invitation
+  const handleAcceptInvitation = async () => {
+    if (!selectedInvitation) return;
+
+    setIsAccepting(true);
+    try {
+      const response = await fetch('/api/pools/invitations/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invitationCode: selectedInvitation.invitationCode }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsInvitationModalOpen(false);
+        setSelectedInvitation(null);
+        // Remove the accepted invitation from the list
+        setPendingInvitations(prev => prev.filter(inv => inv.id !== selectedInvitation.id));
+        // Navigate to the pool page
+        router.push(`/pools/${data.pool.id}`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to accept invitation');
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      alert('Failed to accept invitation. Please try again.');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  // Handle declining an invitation
+  const handleDeclineInvitation = async () => {
+    if (!selectedInvitation) return;
+
+    setIsDeclining(true);
+    try {
+      const response = await fetch('/api/pools/invitations/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invitationCode: selectedInvitation.invitationCode }),
+      });
+
+      if (response.ok) {
+        setIsInvitationModalOpen(false);
+        setSelectedInvitation(null);
+        // Remove the declined invitation from the list
+        setPendingInvitations(prev => prev.filter(inv => inv.id !== selectedInvitation.id));
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to decline invitation');
+      }
+    } catch (error) {
+      console.error('Error declining invitation:', error);
+      alert('Failed to decline invitation. Please try again.');
+    } finally {
+      setIsDeclining(false);
+    }
+  };
+
+  // Open invitation details modal
+  const openInvitationModal = useCallback((invitation: PendingInvitation) => {
+    setSelectedInvitation(invitation);
+    setIsInvitationModalOpen(true);
+  }, []);
+
+  // Fetch invitations on mount and periodically
+  useEffect(() => {
+    if (userEmail) {
+      fetchPendingInvitations();
+    }
+  }, [userEmail, fetchPendingInvitations]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (userEmail) {
+        fetchPendingInvitations();
+      }
+    }, 60000); // Refresh every minute
+
+    return () => clearInterval(interval);
+  }, [userEmail, fetchPendingInvitations]);
 
   // Auto-refresh notifications every 30 seconds
   useEffect(() => {
@@ -234,9 +362,28 @@ export function DashboardAlerts({ pools, userEmail, isLoading }: DashboardAlerts
       });
     });
 
-    // Add recent important notifications as alerts
+    // Add pending pool invitations as alerts (high priority)
+    pendingInvitations.forEach(invitation => {
+      const daysUntilExpiry = Math.ceil(
+        (new Date(invitation.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+
+      generatedAlerts.push({
+        id: `pool-invitation-${invitation.id}`,
+        type: daysUntilExpiry <= 2 ? 'warning' : 'success',
+        notificationType: 'invite',
+        title: 'Pool Invitation',
+        message: `${invitation.inviterName} invited you to join "${invitation.poolName}" ($${invitation.contributionAmount}/${invitation.frequency})`,
+        action: {
+          label: 'View & Join',
+          onClick: () => openInvitationModal(invitation),
+        },
+      });
+    });
+
+    // Add recent important notifications as alerts (exclude invite type to avoid duplicates)
     const importantNotifications = notifications
-      .filter(n => !n.read && n.isImportant)
+      .filter(n => !n.read && n.isImportant && n.type !== 'invite')
       .slice(0, 3);
 
     importantNotifications.forEach(notification => {
@@ -264,7 +411,7 @@ export function DashboardAlerts({ pools, userEmail, isLoading }: DashboardAlerts
     filteredAlerts.sort((a, b) => sortOrder[a.type] - sortOrder[b.type]);
 
     setAlerts(filteredAlerts);
-  }, [pools, userEmail, isLoading, notifications, dismissedAlerts]);
+  }, [pools, userEmail, isLoading, notifications, dismissedAlerts, pendingInvitations, openInvitationModal]);
 
   const handleDismiss = (alertId: string) => {
     setDismissedAlerts(prev => new Set([...prev, alertId]));
@@ -347,6 +494,114 @@ export function DashboardAlerts({ pools, userEmail, isLoading }: DashboardAlerts
           </Button>
         </div>
       )}
+
+      {/* Pool Invitation Modal */}
+      <Dialog open={isInvitationModalOpen} onOpenChange={setIsInvitationModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-indigo-600" />
+              Pool Invitation
+            </DialogTitle>
+            <DialogDescription>
+              You&apos;ve been invited to join a savings pool
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInvitation && (
+            <div className="space-y-4">
+              {/* Pool Details */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div>
+                  <h4 className="font-semibold text-gray-900">{selectedInvitation.poolName}</h4>
+                  {selectedInvitation.poolDescription && (
+                    <p className="text-sm text-gray-600 mt-1">{selectedInvitation.poolDescription}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      ${selectedInvitation.contributionAmount}/{selectedInvitation.frequency}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      {selectedInvitation.memberCount} member{selectedInvitation.memberCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Invited by:</span> {selectedInvitation.inviterName}
+                </div>
+
+                {selectedInvitation.message && (
+                  <div className="border-t pt-3">
+                    <p className="text-sm text-gray-700 italic">&quot;{selectedInvitation.message}&quot;</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Expiration Warning */}
+              {(() => {
+                const daysUntilExpiry = Math.ceil(
+                  (new Date(selectedInvitation.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                );
+                return daysUntilExpiry <= 3 ? (
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>
+                      {daysUntilExpiry === 1
+                        ? 'Expires tomorrow'
+                        : daysUntilExpiry === 0
+                        ? 'Expires today'
+                        : `Expires in ${daysUntilExpiry} days`}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDeclineInvitation}
+              disabled={isAccepting || isDeclining}
+              className="w-full sm:w-auto"
+            >
+              {isDeclining ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Declining...
+                </>
+              ) : (
+                'Decline'
+              )}
+            </Button>
+            <Button
+              onClick={handleAcceptInvitation}
+              disabled={isAccepting || isDeclining}
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700"
+            >
+              {isAccepting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Join Pool
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

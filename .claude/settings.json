@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit:*",
+      "Write:*",
+      "Bash:*"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "shell",
+        "command": "bash .claude/hooks/skill-activation-prompt.sh",
+        "description": "Analyze prompts and suggest relevant skills"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "shell",
+        "command": "bash .claude/hooks/post-tool-use-tracker.sh",
+        "tools": ["Edit", "MultiEdit", "Write"],
+        "description": "Track edited files for build/type checking"
+      }
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

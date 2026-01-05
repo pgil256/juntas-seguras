@@ -52,7 +52,7 @@ export const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-x-3 top-16 bottom-auto sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white rounded-lg shadow-lg ring-1 ring-black/5 overflow-hidden z-50">
+        <div className="fixed inset-x-3 top-16 bottom-auto sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white rounded-lg shadow-lg ring-1 ring-black/5 overflow-hidden z-50 animate-slide-down">
           <div className="p-3 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
             <button

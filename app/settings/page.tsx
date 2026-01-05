@@ -67,6 +67,7 @@ import {
   AlertDialogTrigger,
 } from "../../components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Skeleton, CardSkeleton, PageHeaderSkeleton } from "../../components/ui/skeleton";
 import { useUserProfile } from "../../lib/hooks/useUserProfile";
 import { useUserSettings } from "../../lib/hooks/useUserSettings";
 import { formatDate } from "../../lib/utils";
@@ -491,6 +492,26 @@ export default function SettingsPage() {
   // Show error state if there are any errors
   const hasError = profileError || settingsError;
   
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-10 w-24 rounded-md" />
+            ))}
+          </div>
+          <CardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -503,15 +524,11 @@ export default function SettingsPage() {
                 Manage your account and preferences
               </p>
             </div>
-            
-            {/* Loading and error states */}
-            {isLoading && (
-              <div className="mt-2 md:mt-0 px-4 py-2 bg-blue-50 text-blue-700 rounded-md">
-                Loading your settings...
-              </div>
-            )}
+
+            {/* Error state */}
             {hasError && (
-              <div className="mt-2 md:mt-0 px-4 py-2 bg-red-50 text-red-700 rounded-md">
+              <div className="mt-2 md:mt-0 px-4 py-2 bg-red-50 text-red-700 rounded-md flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
                 Error loading settings
               </div>
             )}
@@ -519,24 +536,24 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="profile" className="mt-6">
-          <TabsList className="mb-8">
-            <TabsTrigger value="profile" className="flex items-center">
+          <TabsList className="mb-8 w-full sm:w-auto overflow-x-auto flex-nowrap">
+            <TabsTrigger value="profile" className="flex items-center min-w-fit">
               <User className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center">
+            <TabsTrigger value="security" className="flex items-center min-w-fit">
               <Shield className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center">
+            <TabsTrigger value="notifications" className="flex items-center min-w-fit">
               <Bell className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Notifications</span>
             </TabsTrigger>
-            <TabsTrigger value="payment" className="flex items-center">
+            <TabsTrigger value="payment" className="flex items-center min-w-fit">
               <CreditCard className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Payment</span>
             </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex items-center">
+            <TabsTrigger value="preferences" className="flex items-center min-w-fit">
               <Settings className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Preferences</span>
             </TabsTrigger>

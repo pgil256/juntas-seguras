@@ -107,6 +107,27 @@ const calculateEndDate = (startDate: string, frequency: string, rounds: number) 
   return formatDate(date.toISOString());
 };
 
+// Format payment due date text based on the next payout date
+// Contributions are due the day before the payout
+const getPaymentDueText = (nextPayoutDate?: string, frequency?: string) => {
+  if (!nextPayoutDate) {
+    return `Payments are due ${frequency?.toLowerCase() || 'weekly'} before the scheduled payout.`;
+  }
+  const payoutDate = new Date(nextPayoutDate);
+  if (isNaN(payoutDate.getTime())) {
+    return `Payments are due ${frequency?.toLowerCase() || 'weekly'} before the scheduled payout.`;
+  }
+  // Due date is the day before payout
+  const dueDate = new Date(payoutDate);
+  dueDate.setDate(dueDate.getDate() - 1);
+  const dueDateFormatted = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  }).format(dueDate);
+  return `Payments are due by ${dueDateFormatted} (the day before the payout).`;
+};
+
 export default function MyPoolPage() {
   const router = useRouter();
   const { data: session, status: authStatus } = useSession();
@@ -755,7 +776,7 @@ export default function MyPoolPage() {
                 </li>
                 <li className="flex items-start">
                   <span className="h-5 w-5 text-blue-500 mr-2">•</span>
-                  <span>Payments are due every Friday by 8:00 PM.</span>
+                  <span>{getPaymentDueText(selectedPool.nextPayoutDate, selectedPool.frequency)}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="h-5 w-5 text-blue-500 mr-2">•</span>

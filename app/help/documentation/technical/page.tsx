@@ -245,13 +245,12 @@ export default function TechnicalDocumentationPage() {
 
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Other Collections</h4>
-                <p className="text-xs text-gray-600 mb-2">The database includes 14 models total:</p>
+                <p className="text-xs text-gray-600 mb-2">The database includes 12 models total:</p>
                 <ul className="text-xs text-gray-700 list-disc pl-5 space-y-1">
-                  <li>User, Pool, Payment, PaymentSetup</li>
-                  <li>PoolInvitation, Message, DirectMessage</li>
+                  <li>User, Pool, Payment, PoolInvitation</li>
+                  <li>Message, DirectMessage</li>
                   <li>Discussion, DiscussionMention, DiscussionReadReceipt</li>
-                  <li>AuditLog, ScheduledCollection, Reminder</li>
-                  <li>NotificationPreference</li>
+                  <li>AuditLog, Reminder, NotificationPreference</li>
                 </ul>
               </div>
             </div>

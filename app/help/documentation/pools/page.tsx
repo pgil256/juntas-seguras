@@ -27,7 +27,7 @@ export default function PoolsDocumentationPage() {
               <h4 className="text-md font-medium text-blue-800 mb-2">How Pools Work</h4>
               <div className="space-y-2 text-sm text-blue-700">
                 <p>1. A group of people agree to save together</p>
-                <p>2. Each person contributes the same amount regularly (e.g., $50 weekly)</p>
+                <p>2. Each person contributes the same amount regularly (e.g., $10 weekly)</p>
                 <p>3. One member receives the total pool each cycle</p>
                 <p>4. Cycles continue until all members have received a payout</p>
                 <p>5. The pool may continue for another round once complete</p>
@@ -72,57 +72,57 @@ export default function PoolsDocumentationPage() {
           <Separator />
 
           <section>
-            <h3 className="text-xl font-semibold text-gray-900">Pool Types</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Pool Configuration</h3>
             <p className="mt-2 text-gray-700">
-              Juntas Seguras offers several types of pools to meet different needs:
+              Juntas Seguras pools are designed for rotating savings with flexible configuration options:
             </p>
-            
+
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center mb-2">
                   <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
-                    <Users className="h-4 w-4 text-blue-600" />
+                    <DollarSign className="h-4 w-4 text-blue-600" />
                   </div>
-                  <h4 className="font-medium text-gray-900">Standard Pool</h4>
+                  <h4 className="font-medium text-gray-900">Contribution Amounts</h4>
                 </div>
                 <p className="text-sm text-gray-700">
-                  Equal contributions and payouts with a predetermined order. Most common and straightforward format.
+                  Set contributions from $1 to $20 per period. All members contribute the same amount each round.
                 </p>
               </div>
-              
-              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-center mb-2">
-                  <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center mr-2">
-                    <DollarSign className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <h4 className="font-medium text-gray-900">Variable Contribution</h4>
-                </div>
-                <p className="text-sm text-gray-700">
-                  Members can contribute different amounts, with payouts proportional to contributions. Good for groups with varying income.
-                </p>
-              </div>
-              
+
               <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center mb-2">
                   <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center mr-2">
                     <Calendar className="h-4 w-4 text-green-600" />
                   </div>
-                  <h4 className="font-medium text-gray-900">Emergency Fund</h4>
+                  <h4 className="font-medium text-gray-900">Frequency Options</h4>
                 </div>
                 <p className="text-sm text-gray-700">
-                  Contributions are made regularly, but funds are only withdrawn for emergencies with group approval.
+                  Choose weekly, bi-weekly, or monthly contribution schedules to match your group's preferences.
                 </p>
               </div>
-              
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center mr-2">
+                    <Users className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <h4 className="font-medium text-gray-900">Pool Size</h4>
+                </div>
+                <p className="text-sm text-gray-700">
+                  Pools can have 2 to 10 members. The number of rounds equals the number of members.
+                </p>
+              </div>
+
               <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center mb-2">
                   <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center mr-2">
                     <Settings className="h-4 w-4 text-orange-600" />
                   </div>
-                  <h4 className="font-medium text-gray-900">Goal-Based</h4>
+                  <h4 className="font-medium text-gray-900">Payment Methods</h4>
                 </div>
                 <p className="text-sm text-gray-700">
-                  Focused on saving for a specific shared goal, like a group vacation or community project.
+                  Choose which payment apps to allow: Venmo, Cash App, PayPal, and/or Zelle.
                 </p>
               </div>
             </div>
