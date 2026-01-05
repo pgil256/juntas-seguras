@@ -73,7 +73,8 @@
       "Bash(del /f \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\\lib\\email\\providers\\resend.ts\" \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\\lib\\email\\providers\\sendgrid.ts\")",
       "Bash(npx --yes tsc:*)",
       "Bash(node node_modules/next/dist/bin/next lint:*)",
-      "Bash(node node_modules/.bin/next lint:*)"
+      "Bash(node node_modules/.bin/next lint:*)",
+      "Bash(node node_modulesnextdistbinnext build)"
     ]
   },
   "enableAllProjectMcpServers": false

@@ -3,8 +3,10 @@
 /**
  * AutoCollectionStatus Component
  *
- * Displays the auto-collection status for a member in a pool.
- * Shows saved payment method, next collection date, and allows updating payment method.
+ * Displays the contribution status for a member in a pool.
+ * Shows upcoming contribution dates and payment information.
+ *
+ * Note: This app uses manual payments, not automatic Stripe collection.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  CreditCard,
+  DollarSign,
   Calendar,
   CheckCircle2,
   AlertTriangle,
@@ -22,20 +24,10 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Info,
 } from 'lucide-react';
 import { SavePaymentMethodModal } from '@/components/payments/SavePaymentMethodModal';
 import { formatDistanceToNow, format } from 'date-fns';
-
-interface PaymentSetupInfo {
-  id: string;
-  paymentMethodType: string;
-  last4: string;
-  brand?: string;
-  status: 'active' | 'cancelled' | 'requires_update' | 'paused';
-  lastSuccessAt?: string;
-  lastFailedAt?: string;
-  consecutiveFailures: number;
-}
 
 interface UpcomingCollection {
   collectionId: string;
@@ -66,14 +58,13 @@ export function AutoCollectionStatus({
   currentRound,
   userId,
 }: AutoCollectionStatusProps) {
-  const [paymentSetup, setPaymentSetup] = useState<PaymentSetupInfo | null>(null);
   const [upcomingCollections, setUpcomingCollections] = useState<UpcomingCollection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Fetch payment setup and collections
+  // Fetch collections
   useEffect(() => {
     fetchData();
   }, [poolId, userId]);
@@ -83,17 +74,6 @@ export function AutoCollectionStatus({
     setError(null);
 
     try {
-      // Fetch payment methods
-      const methodsRes = await fetch(`/api/users/${userId}/payment-methods`);
-      const methodsData = await methodsRes.json();
-
-      if (methodsRes.ok) {
-        const poolSetup = methodsData.paymentSetups?.find(
-          (ps: PaymentSetupInfo & { poolId: string }) => ps.poolId === poolId
-        );
-        setPaymentSetup(poolSetup || null);
-      }
-
       // Fetch upcoming collections
       const collectionsRes = await fetch(`/api/pools/${poolId}/collections?days=30`);
       const collectionsData = await collectionsRes.json();
@@ -106,39 +86,14 @@ export function AutoCollectionStatus({
         );
       }
     } catch (err) {
-      setError('Failed to load auto-collection status');
+      setError('Failed to load contribution schedule');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSetupSuccess = () => {
+  const handleInfoClose = () => {
     setShowModal(false);
-    fetchData();
-  };
-
-  const getStatusBadge = () => {
-    if (!paymentSetup) {
-      return <Badge variant="outline" className="text-yellow-600 border-yellow-600">Not Set Up</Badge>;
-    }
-
-    switch (paymentSetup.status) {
-      case 'active':
-        return <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>;
-      case 'requires_update':
-        return <Badge variant="destructive">Update Required</Badge>;
-      case 'paused':
-        return <Badge variant="secondary">Paused</Badge>;
-      case 'cancelled':
-        return <Badge variant="outline">Cancelled</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getCardBrandIcon = (brand?: string) => {
-    // Simple text representation - could be replaced with actual card icons
-    return brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : 'Card';
   };
 
   if (isLoading) {
@@ -147,7 +102,7 @@ export function AutoCollectionStatus({
         <CardContent className="py-6">
           <div className="flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            <span className="text-muted-foreground">Loading auto-collection status...</span>
+            <span className="text-muted-foreground">Loading contribution schedule...</span>
           </div>
         </CardContent>
       </Card>
@@ -163,14 +118,14 @@ export function AutoCollectionStatus({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <CreditCard className="h-5 w-5" />
-                Auto-Collection
+                <DollarSign className="h-5 w-5" />
+                Contributions
               </CardTitle>
               <CardDescription>
-                Automatic contribution collection for this pool
+                Contribution schedule for this pool
               </CardDescription>
             </div>
-            {getStatusBadge()}
+            <Badge variant="outline" className="text-blue-600 border-blue-600">Manual Payments</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -181,71 +136,40 @@ export function AutoCollectionStatus({
             </Alert>
           )}
 
-          {/* Payment Method Status */}
-          {paymentSetup ? (
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-8 w-8 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">
-                      {getCardBrandIcon(paymentSetup.brand)} ending in {paymentSetup.last4}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      ${contributionAmount} {frequency}
-                    </p>
-                  </div>
+          {/* Payment Info */}
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">
+                    ${contributionAmount} {frequency}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Contributions collected manually
+                  </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowModal(true)}>
-                  Update
-                </Button>
               </div>
-
-              {paymentSetup.status === 'requires_update' && (
-                <Alert variant="destructive" className="mt-3">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Your payment method needs to be updated. Please add a new card to continue automatic payments.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {paymentSetup.consecutiveFailures > 0 && paymentSetup.status === 'active' && (
-                <Alert className="mt-3">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    {paymentSetup.consecutiveFailures} recent payment{paymentSetup.consecutiveFailures > 1 ? 's' : ''} failed.
-                    Please check your payment method.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          ) : (
-            <div className="bg-muted/50 rounded-lg p-6 text-center">
-              <CreditCard className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <h4 className="font-medium mb-1">No Payment Method Set Up</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Set up automatic payments to never miss a contribution.
-              </p>
-              <Button onClick={() => setShowModal(true)}>
-                Set Up Auto-Pay
+              <Button variant="outline" size="sm" onClick={() => setShowModal(true)}>
+                <Info className="h-4 w-4 mr-1" />
+                Info
               </Button>
             </div>
-          )}
+          </div>
 
           {/* Next Collection */}
-          {nextCollection && paymentSetup?.status === 'active' && (
+          {nextCollection && (
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Next Auto-Collection</span>
+                <span className="text-sm font-medium">Next Contribution Due</span>
               </div>
               <div className="bg-background border rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Round {nextCollection.round}</p>
                     <p className="text-sm text-muted-foreground">
-                      ${nextCollection.amount} will be collected {formatDistanceToNow(new Date(nextCollection.collectionEligibleAt), { addSuffix: true })}
+                      ${nextCollection.amount} due {formatDistanceToNow(new Date(nextCollection.dueDate), { addSuffix: true })}
                     </p>
                   </div>
                   <Badge variant="outline">
@@ -253,65 +177,69 @@ export function AutoCollectionStatus({
                     {format(new Date(nextCollection.dueDate), 'MMM d')}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Grace period: {nextCollection.gracePeriodHours} hours after due date
-                </p>
+              </div>
+            </div>
+          )}
+
+          {!nextCollection && (
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="text-sm">No upcoming contributions scheduled</span>
               </div>
             </div>
           )}
 
           {/* Expandable Details */}
-          {paymentSetup && (
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground pt-2"
-            >
-              {showDetails ? (
-                <>
-                  <ChevronUp className="h-4 w-4" />
-                  Hide details
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4" />
-                  Show details
-                </>
+          {upcomingCollections.length > 1 && (
+            <>
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground pt-2"
+              >
+                {showDetails ? (
+                  <>
+                    <ChevronUp className="h-4 w-4" />
+                    Hide schedule
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" />
+                    Show full schedule ({upcomingCollections.length} upcoming)
+                  </>
+                )}
+              </button>
+
+              {showDetails && (
+                <div className="border-t pt-4 space-y-2">
+                  {upcomingCollections.slice(1).map((collection) => (
+                    <div key={collection.collectionId} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
+                      <div>
+                        <span className="font-medium">Round {collection.round}</span>
+                        <span className="text-muted-foreground ml-2">${collection.amount}</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {format(new Date(collection.dueDate), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
+            </>
           )}
 
-          {showDetails && paymentSetup && (
-            <div className="border-t pt-4 space-y-2 text-sm">
-              {paymentSetup.lastSuccessAt && (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span>
-                    Last successful: {formatDistanceToNow(new Date(paymentSetup.lastSuccessAt), { addSuffix: true })}
-                  </span>
-                </div>
-              )}
-              {paymentSetup.lastFailedAt && (
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  <span>
-                    Last failed: {formatDistanceToNow(new Date(paymentSetup.lastFailedAt), { addSuffix: true })}
-                  </span>
-                </div>
-              )}
-              <Button variant="ghost" size="sm" onClick={fetchData} className="mt-2">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh Status
-              </Button>
-            </div>
-          )}
+          <Button variant="ghost" size="sm" onClick={fetchData} className="w-full">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Schedule
+          </Button>
         </CardContent>
       </Card>
 
-      {/* Save Payment Method Modal */}
+      {/* Payment Info Modal */}
       <SavePaymentMethodModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSuccess={handleSetupSuccess}
+        onClose={handleInfoClose}
+        onSuccess={handleInfoClose}
         poolId={poolId}
         poolName={poolName}
         contributionAmount={contributionAmount}

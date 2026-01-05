@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
 import { PoolMemberRole } from '../../../../../types/pool';
-import { stripe } from '../../../../../lib/stripe';
 import { getCurrentUser } from '../../../../../lib/auth';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPaymentModel, generatePaymentId } from '../../../../../lib/db/models/payment';
@@ -111,33 +110,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Verify we have a Stripe payment intent ID for capture
-    if (!payment.stripePaymentIntentId) {
-      return NextResponse.json(
-        { error: 'Payment intent not found. The user may not have completed the payment.' },
-        { status: 400 }
-      );
-    }
-
-    // Release the payment by capturing the Stripe payment intent
+    // Release the payment (manual payment system - no Stripe capture needed)
     try {
-      const paymentIntent = await stripe.paymentIntents.capture(payment.stripePaymentIntentId);
-
-      if (paymentIntent.status !== 'succeeded') {
-        payment.failureCount = (payment.failureCount || 0) + 1;
-        payment.failureReason = `Capture failed with status: ${paymentIntent.status}`;
-        await payment.save();
-
-        return NextResponse.json(
-          { error: 'Failed to capture payment' },
-          { status: 400 }
-        );
-      }
-
       // Update payment record
       payment.status = TransactionStatus.RELEASED;
       payment.processedAt = new Date();
-      payment.stripeCaptureId = paymentIntent.id;
       payment.releasedAt = new Date();
       payment.releasedBy = requestingUser._id;
       await payment.save();
@@ -161,7 +138,6 @@ export async function POST(request: NextRequest) {
         relatedPaymentId: paymentId,
         processedAt: new Date(),
         releasedBy: requestingUser._id,
-        stripePaymentIntentId: paymentIntent.id,
       });
 
       await releaseRecord.save();
@@ -186,16 +162,16 @@ export async function POST(request: NextRequest) {
         message: 'Payment successfully released from escrow',
       });
 
-    } catch (captureError: any) {
-      console.error('Stripe capture error:', captureError);
+    } catch (releaseError: any) {
+      console.error('Escrow release error:', releaseError);
 
       // Update payment with failure info
       payment.failureCount = (payment.failureCount || 0) + 1;
-      payment.failureReason = captureError.message;
+      payment.failureReason = releaseError.message;
       await payment.save();
 
       return NextResponse.json(
-        { error: captureError.message || 'Failed to release payment from escrow' },
+        { error: releaseError.message || 'Failed to release payment from escrow' },
         { status: 400 }
       );
     }
