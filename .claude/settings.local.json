@@ -98,7 +98,14 @@
       "Bash(for dir in */)",
       "Bash(node_modules/.bin/next lint)",
       "Bash(npx next lint)",
-      "Bash(xargs -I {} bash -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -30 \"\"\"\"{}\"\"\"\"')"
+      "Bash(xargs -I {} bash -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -30 \"\"\"\"{}\"\"\"\"')",
+      "Bash(node node_modules/.bin/next build:*)",
+      "Bash(for hook in useCreateNotification useCreatePool useDebounce useDirectMessages useEarlyPayout useIdentityVerification usePaymentMethods usePayments usePool usePoolAnalytics usePoolContributions usePoolInvitations usePoolMembers usePoolMessages usePoolPayouts usePools useSearch useTickets useUserProfile useUserSettings useUserId usePullToRefresh)",
+      "Bash(do echo '=== $hook ===')",
+      "Bash(node \"node_modules/next/dist/bin/next\" build:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nEnhance UI for web and mobile responsiveness\n\n- Mobile bottom nav: Add haptic feedback, frosted glass effect, improved touch targets\n- Dialogs: Convert to bottom sheet on mobile with drag handle indicator\n- Navbar: Slide-in drawer menu, overlay with blur, body scroll lock\n- New StatCard component with responsive layout and trend indicators\n- Enhanced Input component with icon support, error/success states, floating labels\n- Improved Skeleton components with shimmer animation and new variants\n- Add pull-to-refresh hook for mobile refresh patterns\n- Global CSS: New touch utilities, animations, safe area support, accessibility\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\" log --oneline -10)",
+      "Bash(node ./node_modules/typescript/bin/tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": false

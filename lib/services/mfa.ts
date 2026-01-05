@@ -62,38 +62,47 @@ export async function sendEmailVerificationCode(userId: string): Promise<boolean
     }
 
     // Check if there's already a valid code (generated within the last 2 minutes)
+    // If so, reuse it but still send the email
+    let verificationCode: string;
+    let isReusingCode = false;
+
     if (user.twoFactorAuth?.temporaryCode && user.twoFactorAuth?.codeGeneratedAt) {
       const codeGeneratedAt = new Date(user.twoFactorAuth.codeGeneratedAt);
       const now = new Date();
       const codeAgeInMinutes = (now.getTime() - codeGeneratedAt.getTime()) / (1000 * 60);
-      
+
       if (codeAgeInMinutes < 2) {
-        // Recent code exists, not generating new one
-        return true; // Don't send a new code, use the existing one
+        // Recent code exists - reuse it but still send the email
+        verificationCode = user.twoFactorAuth.temporaryCode;
+        isReusingCode = true;
+        console.log(`[MFA] Reusing existing code for user ${userId} (generated ${codeAgeInMinutes.toFixed(1)} min ago)`);
+      } else {
+        // Code is too old, generate a new one
+        verificationCode = generateEmailCode();
       }
+    } else {
+      // No existing code, generate a new one
+      verificationCode = generateEmailCode();
     }
 
-    // Generate a real verification code
-    const verificationCode = generateEmailCode();
-    
-    // Setting MFA code for user
+    // Only update the database if we generated a new code
+    if (!isReusingCode) {
+      const updateResult = await UserModel.findByIdAndUpdate(
+        user._id,
+        {
+          $set: {
+            'twoFactorAuth.temporaryCode': verificationCode,
+            'twoFactorAuth.codeGeneratedAt': new Date().toISOString(),
+            'pendingMfaVerification': true
+          }
+        },
+        { new: true }
+      );
 
-    // Update user with verification code using MongoDB _id
-    const updateResult = await UserModel.findByIdAndUpdate(
-      user._id,
-      {
-        $set: {
-          'twoFactorAuth.temporaryCode': verificationCode,
-          'twoFactorAuth.codeGeneratedAt': new Date().toISOString(),
-          'pendingMfaVerification': true
-        }
-      },
-      { new: true }
-    );
-
-    if (!updateResult) {
-      console.error('Failed to update user with dummy verification code');
-      return false;
+      if (!updateResult) {
+        console.error('Failed to update user with verification code');
+        return false;
+      }
     }
 
     // Attempt to send email
