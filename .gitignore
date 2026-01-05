@@ -45,6 +45,9 @@ next-env.d.ts
 claude-env/
 nul
 
+# Claude Code infrastructure cache
+.claude/tsc-cache/
+
 # unnecessary components and files
 /git_to_text/
 convertToText.js
