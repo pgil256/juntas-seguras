@@ -22,6 +22,7 @@ import {
   Loader2,
   AlertTriangle,
   RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ContributionStatusCardProps {
@@ -29,6 +30,20 @@ interface ContributionStatusCardProps {
   userEmail: string;
   onMakeContribution: () => void;
 }
+
+// Helper function to get human-readable payment method labels
+const getPaymentMethodLabel = (method: string | null | undefined): string => {
+  if (!method) return 'Unknown';
+  const labels: Record<string, string> = {
+    venmo: 'Venmo',
+    cashapp: 'Cash App',
+    paypal: 'PayPal',
+    zelle: 'Zelle',
+    cash: 'Cash',
+    other: 'Other',
+  };
+  return labels[method] || method;
+};
 
 export function ContributionStatusCard({
   poolId,
@@ -74,8 +89,11 @@ export function ContributionStatusCard({
   // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
   const isRecipient = userContributionInfo?.isRecipient ?? false;
   const hasContributed = userContributionInfo?.hasContributed ?? false;
+  const paymentPending = userContributionInfo?.paymentPending ?? false;
+  const paymentMethod = userContributionInfo?.paymentMethod ?? null;
   // Recipients can and must contribute - they just also receive the payout
-  const canContribute = !hasContributed;
+  // Can contribute if they haven't contributed AND haven't already confirmed a pending payment
+  const canContribute = !hasContributed && !paymentPending;
 
   if (isLoading && !contributionStatus) {
     return (
@@ -180,6 +198,21 @@ export function ContributionStatusCard({
               </Alert>
             )}
 
+            {isRecipient && paymentPending && (
+              <Alert className="bg-yellow-50 border-yellow-200">
+                <Award className="h-4 w-4 text-yellow-600" />
+                <AlertTitle className="text-yellow-800">
+                  You're the Recipient - Payment Awaiting Verification
+                </AlertTitle>
+                <AlertDescription className="text-yellow-700">
+                  You've confirmed your {formatCurrency(contributionStatus.contributionAmount)} payment
+                  via <strong>{getPaymentMethodLabel(paymentMethod)}</strong>.
+                  The pool admin will verify receipt. Total payout once verified:{' '}
+                  {formatCurrency(contributionStatus.contributionAmount * contributionStatus.contributions.length)}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {hasContributed && !isRecipient && (
               <Alert className="bg-green-50 border-green-200">
                 <Check className="h-4 w-4 text-green-600" />
@@ -190,6 +223,20 @@ export function ContributionStatusCard({
                   You've contributed{' '}
                   {formatCurrency(contributionStatus.contributionAmount)} for this
                   round.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {paymentPending && !isRecipient && (
+              <Alert className="bg-yellow-50 border-yellow-200">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertTitle className="text-yellow-800">
+                  Payment Awaiting Verification
+                </AlertTitle>
+                <AlertDescription className="text-yellow-700">
+                  You've confirmed your {formatCurrency(contributionStatus.contributionAmount)} payment
+                  via <strong>{getPaymentMethodLabel(paymentMethod)}</strong>.
+                  The pool admin will verify receipt of your payment.
                 </AlertDescription>
               </Alert>
             )}
@@ -230,47 +277,66 @@ export function ContributionStatusCard({
               <div className="space-y-2">
                 {contributionStatus.contributions
                   .sort((a, b) => a.position - b.position)
-                  .map((member) => (
-                    <div
-                      key={member.memberId}
-                      className={`flex justify-between items-center px-3 py-2 rounded ${
-                        member.email === userEmail
-                          ? 'bg-blue-50 border border-blue-100'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="text-sm font-medium flex items-center">
-                        {member.isRecipient && (
-                          <Award className="h-4 w-4 text-blue-500 mr-2" />
-                        )}
-                        {member.name}
-                        {member.email === userEmail && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                            You
-                          </span>
-                        )}
-                        {member.isRecipient && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                            Recipient
-                          </span>
-                        )}
-                      </span>
-                      <span>
-                        {/* UNIVERSAL CONTRIBUTION MODEL: All members show contribution status */}
-                        {member.hasContributed ? (
-                          <span className="flex items-center text-green-600 text-sm">
-                            <Check className="h-4 w-4 mr-1" />
-                            Paid
-                          </span>
-                        ) : (
-                          <span className="flex items-center text-amber-600 text-sm">
-                            <Clock className="h-4 w-4 mr-1" />
-                            Pending
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
+                  .map((member) => {
+                    // Determine the display status based on contribution status
+                    const getPaymentStatusDisplay = () => {
+                      if (member.hasContributed) {
+                        return {
+                          icon: <Check className="h-4 w-4 mr-1" />,
+                          text: 'Verified',
+                          className: 'text-green-600',
+                        };
+                      }
+                      if (member.paymentPending) {
+                        return {
+                          icon: <AlertCircle className="h-4 w-4 mr-1" />,
+                          text: `Paid via ${getPaymentMethodLabel(member.paymentMethod)} - Awaiting Verification`,
+                          className: 'text-yellow-600',
+                        };
+                      }
+                      return {
+                        icon: <Clock className="h-4 w-4 mr-1" />,
+                        text: 'Pending',
+                        className: 'text-amber-600',
+                      };
+                    };
+
+                    const statusDisplay = getPaymentStatusDisplay();
+
+                    return (
+                      <div
+                        key={member.memberId}
+                        className={`flex justify-between items-center px-3 py-2 rounded ${
+                          member.email === userEmail
+                            ? 'bg-blue-50 border border-blue-100'
+                            : member.paymentPending
+                            ? 'bg-yellow-50 border border-yellow-100'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-sm font-medium flex items-center">
+                          {member.isRecipient && (
+                            <Award className="h-4 w-4 text-blue-500 mr-2" />
+                          )}
+                          {member.name}
+                          {member.email === userEmail && (
+                            <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                              You
+                            </span>
+                          )}
+                          {member.isRecipient && (
+                            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                              Recipient
+                            </span>
+                          )}
+                        </span>
+                        <span className={`flex items-center text-sm ${statusDisplay.className}`}>
+                          {statusDisplay.icon}
+                          {statusDisplay.text}
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </>

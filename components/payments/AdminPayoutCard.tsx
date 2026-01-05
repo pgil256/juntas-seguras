@@ -354,6 +354,8 @@ export function AdminPayoutCard({
                       identifier={winnerPayoutMethods.zelle}
                       recipientName={winnerName}
                       amount={potAmount}
+                      zelleQR={winnerPayoutMethods.zelleQR}
+                      note={`${poolName} - Round ${roundNumber} Payout`}
                     />
                   )}
                 </div>

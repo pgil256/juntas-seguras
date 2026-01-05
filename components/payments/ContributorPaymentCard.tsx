@@ -274,6 +274,8 @@ export function ContributorPaymentCard({
                   identifier={adminPaymentMethods.zelle}
                   recipientName={adminName}
                   amount={amount}
+                  zelleQR={adminPaymentMethods.zelleQR}
+                  note={paymentNote}
                 />
               )}
             </div>
