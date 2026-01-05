@@ -18,11 +18,44 @@ import { AuditLogType } from '../../../../../types/audit';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { getAuditLogModel } from '../../../../../lib/db/models/auditLog';
-import { createTransfer, getConnectAccount, stripe } from '../../../../../lib/stripe';
+import { User } from '../../../../../lib/db/models/user';
 import { getCurrentUser } from '../../../../../lib/auth';
 
 const Pool = getPoolModel();
 const AuditLog = getAuditLogModel();
+
+// Helper to get payout method label
+const getPayoutMethodLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    venmo: 'Venmo',
+    paypal: 'PayPal',
+    zelle: 'Zelle',
+    cashapp: 'Cash App',
+    bank: 'Bank Transfer',
+  };
+  return labels[type] || type;
+};
+
+// Generate payment link based on payout method type
+const getPaymentLink = (type: string, handle: string, amount?: number) => {
+  const cleanHandle = handle.replace(/^[@$]/, '');
+  switch (type) {
+    case 'venmo':
+      return amount
+        ? `https://venmo.com/${cleanHandle}?txn=pay&amount=${amount}`
+        : `https://venmo.com/${cleanHandle}`;
+    case 'paypal':
+      return amount
+        ? `https://paypal.me/${cleanHandle}/${amount}`
+        : `https://paypal.me/${cleanHandle}`;
+    case 'cashapp':
+      return `https://cash.app/$${cleanHandle}`;
+    case 'zelle':
+      return null;
+    default:
+      return null;
+  }
+};
 
 export const runtime = 'nodejs';
 
@@ -137,12 +170,14 @@ async function canInitiateEarlyPayout(
     };
   }
 
-  // Check if recipient has a Stripe Connect account
-  if (!payoutRecipient.stripeConnectAccountId) {
+  // Look up the recipient's payout method from User model
+  const recipientUser = await User.findOne({ email: payoutRecipient.email });
+
+  if (!recipientUser?.payoutMethod?.type || !recipientUser?.payoutMethod?.handle) {
     return {
       allowed: false,
-      reason: 'Recipient has not connected their Stripe account for payouts',
-      recipientConnectStatus: 'not_connected',
+      reason: 'Recipient has not set up their payout method (Venmo, PayPal, Zelle, or Cash App)',
+      recipientConnectStatus: 'no_payout_method',
       recipient: {
         name: payoutRecipient.name,
         email: payoutRecipient.email,
@@ -151,56 +186,32 @@ async function canInitiateEarlyPayout(
     };
   }
 
-  // Verify Stripe Connect account can receive transfers
-  try {
-    const account = await getConnectAccount(payoutRecipient.stripeConnectAccountId);
+  // Calculate payout amount
+  const payoutAmount = pool.contributionAmount * pool.members.length;
 
-    if (!account.payouts_enabled) {
-      const pendingRequirements = account.requirements?.currently_due?.join(', ') || 'Unknown requirements';
-      return {
-        allowed: false,
-        reason: 'Recipient\'s Stripe account cannot receive payouts yet. They need to complete account verification.',
-        recipientConnectStatus: pendingRequirements,
-        recipient: {
-          name: payoutRecipient.name,
-          email: payoutRecipient.email,
-          stripeConnectAccountId: payoutRecipient.stripeConnectAccountId,
-        },
-        currentRound,
-      };
-    }
+  // Generate payment link if available
+  const paymentLink = getPaymentLink(
+    recipientUser.payoutMethod.type,
+    recipientUser.payoutMethod.handle,
+    payoutAmount
+  );
 
-    // Get last 4 digits of bank account if available
-    let stripeLast4: string | undefined;
-    if (account.external_accounts?.data?.[0]) {
-      const externalAccount = account.external_accounts.data[0] as any;
-      stripeLast4 = externalAccount.last4;
-    }
-
-    // Calculate payout amount
-    const payoutAmount = pool.contributionAmount * pool.members.length;
-
-    return {
-      allowed: true,
-      recipient: {
-        name: payoutRecipient.name,
-        email: payoutRecipient.email,
-        stripeConnectAccountId: payoutRecipient.stripeConnectAccountId,
-        stripeLast4,
+  return {
+    allowed: true,
+    recipient: {
+      name: payoutRecipient.name,
+      email: payoutRecipient.email,
+      payoutMethod: {
+        type: recipientUser.payoutMethod.type,
+        handle: recipientUser.payoutMethod.handle,
+        displayName: recipientUser.payoutMethod.displayName,
       },
-      payoutAmount,
-      scheduledDate: pool.nextPayoutDate,
-      currentRound,
-    };
-  } catch (error: any) {
-    console.error('Error checking Stripe Connect account:', error);
-    return {
-      allowed: false,
-      reason: `Unable to verify recipient's Stripe account: ${error.message}`,
-      recipientConnectStatus: 'verification_error',
-      currentRound,
-    };
-  }
+      paymentLink,
+    },
+    payoutAmount,
+    scheduledDate: pool.nextPayoutDate,
+    currentRound,
+  };
 }
 
 /**
