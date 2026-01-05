@@ -101,8 +101,11 @@ export async function POST(request: NextRequest) {
         await user.save();
       }
 
-      // Accept the invitation
-      await invitation.accept(user._id.toString());
+      // Accept the invitation (don't mark shareable links as accepted so they remain usable)
+      const isShareableLink = invitation.email?.includes('@shareable.local');
+      if (!isShareableLink) {
+        await invitation.accept(user._id.toString());
+      }
 
       // Log activity
       try {
@@ -193,8 +196,11 @@ export async function POST(request: NextRequest) {
       await user.save();
     }
 
-    // Accept the invitation
-    await invitation.accept(user._id.toString());
+    // Accept the invitation (don't mark shareable links as accepted so they remain usable)
+    const isShareableLinkMain = invitation.email?.includes('@shareable.local');
+    if (!isShareableLinkMain) {
+      await invitation.accept(user._id.toString());
+    }
 
     // Log activity
     try {
@@ -212,20 +218,20 @@ export async function POST(request: NextRequest) {
           }
         })
       });
-      
+
       if (!response.ok) {
         console.error('Failed to log activity');
       }
     } catch (error) {
       console.error('Error logging activity:', error);
     }
-    
+
     // Send notification to pool admins
     try {
       const admins = pool.members.filter(
         (m: any) => m.role === PoolMemberRole.ADMIN || m.role === PoolMemberRole.CREATOR
       );
-      
+
       for (const admin of admins) {
         if (admin.userId) {
           await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/notifications`, {
@@ -248,7 +254,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('Error sending notifications:', error);
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Successfully joined the pool',

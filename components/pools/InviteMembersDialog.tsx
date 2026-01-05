@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { UserPlus, Mail, X, Copy, Check, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { UserPlus, Mail, X, Copy, Check, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -37,19 +37,70 @@ export function InviteMembersDialog({
   const [personalMessage, setPersonalMessage] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // State for invite link settings
-  const [requireApproval, setRequireApproval] = useState(true);
+
+  // State for invite link
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteLinkExpiry, setInviteLinkExpiry] = useState<string | null>(null);
+  const [isLoadingLink, setIsLoadingLink] = useState(false);
   const [expiryDays, setExpiryDays] = useState('7');
-  
+
   // Use the pool invitations hook
-  const { 
-    sendInvitation, 
-    isLoading: isSending 
+  const {
+    sendInvitation,
+    isLoading: isSending
   } = usePoolInvitations({
     poolId,
     userId
   });
+
+  // Fetch existing invite link when dialog opens
+  const fetchInviteLink = useCallback(async () => {
+    if (!poolId) return;
+    setIsLoadingLink(true);
+    try {
+      const response = await fetch(`/api/pools/${poolId}/invite-link`);
+      const data = await response.json();
+      if (data.success && data.inviteLink) {
+        setInviteLink(data.inviteLink);
+        setInviteLinkExpiry(data.expiresAt);
+      }
+    } catch (err) {
+      console.error('Error fetching invite link:', err);
+    } finally {
+      setIsLoadingLink(false);
+    }
+  }, [poolId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchInviteLink();
+    }
+  }, [isOpen, fetchInviteLink]);
+
+  // Generate new invite link
+  const generateInviteLink = async () => {
+    setIsLoadingLink(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/pools/${poolId}/invite-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiryDays: parseInt(expiryDays, 10) })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setInviteLink(data.inviteLink);
+        setInviteLinkExpiry(data.expiresAt);
+      } else {
+        setError(data.error || 'Failed to generate invite link');
+      }
+    } catch (err) {
+      console.error('Error generating invite link:', err);
+      setError('Failed to generate invite link');
+    } finally {
+      setIsLoadingLink(false);
+    }
+  };
   
   const handleEmailChange = (index: number, value: string) => {
     const newEmails = [...emails];
@@ -115,27 +166,15 @@ export function InviteMembersDialog({
     }
   };
   
-  const generateInviteLink = () => {
-    // In a real app, this would be a backend-generated link with proper security
-    // It would include parameters for the settings like requireApproval and expiry
-    const baseUrl = 'https://juntas-seguras.com/join';
-    const params = new URLSearchParams({
-      poolId,
-      approval: requireApproval ? '1' : '0',
-      expires: expiryDays === 'never' ? 'never' : expiryDays
-    });
-    
-    return `${baseUrl}/${poolId}?${params.toString()}`;
-  };
-  
   const copyInviteLink = () => {
-    const inviteLink = generateInviteLink();
-    navigator.clipboard.writeText(inviteLink);
-    setLinkCopied(true);
-    
-    setTimeout(() => {
-      setLinkCopied(false);
-    }, 2000);
+    if (inviteLink) {
+      navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
+
+      setTimeout(() => {
+        setLinkCopied(false);
+      }, 2000);
+    }
   };
   
   return (
@@ -217,55 +256,65 @@ export function InviteMembersDialog({
               <p className="text-sm text-gray-500">
                 Share this invite link with people you want to invite to your pool. Anyone with this link can request to join.
               </p>
-              
-              <div className="flex items-center">
-                <Input
-                  type="text"
-                  readOnly
-                  value={generateInviteLink()}
-                  className="pr-12"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyInviteLink}
-                  className="absolute right-10"
-                >
-                  {linkCopied ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              
-              <div className="mt-2 text-sm text-gray-500 flex items-center">
-                <p>
-                  {linkCopied ? 'Link copied to clipboard!' : 'Click to copy link'}
-                </p>
-              </div>
-              
-              <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-900">Link Settings</h3>
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="require-approval" className="text-sm text-gray-700">
-                      Require admin approval
-                    </Label>
-                    <input 
-                      id="require-approval"
-                      type="checkbox" 
-                      checked={requireApproval}
-                      onChange={(e) => setRequireApproval(e.target.checked)}
-                      className="rounded text-blue-600" 
+
+              {isLoadingLink ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : inviteLink ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      readOnly
+                      value={inviteLink}
+                      className="flex-1"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={copyInviteLink}
+                    >
+                      {linkCopied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
+
+                  <div className="text-sm text-gray-500">
+                    {linkCopied ? (
+                      <p className="text-green-600">Link copied to clipboard!</p>
+                    ) : (
+                      <p>Click the copy button to copy the link</p>
+                    )}
+                    {inviteLinkExpiry && (
+                      <p className="mt-1">
+                        Expires: {new Date(inviteLinkExpiry).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateInviteLink}
+                    className="mt-2"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate New Link
+                  </Button>
+                </>
+              ) : (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="expiry-days" className="text-sm text-gray-700">
                       Link expires after
                     </Label>
-                    <select 
+                    <select
                       id="expiry-days"
                       value={expiryDays}
                       onChange={(e) => setExpiryDays(e.target.value)}
@@ -274,11 +323,17 @@ export function InviteMembersDialog({
                       <option value="7">7 days</option>
                       <option value="14">14 days</option>
                       <option value="30">30 days</option>
-                      <option value="never">Never</option>
                     </select>
                   </div>
+                  <Button
+                    type="button"
+                    onClick={generateInviteLink}
+                    className="w-full"
+                  >
+                    Generate Invite Link
+                  </Button>
                 </div>
-              </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
