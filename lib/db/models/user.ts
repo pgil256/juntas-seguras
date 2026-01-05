@@ -96,6 +96,7 @@ const UserSchema = new Schema({
   stripePayoutsEnabled: { type: Boolean, default: false },
   stripeDetailsSubmitted: { type: Boolean, default: false },
   // Payout method preferences (simple alternative to Stripe Connect)
+  // Single preferred payout method (for backwards compatibility)
   payoutMethod: {
     type: {
       type: String,
@@ -106,6 +107,36 @@ const UserSchema = new Schema({
     handle: { type: String },
     // Display name for confirmation (e.g., "John's Venmo")
     displayName: { type: String },
+    // When this was last updated
+    updatedAt: { type: Date }
+  },
+  // Multiple payout methods - allows user to save all their payment accounts
+  payoutMethods: {
+    // Venmo handle (username, email, or phone)
+    venmo: { type: String },
+    // Cash App $cashtag (without the $ prefix)
+    cashapp: { type: String },
+    // PayPal.me username
+    paypal: { type: String },
+    // Zelle identifier (email or phone - display only, no deep link)
+    zelle: { type: String },
+    // Zelle QR code data (for scannable QR codes)
+    zelleQR: {
+      // Token extracted from the Zelle QR code
+      token: { type: String },
+      // Raw QR code content
+      rawContent: { type: String },
+      // Base64-encoded QR code image for display
+      imageDataUrl: { type: String },
+      // When the QR code was uploaded
+      uploadedAt: { type: Date }
+    },
+    // Preferred payout method type
+    preferred: {
+      type: String,
+      enum: ['venmo', 'paypal', 'zelle', 'cashapp', 'bank', null],
+      default: null
+    },
     // When this was last updated
     updatedAt: { type: Date }
   },
@@ -192,6 +223,20 @@ export interface UserDocument extends Document {
     type?: 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank' | null;
     handle?: string;
     displayName?: string;
+    updatedAt?: Date;
+  };
+  payoutMethods?: {
+    venmo?: string;
+    cashapp?: string;
+    paypal?: string;
+    zelle?: string;
+    zelleQR?: {
+      token?: string;
+      rawContent?: string;
+      imageDataUrl?: string;
+      uploadedAt?: Date;
+    };
+    preferred?: 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank' | null;
     updatedAt?: Date;
   };
   address?: {

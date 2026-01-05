@@ -66,7 +66,14 @@
       "Bash(npm run lint)",
       "Bash(npx next lint:*)",
       "Bash(git push:*)",
-      "Bash(npx next build)"
+      "Bash(npx next build)",
+      "Bash(node node_modules/next/dist/bin/next build:*)",
+      "Bash(ls -la \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\\lib\\payments\"\" 2>/dev/null || echo \"Directory may not exist \")",
+      "Bash(dir /s /b C:UsersuserDesktopJSmy-juntas-appappapipools)",
+      "Bash(del /f \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\\lib\\email\\providers\\resend.ts\" \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\\lib\\email\\providers\\sendgrid.ts\")",
+      "Bash(npx --yes tsc:*)",
+      "Bash(node node_modules/next/dist/bin/next lint:*)",
+      "Bash(node node_modules/.bin/next lint:*)"
     ]
   },
   "enableAllProjectMcpServers": false
