@@ -61,7 +61,21 @@ export function usePoolPayouts({ poolId, userId }: UsePoolPayoutsProps): UsePool
         throw new Error(data.error || 'Failed to check payout status');
       }
 
-      setPayoutStatus(data);
+      // Map API response to expected format
+      // API returns 'contributions' but component expects 'contributionStatus'
+      setPayoutStatus({
+        round: data.round,
+        totalRounds: data.totalRounds,
+        recipient: data.recipient || { name: 'Unknown', email: '', payoutReceived: false },
+        payoutAmount: data.payoutAmount,
+        platformFee: data.platformFee || 0,
+        totalAmount: data.payoutAmount,
+        contributionStatus: data.contributions || [],
+        allContributionsReceived: data.allContributionsReceived,
+        payoutProcessed: data.payoutProcessed,
+        nextPayoutDate: data.nextPayoutDate,
+        frequency: data.frequency,
+      });
     } catch (err: any) {
       console.error('Error checking payout status:', err);
       setError(err.message || 'Failed to check payout status');

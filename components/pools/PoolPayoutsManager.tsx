@@ -68,7 +68,7 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
   // Calculate contribution progress percentage
   // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including recipient
   const getContributionProgress = () => {
-    if (!payoutStatus) return 0;
+    if (!payoutStatus?.contributionStatus?.length) return 0;
 
     const totalMembers = payoutStatus.contributionStatus.length;
     // All members must contribute - no special handling for recipient
@@ -200,53 +200,55 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
 
             {/* Contribution status */}
             {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
-            <div className="border rounded-md p-4">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 text-gray-600 mr-2" />
-                  <h3 className="font-medium">Member Contributions</h3>
-                </div>
-                <span className="text-sm font-medium">
-                  {payoutStatus.contributionStatus.filter(m => m.contributed).length}
-                  /
-                  {payoutStatus.contributionStatus.length} complete
-                </span>
-              </div>
-              
-              <Progress value={getContributionProgress()} className="h-2 mb-3" />
-              
-              <div className="space-y-2 mt-4">
-                {payoutStatus.contributionStatus.map((status, index) => (
-                  <div key={index} className="flex justify-between items-center px-2 py-1 rounded hover:bg-gray-50">
-                    <span className="text-sm font-medium flex items-center">
-                      {status.isRecipient && (
-                        <Award className="h-4 w-4 text-blue-500 mr-1" />
-                      )}
-                      {status.name}
-                      {status.isRecipient && (
-                        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                          Recipient
-                        </span>
-                      )}
-                    </span>
-                    <span>
-                      {/* UNIVERSAL CONTRIBUTION MODEL: All members show contribution status */}
-                      {status.contributed ? (
-                        <span className="flex items-center text-green-600 text-sm">
-                          <Check className="h-4 w-4 mr-1" />
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-amber-600 text-sm">
-                          <Clock className="h-4 w-4 mr-1" />
-                          Pending
-                        </span>
-                      )}
-                    </span>
+            {payoutStatus.contributionStatus && payoutStatus.contributionStatus.length > 0 && (
+              <div className="border rounded-md p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-gray-600 mr-2" />
+                    <h3 className="font-medium">Member Contributions</h3>
                   </div>
-                ))}
+                  <span className="text-sm font-medium">
+                    {payoutStatus.contributionStatus.filter(m => m.contributed).length}
+                    /
+                    {payoutStatus.contributionStatus.length} complete
+                  </span>
+                </div>
+
+                <Progress value={getContributionProgress()} className="h-2 mb-3" />
+
+                <div className="space-y-2 mt-4">
+                  {payoutStatus.contributionStatus.map((status, index) => (
+                    <div key={index} className="flex justify-between items-center px-2 py-1 rounded hover:bg-gray-50">
+                      <span className="text-sm font-medium flex items-center">
+                        {status.isRecipient && (
+                          <Award className="h-4 w-4 text-blue-500 mr-1" />
+                        )}
+                        {status.name}
+                        {status.isRecipient && (
+                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                            Recipient
+                          </span>
+                        )}
+                      </span>
+                      <span>
+                        {/* UNIVERSAL CONTRIBUTION MODEL: All members show contribution status */}
+                        {status.contributed ? (
+                          <span className="flex items-center text-green-600 text-sm">
+                            <Check className="h-4 w-4 mr-1" />
+                            Paid
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-amber-600 text-sm">
+                            <Clock className="h-4 w-4 mr-1" />
+                            Pending
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Next payout info */}
             <div className="border rounded-md p-4">
