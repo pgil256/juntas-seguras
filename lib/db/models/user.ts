@@ -90,11 +90,25 @@ const UserSchema = new Schema({
   identityVerified: { type: Boolean, default: false },
   // Stripe customer ID for payment processing
   stripeCustomerId: { type: String },
-  // Stripe Connect account ID for receiving payouts
+  // Stripe Connect account ID for receiving payouts (legacy - keeping for backwards compatibility)
   stripeConnectAccountId: { type: String },
-  // Stripe Connect account status
+  // Stripe Connect account status (legacy)
   stripePayoutsEnabled: { type: Boolean, default: false },
   stripeDetailsSubmitted: { type: Boolean, default: false },
+  // Payout method preferences (simple alternative to Stripe Connect)
+  payoutMethod: {
+    type: {
+      type: String,
+      enum: ['venmo', 'paypal', 'zelle', 'cashapp', 'bank'],
+      default: null
+    },
+    // The handle/username/email/phone for the payout service
+    handle: { type: String },
+    // Display name for confirmation (e.g., "John's Venmo")
+    displayName: { type: String },
+    // When this was last updated
+    updatedAt: { type: Date }
+  },
   // Address for KYC verification
   address: {
     street: { type: String },
@@ -174,6 +188,12 @@ export interface UserDocument extends Document {
   stripeConnectAccountId?: string;
   stripePayoutsEnabled?: boolean;
   stripeDetailsSubmitted?: boolean;
+  payoutMethod?: {
+    type?: 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank' | null;
+    handle?: string;
+    displayName?: string;
+    updatedAt?: Date;
+  };
   address?: {
     street?: string;
     city?: string;

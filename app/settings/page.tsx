@@ -24,6 +24,8 @@ import {
   Check,
   Plus,
   Building,
+  Wallet,
+  Loader2,
 } from "lucide-react";
 import { PaymentMethodDialog } from "../../components/payments/PaymentMethodDialog";
 import { PaymentMethodFormValues } from "../../components/payments/PaymentMethodForm";
@@ -89,6 +91,14 @@ interface NotificationPreferences {
   };
 }
 
+type PayoutMethodType = 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank';
+
+interface PayoutMethod {
+  type: PayoutMethodType;
+  handle: string;
+  displayName?: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [showPasswordFields, setShowPasswordFields] = useState(false);
@@ -96,7 +106,18 @@ export default function SettingsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
-  
+
+  // Payout method state
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod | null>(null);
+  const [payoutMethodLoading, setPayoutMethodLoading] = useState(true);
+  const [editingPayoutMethod, setEditingPayoutMethod] = useState(false);
+  const [payoutFormData, setPayoutFormData] = useState({
+    type: '' as PayoutMethodType | '',
+    handle: '',
+    displayName: '',
+  });
+  const [savingPayoutMethod, setSavingPayoutMethod] = useState(false);
+
   // Get user profile data
   const { 
     profile: userProfile, 
@@ -171,6 +192,69 @@ export default function SettingsPage() {
       });
     }
   }, [userSettings]);
+
+  // Fetch payout method on mount
+  useEffect(() => {
+    const fetchPayoutMethod = async () => {
+      try {
+        const response = await fetch('/api/user/payout-method');
+        const data = await response.json();
+        if (response.ok && data.payoutMethod?.type) {
+          setPayoutMethod(data.payoutMethod);
+          setPayoutFormData({
+            type: data.payoutMethod.type,
+            handle: data.payoutMethod.handle || '',
+            displayName: data.payoutMethod.displayName || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching payout method:', error);
+      } finally {
+        setPayoutMethodLoading(false);
+      }
+    };
+    fetchPayoutMethod();
+  }, []);
+
+  // Handle saving payout method
+  const handleSavePayoutMethod = async () => {
+    if (!payoutFormData.type || !payoutFormData.handle.trim()) return;
+
+    setSavingPayoutMethod(true);
+    try {
+      const response = await fetch('/api/user/payout-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: payoutFormData.type,
+          handle: payoutFormData.handle.trim(),
+          displayName: payoutFormData.displayName.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPayoutMethod(data.payoutMethod);
+        setEditingPayoutMethod(false);
+      }
+    } catch (error) {
+      console.error('Error saving payout method:', error);
+    } finally {
+      setSavingPayoutMethod(false);
+    }
+  };
+
+  // Get payout method label
+  const getPayoutMethodLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      venmo: 'Venmo',
+      paypal: 'PayPal',
+      zelle: 'Zelle',
+      cashapp: 'Cash App',
+      bank: 'Bank Transfer',
+    };
+    return labels[type] || type;
+  };
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -1071,6 +1155,151 @@ export default function SettingsPage() {
                   <Plus className="h-4 w-4 mr-2" />
                   Add Payment Method
                 </Button>
+
+                {/* Payout Method Section */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    Payout Method
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    How you&apos;ll receive your pool payouts (Venmo, PayPal, Zelle, or Cash App)
+                  </p>
+
+                  <div className="mt-4">
+                    {payoutMethodLoading ? (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </div>
+                    ) : editingPayoutMethod || !payoutMethod ? (
+                      <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <div>
+                          <Label htmlFor="payout-type">Payout Method</Label>
+                          <Select
+                            value={payoutFormData.type}
+                            onValueChange={(value) =>
+                              setPayoutFormData({ ...payoutFormData, type: value as PayoutMethodType })
+                            }
+                          >
+                            <SelectTrigger id="payout-type" className="mt-1">
+                              <SelectValue placeholder="Select payout method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="venmo">Venmo</SelectItem>
+                              <SelectItem value="paypal">PayPal</SelectItem>
+                              <SelectItem value="zelle">Zelle</SelectItem>
+                              <SelectItem value="cashapp">Cash App</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {payoutFormData.type && (
+                          <>
+                            <div>
+                              <Label htmlFor="payout-handle">
+                                {payoutFormData.type === 'venmo' && 'Venmo Username or Phone'}
+                                {payoutFormData.type === 'paypal' && 'PayPal Email'}
+                                {payoutFormData.type === 'zelle' && 'Zelle Email or Phone'}
+                                {payoutFormData.type === 'cashapp' && 'Cash App $Cashtag'}
+                              </Label>
+                              <Input
+                                id="payout-handle"
+                                type="text"
+                                placeholder={
+                                  payoutFormData.type === 'venmo' ? '@username or phone' :
+                                  payoutFormData.type === 'paypal' ? 'email@example.com' :
+                                  payoutFormData.type === 'zelle' ? 'email or phone' :
+                                  '$cashtag'
+                                }
+                                value={payoutFormData.handle}
+                                onChange={(e) =>
+                                  setPayoutFormData({ ...payoutFormData, handle: e.target.value })
+                                }
+                                className="mt-1"
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="payout-display-name">
+                                Display Name <span className="text-gray-400">(optional)</span>
+                              </Label>
+                              <Input
+                                id="payout-display-name"
+                                type="text"
+                                placeholder="e.g., John's Venmo"
+                                value={payoutFormData.displayName}
+                                onChange={(e) =>
+                                  setPayoutFormData({ ...payoutFormData, displayName: e.target.value })
+                                }
+                                className="mt-1"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleSavePayoutMethod}
+                            disabled={savingPayoutMethod || !payoutFormData.type || !payoutFormData.handle.trim()}
+                            className="min-h-[44px]"
+                          >
+                            {savingPayoutMethod ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Payout Method
+                              </>
+                            )}
+                          </Button>
+                          {payoutMethod && (
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setEditingPayoutMethod(false);
+                                setPayoutFormData({
+                                  type: payoutMethod.type,
+                                  handle: payoutMethod.handle,
+                                  displayName: payoutMethod.displayName || '',
+                                });
+                              }}
+                              className="min-h-[44px]"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-purple-100 p-2 rounded-md">
+                            <Wallet className="h-6 w-6 text-purple-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{getPayoutMethodLabel(payoutMethod.type)}</div>
+                            <div className="text-sm text-gray-600">{payoutMethod.handle}</div>
+                            {payoutMethod.displayName && (
+                              <div className="text-xs text-gray-500">{payoutMethod.displayName}</div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingPayoutMethod(true)}
+                          className="min-h-[44px]"
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="border-t pt-6">
                   <h3 className="text-lg font-medium text-gray-900">
