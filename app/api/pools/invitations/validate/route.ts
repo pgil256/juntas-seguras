@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     
     // Get pool details
     const pool = await Pool.findOne({ id: invitation.poolId })
-      .select('name description contributionAmount frequency startDate members');
+      .select('name description contributionAmount frequency startDate members allowedPaymentMethods');
     
     if (!pool) {
       return NextResponse.json({
@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
         contributionAmount: pool.contributionAmount,
         frequency: pool.frequency,
         startDate: pool.startDate,
-        memberCount: pool.members.length
+        memberCount: pool.members.length,
+        allowedPaymentMethods: pool.allowedPaymentMethods || ['venmo', 'cashapp', 'paypal', 'zelle']
       }
     });
     

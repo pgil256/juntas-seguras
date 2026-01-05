@@ -34,7 +34,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { Checkbox } from "../../components/ui/checkbox";
 import { CreatorRulesAcknowledgmentDialog } from "./CreatorRulesAcknowledgmentDialog";
+import { PaymentMethodType } from "../../types/pool";
+
+// Available payment methods with labels
+const AVAILABLE_PAYMENT_METHODS: { value: PaymentMethodType; label: string }[] = [
+  { value: 'venmo', label: 'Venmo' },
+  { value: 'cashapp', label: 'Cash App' },
+  { value: 'paypal', label: 'PayPal' },
+  { value: 'zelle', label: 'Zelle' },
+];
 import { PoolOnboardingModal } from "../payments/PoolOnboardingModal";
 
 interface CreatePoolModalProps {
@@ -82,7 +92,8 @@ const CreatePoolModal = ({
     startDate: "",
     description: "",
     inviteMethod: "email",
-    emails: ""
+    emails: "",
+    allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,6 +103,28 @@ const CreatePoolModal = ({
 
   const handleSelectChange = (name: string, value: string) => {
     setPoolData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentMethodToggle = (method: PaymentMethodType, checked: boolean) => {
+    setPoolData((prev) => {
+      const currentMethods = prev.allowedPaymentMethods;
+      if (checked) {
+        // Add method if not already present
+        return {
+          ...prev,
+          allowedPaymentMethods: currentMethods.includes(method)
+            ? currentMethods
+            : [...currentMethods, method]
+        };
+      } else {
+        // Remove method, but ensure at least one remains
+        const newMethods = currentMethods.filter(m => m !== method);
+        if (newMethods.length === 0) {
+          return prev; // Don't allow removing the last method
+        }
+        return { ...prev, allowedPaymentMethods: newMethods };
+      }
+    });
   };
 
   const nextStep = () => {
@@ -174,7 +207,8 @@ const CreatePoolModal = ({
         frequency: poolData.frequency,
         totalRounds,
         startDate: poolData.startDate,
-        invitations
+        invitations,
+        allowedPaymentMethods: poolData.allowedPaymentMethods
       };
 
       // Use the hook to create the pool - onSuccess will handle showing payment setup
@@ -199,7 +233,8 @@ const CreatePoolModal = ({
       startDate: "",
       description: "",
       inviteMethod: "email",
-      emails: ""
+      emails: "",
+      allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
     });
 
     // Close modal and redirect to member management
@@ -224,7 +259,8 @@ const CreatePoolModal = ({
       startDate: "",
       description: "",
       inviteMethod: "email",
-      emails: ""
+      emails: "",
+      allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
     });
 
     // Close modal and redirect to member management
@@ -441,6 +477,41 @@ const CreatePoolModal = ({
                     required
                   />
                 </div>
+
+                <div>
+                  <Label className="mb-2 block">Allowed Payment Methods</Label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select which payment methods members can use in this pool
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {AVAILABLE_PAYMENT_METHODS.map((method) => (
+                      <div key={method.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`method-${method.value}`}
+                          checked={poolData.allowedPaymentMethods.includes(method.value)}
+                          onCheckedChange={(checked) =>
+                            handlePaymentMethodToggle(method.value, checked === true)
+                          }
+                          disabled={
+                            poolData.allowedPaymentMethods.length === 1 &&
+                            poolData.allowedPaymentMethods.includes(method.value)
+                          }
+                        />
+                        <Label
+                          htmlFor={`method-${method.value}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {method.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {poolData.allowedPaymentMethods.length === 1 && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      At least one payment method must be selected
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -516,6 +587,13 @@ const CreatePoolModal = ({
                       {parseInt(poolData.contributionAmount || "0") *
                         parseInt(poolData.totalMembers) *
                         parseInt(poolData.duration)}
+                    </li>
+                    <li>
+                      Payment methods:{" "}
+                      {poolData.allowedPaymentMethods
+                        .map(m => AVAILABLE_PAYMENT_METHODS.find(pm => pm.value === m)?.label)
+                        .filter(Boolean)
+                        .join(", ")}
                     </li>
                   </ul>
                 </div>
@@ -605,6 +683,7 @@ const CreatePoolModal = ({
           poolName={createdPoolName}
           contributionAmount={Number(poolData.contributionAmount) || 0}
           frequency={poolData.frequency}
+          allowedPaymentMethods={poolData.allowedPaymentMethods}
         />
       )}
     </Dialog>

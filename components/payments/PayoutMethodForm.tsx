@@ -33,6 +33,7 @@ interface PayoutMethodFormProps {
   onSuccess: () => void;
   onSkip: () => void;
   showSkip?: boolean;
+  allowedMethods?: ('venmo' | 'cashapp' | 'paypal' | 'zelle')[];
 }
 
 const PAYOUT_METHODS: { value: PayoutMethodType; label: string; placeholder: string; helpText: string }[] = [
@@ -62,7 +63,7 @@ const PAYOUT_METHODS: { value: PayoutMethodType; label: string; placeholder: str
   },
 ];
 
-export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutMethodFormProps) {
+export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true, allowedMethods }: PayoutMethodFormProps) {
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethodType | ''>('');
   const [handle, setHandle] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -74,6 +75,11 @@ export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutM
     handle: string;
     displayName?: string;
   } | null>(null);
+
+  // Filter payout methods based on allowed methods (if provided)
+  const availablePayoutMethods = allowedMethods
+    ? PAYOUT_METHODS.filter(m => allowedMethods.includes(m.value as 'venmo' | 'cashapp' | 'paypal' | 'zelle'))
+    : PAYOUT_METHODS;
 
   useEffect(() => {
     fetchExistingMethod();
@@ -97,7 +103,7 @@ export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutM
     }
   };
 
-  const selectedMethod = PAYOUT_METHODS.find(m => m.value === payoutMethod);
+  const selectedMethod = availablePayoutMethods.find(m => m.value === payoutMethod);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +153,8 @@ export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutM
   // If user already has a payout method set up
   if (existingMethod && !error) {
     const method = PAYOUT_METHODS.find(m => m.value === existingMethod.type);
+    const isMethodAllowed = !allowedMethods || allowedMethods.includes(existingMethod.type as 'venmo' | 'cashapp' | 'paypal' | 'zelle');
+
     return (
       <div className="py-6 space-y-4">
         <div className="text-center">
@@ -170,17 +178,29 @@ export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutM
           </div>
         </div>
 
-        <Button onClick={onSuccess} className="w-full">
-          Continue
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        {!isMethodAllowed && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              This pool only accepts: {availablePayoutMethods.map(m => m.label).join(", ")}.
+              Please update your payout method.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isMethodAllowed && (
+          <Button onClick={onSuccess} className="w-full">
+            Continue
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
 
         <Button
           variant="ghost"
           onClick={() => setExistingMethod(null)}
           className="w-full text-muted-foreground"
         >
-          Update payout method
+          {isMethodAllowed ? 'Update payout method' : 'Choose a different payout method'}
         </Button>
       </div>
     );
@@ -218,7 +238,7 @@ export function PayoutMethodForm({ onSuccess, onSkip, showSkip = true }: PayoutM
             <SelectValue placeholder="Select your preferred payout method" />
           </SelectTrigger>
           <SelectContent>
-            {PAYOUT_METHODS.map((method) => (
+            {availablePayoutMethods.map((method) => (
               <SelectItem key={method.value} value={method.value}>
                 {method.label}
               </SelectItem>
