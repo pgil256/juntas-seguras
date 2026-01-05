@@ -334,8 +334,68 @@ export async function POST(
       });
     }
 
+    // Handle undo_payment action - member wants to undo their payment confirmation
+    if (action === 'undo_payment') {
+      // Check if user has a payment to undo
+      const existingPayment = pool.currentRoundPayments?.find(
+        (p: any) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
+      );
+
+      const existingTransaction = pool.transactions.find(
+        (t: any) =>
+          t.member === userMember.name &&
+          t.type === TransactionType.CONTRIBUTION &&
+          t.round === currentRound
+      );
+
+      if (!existingPayment && !existingTransaction) {
+        return NextResponse.json(
+          { error: 'No payment found to undo' },
+          { status: 400 }
+        );
+      }
+
+      // Remove from currentRoundPayments
+      if (pool.currentRoundPayments) {
+        pool.currentRoundPayments = pool.currentRoundPayments.filter(
+          (p: any) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
+        );
+      }
+
+      // Remove the transaction record
+      if (existingTransaction) {
+        pool.transactions = pool.transactions.filter(
+          (t: any) => !(
+            t.member === userMember.name &&
+            t.type === TransactionType.CONTRIBUTION &&
+            t.round === currentRound
+          )
+        );
+      }
+
+      // Add a system message
+      const messageId = Math.max(
+        ...pool.messages.map((m: any) => m.id || 0),
+        0
+      ) + 1;
+      pool.messages.push({
+        id: messageId,
+        author: 'System',
+        content: `${userMember.name} has undone their contribution for round ${currentRound}.`,
+        date: new Date().toISOString()
+      });
+
+      await pool.save();
+
+      return NextResponse.json({
+        success: true,
+        action: 'undo_payment',
+        message: 'Payment has been undone. You can now mark it as paid again.',
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Invalid action. Use "confirm_manual".' },
+      { error: 'Invalid action. Use "confirm_manual" or "undo_payment".' },
       { status: 400 }
     );
   } catch (error) {

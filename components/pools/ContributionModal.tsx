@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Undo2,
 } from 'lucide-react';
 import {
   generatePayoutLink,
@@ -183,6 +184,52 @@ export function ContributionModal({
     }
   };
 
+  const handleUndoPayment = async () => {
+    // Prevent double-submission
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      const response = await fetch(`/api/pools/${poolId}/contributions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'undo_payment',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setResult({
+          success: true,
+          message: data.message || 'Payment undone successfully!',
+        });
+        if (onContributionSuccess) {
+          onContributionSuccess();
+        }
+        // Refresh contribution status
+        await getContributionStatus();
+      } else {
+        setResult({
+          success: false,
+          message: data.error || 'Failed to undo payment',
+        });
+      }
+    } catch {
+      setResult({
+        success: false,
+        message: 'Failed to undo payment',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleClose = () => {
     setResult(null);
     onClose();
@@ -290,16 +337,32 @@ export function ContributionModal({
 
               {/* User already contributed */}
               {hasContributed && !isRecipient && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertTitle className="text-green-800">
-                    Already Contributed
-                  </AlertTitle>
-                  <AlertDescription className="text-green-700">
-                    You've already made your contribution for Round{' '}
-                    {contributionStatus.currentRound}. Thank you!
-                  </AlertDescription>
-                </Alert>
+                <div className="space-y-3">
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800">
+                      Already Contributed
+                    </AlertTitle>
+                    <AlertDescription className="text-green-700">
+                      You've already made your contribution for Round{' '}
+                      {contributionStatus.currentRound}. Thank you!
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUndoPayment}
+                    disabled={isSubmitting}
+                    className="w-full text-gray-600 hover:text-gray-800"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-4 w-4 mr-2" />
+                    )}
+                    Undo Payment
+                  </Button>
+                </div>
               )}
 
               {/* Contribution amount */}

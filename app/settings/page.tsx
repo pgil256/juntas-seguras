@@ -175,28 +175,34 @@ export default function SettingsPage() {
 
   // Initialize notifications with null, to indicate loading state
   const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
-  
-  // Update notifications state when settings are loaded
+  // Track whether we've initialized from server data to avoid resetting local changes
+  const [notificationsInitialized, setNotificationsInitialized] = useState(false);
+
+  // Update notifications state only on initial load, not on every userSettings change
   useEffect(() => {
-    if (userSettings?.notificationPreferences) {
+    if (userSettings?.notificationPreferences && !notificationsInitialized) {
       setNotifications(userSettings.notificationPreferences);
+      setNotificationsInitialized(true);
     }
-  }, [userSettings]);
+  }, [userSettings, notificationsInitialized]);
 
   const [preferences, setPreferences] = useState({
     language: 'en',
     timezone: 'America/New_York',
   });
-  
-  // Update preferences state when settings are loaded
+  // Track whether preferences have been initialized from server data
+  const [preferencesInitialized, setPreferencesInitialized] = useState(false);
+
+  // Update preferences state only on initial load
   useEffect(() => {
-    if (userSettings) {
+    if (userSettings && !preferencesInitialized) {
       setPreferences({
         language: userSettings.language || 'en',
         timezone: userSettings.timezone || 'America/New_York',
       });
+      setPreferencesInitialized(true);
     }
-  }, [userSettings]);
+  }, [userSettings, preferencesInitialized]);
 
   // Fetch payout methods on mount
   useEffect(() => {
