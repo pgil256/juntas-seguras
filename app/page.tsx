@@ -1,11 +1,15 @@
 // app/page.tsx
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Shield, Users, Wallet, CheckCircle } from "lucide-react";
+import { Shield, Users, Wallet, CheckCircle, Menu, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -15,12 +19,13 @@ export default function LandingPage() {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/" className="text-2xl font-bold text-blue-600">
+                <Link href="/" className="text-lg sm:text-2xl font-bold text-blue-600">
                   Juntas Seguras
                 </Link>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            {/* Desktop nav */}
+            <div className="hidden sm:flex items-center space-x-4">
               <Link href="/help">
                 <Button variant="ghost">Help</Button>
               </Link>
@@ -31,6 +36,33 @@ export default function LandingPage() {
                 <Button>Sign up</Button>
               </Link>
             </div>
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <span className="sr-only">{mobileMenuOpen ? 'Close menu' : 'Open menu'}</span>
+              {mobileMenuOpen ? (
+                <X className="block h-6 w-6" />
+              ) : (
+                <Menu className="block h-6 w-6" />
+              )}
+            </button>
+          </div>
+        </div>
+        {/* Mobile menu */}
+        <div className={`sm:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`}>
+          <div className="py-2 px-4 space-y-2 bg-white border-t border-gray-100">
+            <Link href="/help" className="block" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start">Help</Button>
+            </Link>
+            <Link href="/auth/signin" className="block" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="outline" className="w-full">Log in</Button>
+            </Link>
+            <Link href="/auth/signup" className="block" onClick={() => setMobileMenuOpen(false)}>
+              <Button className="w-full">Sign up</Button>
+            </Link>
           </div>
         </div>
       </nav>
