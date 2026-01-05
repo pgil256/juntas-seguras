@@ -77,11 +77,14 @@ export async function GET(
     const user = userResult.user;
     const userId = user._id.toString();
 
-    // Validate pool ID format
-    if (!mongoose.Types.ObjectId.isValid(poolId)) {
+    await connectToDatabase();
+
+    // Find pool by string UUID id
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'Invalid pool ID format' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
 
@@ -93,14 +96,6 @@ export async function GET(
     } else {
       // Legacy support: if memberId is a number, try to find the user
       // by their position in the pool's members array
-      const pool = await Pool.findById(poolId).lean();
-      if (!pool) {
-        return NextResponse.json(
-          { error: 'Pool not found' },
-          { status: 404 }
-        );
-      }
-
       const numericId = parseInt(memberId);
       const member = (pool as any).members?.find((m: any) => m.id === numericId);
       if (member?.userId) {
@@ -244,16 +239,8 @@ export async function POST(
     // Connect to database
     await connectToDatabase();
 
-    // Validate pool ID format
-    if (!mongoose.Types.ObjectId.isValid(poolId)) {
-      return NextResponse.json(
-        { error: 'Invalid pool ID format' },
-        { status: 400 }
-      );
-    }
-
-    // Verify pool exists
-    const pool = await Pool.findById(poolId).lean();
+    // Find pool by string UUID id
+    const pool = await Pool.findOne({ id: poolId });
     if (!pool) {
       return NextResponse.json(
         { error: 'Pool not found' },

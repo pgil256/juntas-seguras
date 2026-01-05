@@ -79,17 +79,20 @@ export async function GET(
     const skip = parseInt(url.searchParams.get('skip') || '0');
     const before = url.searchParams.get('before');
 
-    // Validate pool ID format
-    if (!mongoose.Types.ObjectId.isValid(poolId)) {
+    await connectToDatabase();
+
+    // Find pool by string UUID id to get its MongoDB _id
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'Invalid pool ID format' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
 
-    // Build query - fetch non-deleted messages for this pool
+    // Build query - fetch non-deleted messages for this pool using pool's MongoDB _id
     const query: any = {
-      poolId: new mongoose.Types.ObjectId(poolId),
+      poolId: pool._id,
       deleted: false
     };
 
@@ -186,16 +189,10 @@ export async function POST(
     }
     const user = userResult.user;
 
-    // Validate pool ID format
-    if (!mongoose.Types.ObjectId.isValid(poolId)) {
-      return NextResponse.json(
-        { error: 'Invalid pool ID format' },
-        { status: 400 }
-      );
-    }
+    await connectToDatabase();
 
-    // Verify pool exists
-    const pool = await Pool.findById(poolId).lean();
+    // Find pool by string UUID id to get its MongoDB _id
+    const pool = await Pool.findOne({ id: poolId });
     if (!pool) {
       return NextResponse.json(
         { error: 'Pool not found' },
@@ -204,12 +201,11 @@ export async function POST(
     }
 
     // Get user info for sender name
-    const userId = user._id.toString();
     const senderName = user.name || 'Unknown User';
 
-    // Create the message document
+    // Create the message document using pool's MongoDB _id
     const newMessage = await Message.create({
-      poolId: new mongoose.Types.ObjectId(poolId),
+      poolId: pool._id,
       senderId: user._id,
       senderName,
       content,
@@ -228,7 +224,7 @@ export async function POST(
     };
 
     // Log activity (fire and forget - don't block response)
-    logActivity(userId, 'message_sent', {
+    logActivity(user._id.toString(), 'message_sent', {
       poolId,
       messageId: newMessage._id.toString(),
     }).catch(err => console.error('Activity log failed:', err));
@@ -291,11 +287,14 @@ export async function DELETE(
     }
     const user = userResult.user;
 
-    // Validate pool ID format
-    if (!mongoose.Types.ObjectId.isValid(poolId)) {
+    await connectToDatabase();
+
+    // Find pool by string UUID id to get its MongoDB _id
+    const pool = await Pool.findOne({ id: poolId });
+    if (!pool) {
       return NextResponse.json(
-        { error: 'Invalid pool ID format' },
-        { status: 400 }
+        { error: 'Pool not found' },
+        { status: 404 }
       );
     }
 
@@ -308,7 +307,7 @@ export async function DELETE(
       // If messageId is a valid ObjectId, find by _id
       message = await Message.findOne({
         _id: new mongoose.Types.ObjectId(messageId),
-        poolId: new mongoose.Types.ObjectId(poolId),
+        poolId: pool._id,
         deleted: false
       });
     }
@@ -321,7 +320,7 @@ export async function DELETE(
         // This is approximate but should work for most cases
         const dateFromTimestamp = new Date(timestamp);
         message = await Message.findOne({
-          poolId: new mongoose.Types.ObjectId(poolId),
+          poolId: pool._id,
           createdAt: {
             $gte: new Date(dateFromTimestamp.getTime() - 1000),  // 1 second tolerance
             $lte: new Date(dateFromTimestamp.getTime() + 1000)
