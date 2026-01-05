@@ -68,7 +68,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center min-w-0">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
+              <Link href={isAuthenticated ? "/dashboard" : "/"} className="text-xl sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
                 Juntas Seguras
               </Link>
             </div>
