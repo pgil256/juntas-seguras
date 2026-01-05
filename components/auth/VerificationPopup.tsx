@@ -36,6 +36,26 @@ export default function VerificationPopup({
     setMounted(true);
   }, []);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${window.scrollY}px`;
+    }
+    return () => {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
+      }
+    };
+  }, [isOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!verificationCode || verificationCode.length !== 6) {
@@ -75,13 +95,13 @@ export default function VerificationPopup({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto" style={{ position: 'fixed', zIndex: 9999 }}>
-          <div className="min-h-screen flex items-center justify-center p-0">
+        <div className="fixed inset-0 z-[9999] overflow-hidden" style={{ position: 'fixed', zIndex: 9999 }}>
+          <div className="h-full flex items-center justify-center p-4">
             {/* Background overlay */}
             <div className="fixed inset-0 bg-black bg-opacity-75" style={{ position: 'fixed', zIndex: 9998 }}></div>
-            
+
             {/* Modal centered container */}
-            <div 
+            <div
               className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-auto z-[10000]"
               style={{ zIndex: 10000, position: 'relative' }}
             >
