@@ -181,29 +181,29 @@ export default function SecurityDocumentationPage() {
           <section>
             <h3 className="text-xl font-semibold text-gray-900">Financial Security</h3>
             <p className="mt-2 text-gray-700">
-              Your financial transactions and information are protected by:
+              Your financial transactions and pool participation are protected by:
             </p>
             <ul className="mt-2 space-y-3 text-gray-700 list-disc pl-5">
               <li>
-                <span className="font-medium">Secure Payment Processing:</span> All financial transactions use PCI-DSS compliant payment processors
+                <span className="font-medium">Trusted Payment Apps:</span> Contributions are made via established payment services (Venmo, PayPal, Zelle, Cash App)
               </li>
               <li>
-                <span className="font-medium">Tokenization:</span> Payment details are tokenized rather than stored directly in our system
+                <span className="font-medium">Payment Tracking:</span> All contributions and payouts are tracked and verified in the app
               </li>
               <li>
-                <span className="font-medium">Transaction Verification:</span> Additional verification required for significant transactions
+                <span className="font-medium">Identity Verification:</span> Optional Stripe Identity verification helps establish trust among pool members
               </li>
               <li>
-                <span className="font-medium">Fraud Detection:</span> Automated systems monitor for suspicious transaction patterns
+                <span className="font-medium">Audit Trail:</span> Complete record of all financial transactions for accountability
               </li>
               <li>
-                <span className="font-medium">Escrow Protection:</span> Pool funds are held in secure escrow accounts until distribution
+                <span className="font-medium">Member Confirmations:</span> Both members and administrators confirm payments for transparency
               </li>
             </ul>
-            
+
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">Tip:</span> Always verify payment details before confirming a transaction. If something seems unusual, contact our support team immediately.
+                <span className="font-medium">Tip:</span> Only join pools with people you know and trust. Verify payment details before sending, and always confirm your payments in the app.
               </p>
             </div>
           </section>

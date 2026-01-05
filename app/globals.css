@@ -143,6 +143,11 @@
     padding-right: env(safe-area-inset-right);
   }
 
+  /* Safe area for bottom navigation on notched devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   /* Mobile-friendly touch targets (WCAG 2.5.5) */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
@@ -207,5 +212,137 @@
     select {
       font-size: 16px !important;
     }
+  }
+}
+
+/* Animation tokens for consistent transitions */
+@layer utilities {
+  /* Transition presets */
+  .transition-fast {
+    @apply transition-all duration-150 ease-in-out;
+  }
+
+  .transition-normal {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .transition-slow {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-0.5;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-[1.02];
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-200 hover:shadow-lg;
+  }
+
+  /* Focus effects */
+  .focus-ring {
+    @apply focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none;
+  }
+
+  /* Card hover states */
+  .card-interactive {
+    @apply transition-all duration-200 hover:shadow-md hover:border-gray-300 cursor-pointer;
+  }
+
+  /* Button press effect */
+  .btn-press {
+    @apply transition-transform duration-100 active:scale-[0.98];
+  }
+
+  /* Fade animations */
+  .animate-fade-in {
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .animate-fade-out {
+    animation: fadeOut 200ms ease-in;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 200ms ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 200ms ease-out;
+  }
+
+  /* Section divider */
+  .section-divider {
+    @apply border-t border-gray-100 my-6;
+  }
+
+  /* Content section with proper spacing */
+  .content-section {
+    @apply space-y-4;
+  }
+
+  /* Page section spacing */
+  .page-section {
+    @apply mb-8;
+  }
+
+  /* Consistent content max-width */
+  .content-width {
+    @apply max-w-7xl mx-auto;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton pulse animation override for smoother effect */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }

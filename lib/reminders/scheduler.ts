@@ -111,10 +111,8 @@ async function getPaymentDueReminders(): Promise<PendingReminder[]> {
     const payoutDate = pool.nextPayoutDate ? new Date(pool.nextPayoutDate) : null;
     if (!payoutDate) continue;
 
-    // Payment is typically due a few days before payout
-    // Using grace period to calculate due date
-    const gracePeriodHours = pool.gracePeriodHours || 24;
-    const paymentDueDate = new Date(payoutDate.getTime() - gracePeriodHours * 60 * 60 * 1000);
+    // Payment is typically due the day before payout (24 hours before)
+    const paymentDueDate = new Date(payoutDate.getTime() - 24 * 60 * 60 * 1000);
 
     for (const schedule of schedules) {
       // Calculate when this reminder should be sent

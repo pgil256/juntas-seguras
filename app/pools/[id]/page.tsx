@@ -38,8 +38,6 @@ import { InviteMembersDialog } from "../../../components/pools/InviteMembersDial
 import { ContributionModal } from "../../../components/pools/ContributionModal";
 import { ContributionStatusCard } from "../../../components/pools/ContributionStatusCard";
 import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
-import { AutoCollectionStatus } from "../../../components/pools/AutoCollectionStatus";
-import { AdminCollectionsDashboard } from "../../../components/pools/AdminCollectionsDashboard";
 import { PayoutMethodSetup } from "../../../components/payments/PayoutMethodSetup";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
 import {
@@ -199,6 +197,23 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
       style: "currency",
       currency: "USD",
     }).format(amount);
+  };
+
+  // Format payment due date text based on the next payout date
+  // Contributions are due the day before the payout
+  const getPaymentDueText = () => {
+    if (!pool?.nextPayoutDate) {
+      return `Payments are due ${pool?.frequency?.toLowerCase() || 'weekly'} before the scheduled payout.`;
+    }
+    const payoutDate = new Date(pool.nextPayoutDate);
+    if (isNaN(payoutDate.getTime())) {
+      return `Payments are due ${pool?.frequency?.toLowerCase() || 'weekly'} before the scheduled payout.`;
+    }
+    // Due date is the day before payout
+    const dueDate = new Date(payoutDate);
+    dueDate.setDate(dueDate.getDate() - 1);
+    const dueDateFormatted = format(dueDate, "EEEE, MMMM d");
+    return `Payments are due by ${dueDateFormatted} (the day before the payout).`;
   };
 
   const getStatusColor = (status: string) => {
@@ -611,7 +626,6 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="contributions">Contributions</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
-              <TabsTrigger value="auto-pay">Auto-Pay</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="discussion">Discussion</TabsTrigger>
@@ -640,33 +654,6 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
 
                 {/* Payout Method Setup - for receiving payouts */}
                 <PayoutMethodSetup />
-              </div>
-            </TabsContent>
-
-            {/* Auto-Pay Tab */}
-            <TabsContent value="auto-pay">
-              <div className="space-y-6">
-                {/* Member view: their auto-collection status */}
-                <AutoCollectionStatus
-                  poolId={id}
-                  poolName={pool.name}
-                  contributionAmount={pool.contributionAmount}
-                  frequency={pool.frequency}
-                  nextPayoutDate={pool.nextPayoutDate}
-                  currentRound={pool.currentRound}
-                  userId={session?.user?.id || ''}
-                />
-
-                {/* Admin view: collections management dashboard */}
-                {isAdmin && (
-                  <AdminCollectionsDashboard
-                    poolId={id}
-                    poolName={pool.name}
-                    currentRound={pool.currentRound}
-                    contributionAmount={pool.contributionAmount}
-                    memberCount={pool.memberCount}
-                  />
-                )}
               </div>
             </TabsContent>
 
@@ -1025,7 +1012,7 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                         <li>
                           Contributions are made manually via Venmo, PayPal, Zelle, or Cash App directly to the pool admin.
                         </li>
-                        <li>Payments are due every Friday by 8:00 PM.</li>
+                        <li>{getPaymentDueText()}</li>
                         <li>
                           After sending your payment, mark it as completed in the app so the admin can verify receipt.
                         </li>

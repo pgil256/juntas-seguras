@@ -1,0 +1,260 @@
+{
+  "version": "1.0.0",
+  "description": "Skill activation rules for my-juntas-app - a savings pool management application",
+  "skills": {
+    "backend-dev-guidelines": {
+      "name": "backend-dev-guidelines",
+      "description": "Next.js API routes, MongoDB/Mongoose patterns, authentication, and server-side development guidelines for the Juntas app",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "api route",
+          "api endpoint",
+          "mongodb",
+          "mongoose",
+          "database",
+          "schema",
+          "model",
+          "nextauth",
+          "authentication",
+          "middleware",
+          "server action",
+          "backend",
+          "stripe",
+          "payment",
+          "webhook"
+        ],
+        "intentPatterns": [
+          "create.*api",
+          "add.*endpoint",
+          "update.*model",
+          "fix.*database",
+          "implement.*route",
+          "add.*authentication",
+          "handle.*payment",
+          "process.*webhook"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "app/api/**/*.ts",
+          "lib/db/**/*.ts",
+          "lib/services/**/*.ts",
+          "middleware.ts"
+        ],
+        "excludePatterns": [
+          "**/*.test.ts",
+          "**/*.spec.ts"
+        ]
+      }
+    },
+    "frontend-dev-guidelines": {
+      "name": "frontend-dev-guidelines",
+      "description": "React components, Tailwind CSS, shadcn/ui patterns, and client-side development guidelines",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "component",
+          "react",
+          "tailwind",
+          "shadcn",
+          "ui component",
+          "form",
+          "modal",
+          "dialog",
+          "button",
+          "input",
+          "styling",
+          "css",
+          "responsive",
+          "client",
+          "hook",
+          "usestate",
+          "useeffect"
+        ],
+        "intentPatterns": [
+          "create.*component",
+          "add.*form",
+          "build.*ui",
+          "style.*component",
+          "implement.*modal",
+          "fix.*layout",
+          "add.*button",
+          "update.*design"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "components/**/*.tsx",
+          "app/**/page.tsx",
+          "app/**/layout.tsx",
+          "lib/hooks/**/*.ts"
+        ],
+        "excludePatterns": [
+          "**/*.test.tsx",
+          "**/*.spec.tsx"
+        ]
+      }
+    },
+    "pool-management": {
+      "name": "pool-management",
+      "description": "Pool lifecycle, member management, contributions, payouts, and savings pool business logic",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "pool",
+          "junta",
+          "tanda",
+          "savings",
+          "contribution",
+          "payout",
+          "member",
+          "round",
+          "cycle",
+          "escrow",
+          "collection"
+        ],
+        "intentPatterns": [
+          "create.*pool",
+          "manage.*pool",
+          "handle.*contribution",
+          "process.*payout",
+          "add.*member",
+          "invite.*member",
+          "start.*round"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "app/api/pools/**/*.ts",
+          "components/pools/**/*.tsx",
+          "lib/db/models/Pool.ts",
+          "app/pools/**/*.tsx",
+          "app/my-pool/**/*.tsx"
+        ]
+      }
+    },
+    "authentication-security": {
+      "name": "authentication-security",
+      "description": "NextAuth configuration, MFA, identity verification, security headers, and audit logging",
+      "enforcement": "suggest",
+      "priority": "critical",
+      "promptTriggers": {
+        "keywords": [
+          "auth",
+          "login",
+          "signup",
+          "mfa",
+          "2fa",
+          "two-factor",
+          "totp",
+          "verification",
+          "security",
+          "session",
+          "jwt",
+          "token",
+          "password",
+          "audit"
+        ],
+        "intentPatterns": [
+          "implement.*auth",
+          "add.*security",
+          "fix.*login",
+          "setup.*mfa",
+          "verify.*identity",
+          "protect.*route"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "app/api/auth/**/*.ts",
+          "app/api/security/**/*.ts",
+          "lib/auth.ts",
+          "lib/services/mfa.ts",
+          "middleware.ts"
+        ]
+      }
+    },
+    "payments-stripe": {
+      "name": "payments-stripe",
+      "description": "Stripe integration, payment processing, manual payouts, and financial transaction handling",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "stripe",
+          "payment",
+          "charge",
+          "payout",
+          "venmo",
+          "paypal",
+          "zelle",
+          "cash app",
+          "bank",
+          "transfer",
+          "escrow",
+          "refund"
+        ],
+        "intentPatterns": [
+          "process.*payment",
+          "setup.*stripe",
+          "handle.*payout",
+          "implement.*checkout",
+          "add.*payment.*method"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "app/api/payments/**/*.ts",
+          "app/api/stripe/**/*.ts",
+          "lib/stripe/**/*.ts",
+          "lib/payments/**/*.ts",
+          "components/payments/**/*.tsx"
+        ]
+      }
+    },
+    "skill-developer": {
+      "name": "skill-developer",
+      "description": "Meta-skill for creating, modifying, and managing Claude Code skills and hooks",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "promptTriggers": {
+        "keywords": [
+          "skill",
+          "hook",
+          "claude code",
+          "slash command",
+          "agent",
+          "automation"
+        ],
+        "intentPatterns": [
+          "create.*skill",
+          "add.*hook",
+          "modify.*skill",
+          "update.*rules"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          ".claude/**/*"
+        ]
+      }
+    }
+  },
+  "_notes": {
+    "enforcement_types": {
+      "suggest": "Skill is suggested but execution continues without it",
+      "warn": "Warning displayed but execution continues",
+      "block": "Requires skill usage before proceeding"
+    },
+    "priority_levels": {
+      "critical": "Security and authentication - highest priority",
+      "high": "Core business logic and main features",
+      "medium": "Supporting functionality",
+      "low": "Nice-to-have enhancements"
+    }
+  }
+}

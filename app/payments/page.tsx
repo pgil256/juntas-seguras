@@ -17,7 +17,8 @@ import {
   Loader2,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import { PaymentProcessingModal } from '../../components/payments/PaymentProcessingModal';
 import { PaymentMethodDialog } from '../../components/payments/PaymentMethodDialog';
@@ -35,6 +36,8 @@ import { PaymentDetails, TransactionType, TransactionStatus } from '../../types/
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { cn } from '../../lib/utils';
+import { Skeleton, StatCardSkeleton, ListItemSkeleton, TableRowSkeleton } from '../../components/ui/skeleton';
+import { EmptyState } from '../../components/ui/empty-state';
 
 // Types for API responses
 interface UpcomingPayment {
@@ -402,8 +405,24 @@ export default function PaymentsPage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="space-y-2 mb-6">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-40" />
+            {[1, 2, 3].map((i) => (
+              <ListItemSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -511,37 +530,47 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               {isLoadingUpcoming ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-8 w-20 rounded-md" />
+                    </div>
+                  ))}
                 </div>
               ) : upcomingError ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
-                  <p className="text-red-600">{upcomingError}</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={fetchUpcomingPayments}
-                  >
-                    Retry
-                  </Button>
-                </div>
+                <EmptyState
+                  icon={AlertCircle}
+                  iconColor="orange"
+                  title="Unable to load payments"
+                  description={upcomingError}
+                  action={{
+                    label: 'Try Again',
+                    onClick: fetchUpcomingPayments,
+                    variant: 'outline',
+                  }}
+                />
               ) : upcomingPayments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="rounded-full bg-blue-50 p-3 mb-4">
-                    <PlusCircle className="h-8 w-8 text-blue-500" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">No upcoming payments</h3>
-                  <p className="mt-2 text-gray-500 max-w-md">
-                    You don&apos;t have any upcoming payments. Join or create a pool to start contributing.
-                  </p>
-                  <Button
-                    className="mt-4"
-                    onClick={() => router.push('/create-pool')}
-                  >
-                    Create a Pool
-                  </Button>
-                </div>
+                <EmptyState
+                  icon={Calendar}
+                  iconColor="blue"
+                  title="No upcoming payments"
+                  description="You don't have any upcoming payments. Join or create a pool to start contributing."
+                  action={{
+                    label: 'Create a Pool',
+                    onClick: () => router.push('/create-pool'),
+                  }}
+                  secondaryAction={{
+                    label: 'Learn More',
+                    onClick: () => router.push('/help/documentation'),
+                  }}
+                />
               ) : (
                 <div className="space-y-4">
                   {upcomingPayments.map((payment) => (
@@ -762,45 +791,55 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               {isLoadingHistory ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-3 font-medium text-gray-500 text-sm">Date</th>
+                        <th className="pb-3 font-medium text-gray-500 text-sm">Pool</th>
+                        <th className="pb-3 font-medium text-gray-500 text-sm">Type</th>
+                        <th className="pb-3 font-medium text-gray-500 text-sm">Amount</th>
+                        <th className="pb-3 font-medium text-gray-500 text-sm">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <TableRowSkeleton key={i} columns={5} />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : historyError ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
-                  <p className="text-red-600">{historyError}</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={fetchTransactionHistory}
-                  >
-                    Retry
-                  </Button>
-                </div>
+                <EmptyState
+                  icon={AlertCircle}
+                  iconColor="orange"
+                  title="Unable to load history"
+                  description={historyError}
+                  action={{
+                    label: 'Try Again',
+                    onClick: fetchTransactionHistory,
+                    variant: 'outline',
+                  }}
+                />
               ) : transactions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="rounded-full bg-gray-50 p-3 mb-4">
-                    <DollarSign className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">No transaction history</h3>
-                  <p className="mt-2 text-gray-500 max-w-md">
-                    {hasActiveFilters || debouncedSearch
+                <EmptyState
+                  icon={hasActiveFilters || debouncedSearch ? Search : CreditCard}
+                  iconColor={hasActiveFilters || debouncedSearch ? 'gray' : 'green'}
+                  title={hasActiveFilters || debouncedSearch ? 'No results found' : 'No transaction history'}
+                  description={
+                    hasActiveFilters || debouncedSearch
                       ? 'No transactions match your filters. Try adjusting your search criteria.'
-                      : 'Your transaction history will appear here once you start making contributions or receive payments.'}
-                  </p>
-                  {(hasActiveFilters || debouncedSearch) && (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => {
-                        clearFilters();
-                        setSearchQuery('');
-                      }}
-                    >
-                      Clear Filters
-                    </Button>
-                  )}
-                </div>
+                      : 'Your transaction history will appear here once you start making contributions or receive payouts.'
+                  }
+                  action={(hasActiveFilters || debouncedSearch) ? {
+                    label: 'Clear Filters',
+                    onClick: () => {
+                      clearFilters();
+                      setSearchQuery('');
+                    },
+                    variant: 'outline',
+                  } : undefined}
+                />
               ) : (
                 <>
                   {/* Transactions Table */}

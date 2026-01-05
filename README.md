@@ -21,13 +21,12 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 - Legacy in-pool messaging system
 
 ### Payment Processing
-- **Stripe Integration** for secure contributions and payouts
-- Stripe Connect for direct payouts to member bank accounts
-- Escrow system holds funds until all contributions received
-- Automatic contribution collection with configurable schedules
+- **Manual Payment Collection**: Members pay admin directly via Venmo, PayPal, Zelle, or Cash App
+- Admin tracks and confirms all contributions
+- Admin sends payouts to recipients using their preferred method
 - **Payment reminders** with customizable settings
-- **Manual Payout Methods**: Venmo, PayPal, Zelle, Cash App support
 - Zelle QR code generation for easy payments
+- **Stripe Identity** for KYC verification
 
 ### Security
 - **Mandatory Multi-Factor Authentication (MFA)** for all users
@@ -116,8 +115,8 @@ my-juntas-app/
 │   ├── ui/               # shadcn/ui components
 │   └── ...
 ├── lib/                   # Utility libraries
-│   ├── db/               # Database models (14 Mongoose schemas)
-│   ├── hooks/            # Custom React hooks (22 hooks)
+│   ├── db/               # Database models (12 Mongoose schemas)
+│   ├── hooks/            # Custom React hooks (21 hooks)
 │   ├── services/         # Business logic services
 │   └── stripe/           # Stripe utilities
 ├── types/                # TypeScript type definitions (11 files)
@@ -186,8 +185,7 @@ The application can also be deployed to:
 |-------|---------|
 | User | User accounts, authentication, MFA, identity verification |
 | Pool | Savings pool configuration, members, transactions |
-| Payment | Payment records with Stripe integration |
-| PaymentSetup | Payment method setup intents |
+| Payment | Payment records |
 | PoolInvitation | Pool member invitations |
 | Message | Pool messaging (legacy) |
 | DirectMessage | Direct messages between members |
@@ -195,7 +193,6 @@ The application can also be deployed to:
 | DiscussionMention | @mentions in discussions |
 | DiscussionReadReceipt | Discussion read status tracking |
 | AuditLog | Comprehensive audit trail |
-| ScheduledCollection | Automated payment collection |
 | Reminder | Payment reminders |
 | NotificationPreference | User notification settings |
 
@@ -203,15 +200,13 @@ The application can also be deployed to:
 
 The application includes 60+ API endpoints organized by feature:
 - `/api/auth/*` - Authentication (register, verify, MFA, password reset)
-- `/api/pools/*` - Pool management (CRUD, members, discussions, collections)
-- `/api/payments/*` - Payment processing (history, methods, escrow)
-- `/api/stripe/*` - Stripe integration (payments, Connect, webhooks)
+- `/api/pools/*` - Pool management (CRUD, members, discussions)
+- `/api/payments/*` - Payment processing (history, methods)
 - `/api/users/*` - User management (profile, settings)
 - `/api/user/*` - Current user endpoints (payout methods, Zelle QR)
 - `/api/notifications/*` - Notification system
 - `/api/identity/*` - Identity verification
 - `/api/security/*` - Security & 2FA management
-- `/api/collections/*` - Collection processing (cron)
 - `/api/cron/*` - Cron job endpoints (reminders)
 - `/api/audit/*` - Audit logging
 - `/api/search/*` - Search functionality

@@ -128,11 +128,6 @@ const PoolSchema = new Schema({
   transactions: [PoolTransactionSchema],
   messages: [PoolMessageSchema],
 
-  // Auto-collection settings
-  autoCollectionEnabled: { type: Boolean, default: true },
-  gracePeriodHours: { type: Number, default: 24 }, // Hours after due date before auto-collection
-  collectionReminderHours: { type: Number, default: 48 }, // Hours before due date to send reminder
-
   // Allowed payment methods for this pool (selected by admin during creation)
   // All methods allowed by default if not specified
   allowedPaymentMethods: {
