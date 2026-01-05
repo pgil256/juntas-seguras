@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { Pool } from '../../../../../lib/db/models/pool';
+import { User } from '../../../../../lib/db/models/user';
 import { PoolMemberRole } from '../../../../../types/pool';
 import {
   validatePayoutHandle,
@@ -52,8 +53,53 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Not a member of this pool' }, { status: 403 });
     }
 
+    // Check if pool has adminPaymentMethods set
+    const hasPoolAdminMethods = pool.adminPaymentMethods && (
+      pool.adminPaymentMethods.venmo ||
+      pool.adminPaymentMethods.cashapp ||
+      pool.adminPaymentMethods.paypal ||
+      pool.adminPaymentMethods.zelle
+    );
+
+    if (hasPoolAdminMethods) {
+      return NextResponse.json({
+        adminPaymentMethods: pool.adminPaymentMethods,
+      });
+    }
+
+    // Fall back to the pool admin/creator's personal payout methods
+    // Find the admin member
+    const adminMember = pool.members.find(
+      (m: any) => m.role === PoolMemberRole.ADMIN || m.role === PoolMemberRole.CREATOR
+    );
+
+    if (adminMember) {
+      // Try to get the admin's personal payout methods from the User collection
+      const adminUser = await User.findOne({
+        email: { $regex: new RegExp(`^${adminMember.email}$`, 'i') }
+      });
+
+      if (adminUser?.payoutMethods) {
+        const { venmo, cashapp, paypal, zelle, preferred } = adminUser.payoutMethods;
+        // Only return if at least one method is set
+        if (venmo || cashapp || paypal || zelle) {
+          return NextResponse.json({
+            adminPaymentMethods: {
+              venmo: venmo || null,
+              cashapp: cashapp || null,
+              paypal: paypal || null,
+              zelle: zelle || null,
+              preferred: preferred || null,
+              // Mark this as coming from user profile (not pool-specific)
+              fromUserProfile: true,
+            },
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
-      adminPaymentMethods: pool.adminPaymentMethods || null,
+      adminPaymentMethods: null,
     });
   } catch (error) {
     console.error('Error fetching admin payment methods:', error);
