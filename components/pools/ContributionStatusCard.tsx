@@ -22,7 +22,6 @@ import {
   Loader2,
   AlertTriangle,
   RefreshCw,
-  AlertCircle,
 } from 'lucide-react';
 
 interface ContributionStatusCardProps {
@@ -33,7 +32,7 @@ interface ContributionStatusCardProps {
 
 // Helper function to get human-readable payment method labels
 const getPaymentMethodLabel = (method: string | null | undefined): string => {
-  if (!method) return 'Unknown';
+  if (!method) return '';
   const labels: Record<string, string> = {
     venmo: 'Venmo',
     cashapp: 'Cash App',
@@ -89,11 +88,9 @@ export function ContributionStatusCard({
   // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
   const isRecipient = userContributionInfo?.isRecipient ?? false;
   const hasContributed = userContributionInfo?.hasContributed ?? false;
-  const paymentPending = userContributionInfo?.paymentPending ?? false;
   const paymentMethod = userContributionInfo?.paymentMethod ?? null;
   // Recipients can and must contribute - they just also receive the payout
-  // Can contribute if they haven't contributed AND haven't already confirmed a pending payment
-  const canContribute = !hasContributed && !paymentPending;
+  const canContribute = !hasContributed;
 
   if (isLoading && !contributionStatus) {
     return (
@@ -198,21 +195,6 @@ export function ContributionStatusCard({
               </Alert>
             )}
 
-            {isRecipient && paymentPending && (
-              <Alert className="bg-yellow-50 border-yellow-200">
-                <Award className="h-4 w-4 text-yellow-600" />
-                <AlertTitle className="text-yellow-800">
-                  You're the Recipient - Payment Awaiting Verification
-                </AlertTitle>
-                <AlertDescription className="text-yellow-700">
-                  You've confirmed your {formatCurrency(contributionStatus.contributionAmount)} payment
-                  via <strong>{getPaymentMethodLabel(paymentMethod)}</strong>.
-                  The pool admin will verify receipt. Total payout once verified:{' '}
-                  {formatCurrency(contributionStatus.contributionAmount * contributionStatus.contributions.length)}
-                </AlertDescription>
-              </Alert>
-            )}
-
             {hasContributed && !isRecipient && (
               <Alert className="bg-green-50 border-green-200">
                 <Check className="h-4 w-4 text-green-600" />
@@ -220,23 +202,9 @@ export function ContributionStatusCard({
                   Contribution Complete
                 </AlertTitle>
                 <AlertDescription className="text-green-700">
-                  You've contributed{' '}
+                  You've paid{' '}
                   {formatCurrency(contributionStatus.contributionAmount)} for this
-                  round.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {paymentPending && !isRecipient && (
-              <Alert className="bg-yellow-50 border-yellow-200">
-                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                <AlertTitle className="text-yellow-800">
-                  Payment Awaiting Verification
-                </AlertTitle>
-                <AlertDescription className="text-yellow-700">
-                  You've confirmed your {formatCurrency(contributionStatus.contributionAmount)} payment
-                  via <strong>{getPaymentMethodLabel(paymentMethod)}</strong>.
-                  The pool admin will verify receipt of your payment.
+                  round{paymentMethod ? ` via ${getPaymentMethodLabel(paymentMethod)}` : ''}.
                 </AlertDescription>
               </Alert>
             )}
@@ -281,17 +249,11 @@ export function ContributionStatusCard({
                     // Determine the display status based on contribution status
                     const getPaymentStatusDisplay = () => {
                       if (member.hasContributed) {
+                        const methodLabel = getPaymentMethodLabel(member.paymentMethod);
                         return {
                           icon: <Check className="h-4 w-4 mr-1" />,
-                          text: 'Verified',
+                          text: methodLabel ? `Paid via ${methodLabel}` : 'Paid',
                           className: 'text-green-600',
-                        };
-                      }
-                      if (member.paymentPending) {
-                        return {
-                          icon: <AlertCircle className="h-4 w-4 mr-1" />,
-                          text: `Paid via ${getPaymentMethodLabel(member.paymentMethod)} - Awaiting Verification`,
-                          className: 'text-yellow-600',
                         };
                       }
                       return {
@@ -309,8 +271,6 @@ export function ContributionStatusCard({
                         className={`flex justify-between items-center px-3 py-2 rounded ${
                           member.email === userEmail
                             ? 'bg-blue-50 border border-blue-100'
-                            : member.paymentPending
-                            ? 'bg-yellow-50 border border-yellow-100'
                             : 'hover:bg-gray-50'
                         }`}
                       >

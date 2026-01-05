@@ -39,8 +39,6 @@ import { ContributionModal } from "../../../components/pools/ContributionModal";
 import { ContributionStatusCard } from "../../../components/pools/ContributionStatusCard";
 import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
 import { PayoutMethodSetup } from "../../../components/payments/PayoutMethodSetup";
-import { AdminPaymentTracker } from "../../../components/payments/AdminPaymentTracker";
-import type { RoundPayment } from "../../../types/pool";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
 import {
   AlertDialog,
@@ -87,13 +85,6 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
     message: string;
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Round payments state for admin tracker
-  const [roundPayments, setRoundPayments] = useState<RoundPayment[]>([]);
-  const [roundPaymentsLoading, setRoundPaymentsLoading] = useState(false);
-  const [allPaymentsVerified, setAllPaymentsVerified] = useState(false);
-  const [winnerName, setWinnerName] = useState<string>('');
-  const [paymentsDueDate, setPaymentsDueDate] = useState<Date>(new Date());
 
   const { pool, isLoading: poolLoading, error: poolError, refreshPool } = usePool({
     poolId: id
@@ -292,144 +283,18 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
     router.push(`/member-management/${id}`);
   };
 
-  // Fetch round payments for admin tracker
-  const fetchRoundPayments = useCallback(async () => {
-    if (!id) return;
-
-    setRoundPaymentsLoading(true);
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setRoundPayments(data.payments || []);
-        setAllPaymentsVerified(
-          (data.payments || []).every(
-            (p: RoundPayment) => p.status === 'admin_verified' || p.status === 'excused'
-          )
-        );
-        setWinnerName(data.winner?.name || 'Unknown');
-        setPaymentsDueDate(data.dueDate ? new Date(data.dueDate) : new Date());
-      }
-    } catch (error) {
-      console.error('Error fetching round payments:', error);
-    } finally {
-      setRoundPaymentsLoading(false);
-    }
-  }, [id]);
-
-  // Load round payments when pool is loaded and user is admin
-  useEffect(() => {
-    if (pool && isAdmin) {
-      fetchRoundPayments();
-    }
-  }, [pool, isAdmin, fetchRoundPayments]);
-
   const handleContributionSuccess = useCallback(() => {
     // Refresh pool data and contribution status after contribution
     refreshPool();
     getContributionStatus();
-    // Also refresh round payments so admin tracker updates
-    if (isAdmin) {
-      fetchRoundPayments();
-    }
-  }, [refreshPool, getContributionStatus, isAdmin, fetchRoundPayments]);
+  }, [refreshPool, getContributionStatus]);
 
   // Handler for payout success
   const handlePayoutSuccess = useCallback(() => {
     // Refresh pool data after payout is processed
     refreshPool();
     getContributionStatus();
-    fetchRoundPayments();
-  }, [refreshPool, getContributionStatus, fetchRoundPayments]);
-
-  // Admin actions for payment tracker
-  const handleVerifyPayment = async (memberId: number, notes?: string) => {
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_verify', notes }),
-      });
-
-      if (response.ok) {
-        await fetchRoundPayments();
-        await getContributionStatus();
-      }
-    } catch (error) {
-      console.error('Error verifying payment:', error);
-    }
-  };
-
-  const handleDisputePayment = async (memberId: number, notes: string) => {
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'dispute', notes }),
-      });
-
-      if (response.ok) {
-        await fetchRoundPayments();
-        await getContributionStatus();
-      }
-    } catch (error) {
-      console.error('Error disputing payment:', error);
-    }
-  };
-
-  const handleSendReminder = async (memberId: number) => {
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_reminder' }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        alert(data.error || 'Failed to send reminder');
-      } else {
-        await fetchRoundPayments();
-      }
-    } catch (error) {
-      console.error('Error sending reminder:', error);
-    }
-  };
-
-  const handleMarkLate = async (memberId: number) => {
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mark_late' }),
-      });
-
-      if (response.ok) {
-        await fetchRoundPayments();
-        await getContributionStatus();
-      }
-    } catch (error) {
-      console.error('Error marking late:', error);
-    }
-  };
-
-  const handleExcusePayment = async (memberId: number, notes: string) => {
-    try {
-      const response = await fetch(`/api/pools/${id}/round-payments/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'excuse', notes }),
-      });
-
-      if (response.ok) {
-        await fetchRoundPayments();
-        await getContributionStatus();
-      }
-    } catch (error) {
-      console.error('Error excusing payment:', error);
-    }
-  };
+  }, [refreshPool, getContributionStatus]);
 
   // Handler for opening the settings dialog
   const handleOpenSettings = () => {
@@ -769,31 +634,11 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
 
             {/* Contributions Tab */}
             <TabsContent value="contributions">
-              <div className="space-y-6">
-                <ContributionStatusCard
-                  poolId={id}
-                  userEmail={session?.user?.email || ''}
-                  onMakeContribution={() => setShowContributionModal(true)}
-                />
-
-                {/* Admin Payment Tracker - only visible to admins */}
-                {isAdmin && pool && (
-                  <AdminPaymentTracker
-                    roundNumber={pool.currentRound}
-                    poolName={pool.name}
-                    contributionAmount={pool.contributionAmount}
-                    dueDate={paymentsDueDate}
-                    winnerName={winnerName}
-                    payments={roundPayments}
-                    onVerifyPayment={handleVerifyPayment}
-                    onDisputePayment={handleDisputePayment}
-                    onSendReminder={handleSendReminder}
-                    onMarkLate={handleMarkLate}
-                    onExcusePayment={handleExcusePayment}
-                    allVerified={allPaymentsVerified}
-                  />
-                )}
-              </div>
+              <ContributionStatusCard
+                poolId={id}
+                userEmail={session?.user?.email || ''}
+                onMakeContribution={() => setShowContributionModal(true)}
+              />
             </TabsContent>
 
             {/* Payouts Tab */}
