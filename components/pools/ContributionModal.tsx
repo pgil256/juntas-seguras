@@ -317,7 +317,7 @@ export function ContributionModal({
                 </div>
               )}
 
-              {/* User is recipient */}
+              {/* User is recipient and hasn't contributed */}
               {isRecipient && !hasContributed && (
                 <Alert className="bg-emerald-50 border-emerald-200">
                   <Award className="h-4 w-4 text-emerald-600" />
@@ -335,7 +335,40 @@ export function ContributionModal({
                 </Alert>
               )}
 
-              {/* User already contributed */}
+              {/* User is recipient and has contributed */}
+              {isRecipient && hasContributed && (
+                <div className="space-y-3">
+                  <Alert className="bg-emerald-50 border-emerald-200">
+                    <Award className="h-4 w-4 text-emerald-600" />
+                    <AlertTitle className="text-emerald-800">
+                      You're the Recipient!
+                    </AlertTitle>
+                    <AlertDescription className="text-emerald-700">
+                      You've made your contribution and will receive the payout this round!
+                      Total payout:{' '}
+                      {contributionStatus && formatCurrency(
+                        contributionStatus.contributionAmount * contributionStatus.contributions.length
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUndoPayment}
+                    disabled={isSubmitting}
+                    className="w-full text-gray-600 hover:text-gray-800"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-4 w-4 mr-2" />
+                    )}
+                    Undo Payment
+                  </Button>
+                </div>
+              )}
+
+              {/* User already contributed (non-recipient) */}
               {hasContributed && !isRecipient && (
                 <div className="space-y-3">
                   <Alert className="bg-green-50 border-green-200">

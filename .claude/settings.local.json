@@ -97,7 +97,8 @@
       "Bash(xargs -I {} bash -c 'echo \"\"\"\"{}:\"\"\"\" && find \"\"\"\"{}\"\"\"\" -name \"\"\"\"*.tsx\"\"\"\" -type f | wc -l')",
       "Bash(for dir in */)",
       "Bash(node_modules/.bin/next lint)",
-      "Bash(npx next lint)"
+      "Bash(npx next lint)",
+      "Bash(xargs -I {} bash -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -30 \"\"\"\"{}\"\"\"\"')"
     ]
   },
   "enableAllProjectMcpServers": false
