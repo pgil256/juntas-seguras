@@ -91,7 +91,11 @@
       "Bash(for dir in C:/Users/user/Desktop/JS/my-juntas-app/components/*/)",
       "Bash(done)",
       "Bash(node_modules.binnext build)",
-      "Bash(node_modules/.bin/next build)"
+      "Bash(node_modules/.bin/next build)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nClean up codebase and add new features\n\n- Remove unused auto-collection system (models, hooks, API routes, components)\n- Remove deprecated documentation files (GMAIL_SMTP_TROUBLESHOOTING, IMPLEMENTATION_PLAN, etc.)\n- Add mobile bottom navigation component\n- Add empty-state and skeleton UI components\n- Add user invitations API endpoint\n- Update help documentation pages\n- Add Claude Code configuration (skills, commands, hooks)\n- Enhance search input and dashboard alerts components\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd payment tracking UI for third-party payment confirmations\n\n- Update ContributionStatusCard to show \"Awaiting Verification\" status when\n  member confirms payment via third-party app (Venmo, Cash App, PayPal, Zelle)\n- Display payment method used in contribution list for all members\n- Integrate AdminPaymentTracker into pool page Contributions tab for admins\n- Admin can verify, dispute, send reminders, mark late, or excuse payments\n- Auto-refresh UI when payment status changes\n- Add yellow highlighting for pending verification payments\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(xargs -I {} bash -c 'echo \"\"\"\"{}:\"\"\"\" && find \"\"\"\"{}\"\"\"\" -name \"\"\"\"*.tsx\"\"\"\" -type f | wc -l')",
+      "Bash(for dir in */)"
     ]
   },
   "enableAllProjectMcpServers": false

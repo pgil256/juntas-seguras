@@ -261,15 +261,16 @@ export async function POST(
         (p: any) => p.memberId !== userMember.id && p.memberEmail !== userMember.email
       );
 
-      // Add the new payment confirmation
+      // Add the new payment - marked as complete immediately (no admin verification needed)
       pool.currentRoundPayments.push({
         memberId: userMember.id,
         memberName: userMember.name,
         memberEmail: userMember.email,
         amount: pool.contributionAmount,
-        status: 'member_confirmed',
+        status: 'admin_verified', // Mark as verified immediately
         memberConfirmedAt: new Date(),
         memberConfirmedVia: paymentMethod,
+        adminVerifiedAt: new Date(), // Auto-verified
         dueDate: pool.nextPayoutDate ? new Date(pool.nextPayoutDate) : null,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -283,20 +284,20 @@ export async function POST(
       pool.messages.push({
         id: messageId,
         author: 'System',
-        content: `${userMember.name} has confirmed sending their $${pool.contributionAmount} contribution via ${paymentMethod} for round ${currentRound}. Awaiting admin verification.`,
+        content: `${userMember.name} has paid their $${pool.contributionAmount} contribution via ${paymentMethod} for round ${currentRound}.`,
         date: new Date().toISOString()
       });
 
       await pool.save();
 
-      // Notify pool admin about the payment confirmation
+      // Notify pool admin about the payment
       const adminMember = pool.members.find((m: any) => m.role === 'admin');
       if (adminMember?.email) {
         await createNotification({
           userId: adminMember.email,
-          message: `${userMember.name} confirmed their $${pool.contributionAmount} payment via ${paymentMethod} for ${pool.name}. Please verify.`,
+          message: `${userMember.name} paid their $${pool.contributionAmount} contribution via ${paymentMethod} for ${pool.name}.`,
           type: 'payment',
-          isImportant: true,
+          isImportant: false,
         });
       }
 
@@ -306,10 +307,10 @@ export async function POST(
         payment: {
           amount: pool.contributionAmount,
           method: paymentMethod,
-          status: 'member_confirmed',
+          status: 'admin_verified',
           confirmedAt: new Date().toISOString(),
         },
-        message: 'Payment confirmation recorded. The pool admin will verify your payment.',
+        message: 'Payment recorded successfully!',
       });
     }
 
