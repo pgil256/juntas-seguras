@@ -2,7 +2,7 @@
 // Mobile bottom navigation bar for quick access to main sections
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Plus
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 type NavItem = {
   label: string;
@@ -34,6 +35,13 @@ export function MobileBottomNav() {
   const { status } = useSession();
   const isAuthenticated = status === 'authenticated';
 
+  // Haptic feedback for touch interactions
+  const triggerHaptic = useCallback(() => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  }, []);
+
   // Don't show on auth pages
   if (pathname?.startsWith('/auth')) {
     return null;
@@ -43,8 +51,12 @@ export function MobileBottomNav() {
   const visibleItems = navItems.filter(item => !item.requiresAuth || isAuthenticated);
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
-      <div className="flex justify-around items-center h-16 px-2">
+    <nav
+      className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200/80 z-50 safe-area-bottom"
+      role="navigation"
+      aria-label="Main navigation"
+    >
+      <div className="flex justify-around items-center h-16 px-1 max-w-lg mx-auto">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname?.startsWith(item.href));
@@ -55,29 +67,58 @@ export function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`
-                flex flex-col items-center justify-center flex-1 py-2 px-1 min-h-[56px]
-                transition-colors duration-150 relative
-                ${isCreate
+              onClick={triggerHaptic}
+              aria-current={isActive ? 'page' : undefined}
+              className={cn(
+                "flex flex-col items-center justify-center flex-1 py-2 px-1 min-h-[56px] relative",
+                "transition-all duration-200 ease-out",
+                "active:scale-95 touch-action-manipulation",
+                isCreate
                   ? 'text-white'
                   : isActive
                     ? 'text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }
-              `}
+                    : 'text-gray-400 active:text-gray-600'
+              )}
             >
               {isCreate ? (
-                <span className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 shadow-lg -mt-4 hover:bg-blue-700 transition-colors">
-                  <Icon className="h-6 w-6" />
+                <span
+                  className={cn(
+                    "flex items-center justify-center w-14 h-14 rounded-2xl -mt-6",
+                    "bg-gradient-to-br from-blue-500 to-blue-600",
+                    "shadow-lg shadow-blue-500/30",
+                    "transition-all duration-200",
+                    "active:scale-95 active:shadow-md",
+                    "ring-4 ring-white"
+                  )}
+                >
+                  <Icon className="h-7 w-7" strokeWidth={2.5} />
                 </span>
               ) : (
                 <>
-                  <Icon className={`h-5 w-5 ${isActive ? 'scale-110' : ''} transition-transform`} />
-                  <span className={`text-xs mt-1 ${isActive ? 'font-medium' : ''}`}>
+                  <div className={cn(
+                    "relative p-1.5 rounded-xl transition-all duration-200",
+                    isActive && "bg-blue-50"
+                  )}>
+                    <Icon
+                      className={cn(
+                        "h-5 w-5 transition-all duration-200",
+                        isActive && "scale-110"
+                      )}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                  </div>
+                  <span className={cn(
+                    "text-[10px] mt-0.5 transition-all duration-200",
+                    isActive ? 'font-semibold text-blue-600' : 'font-medium'
+                  )}>
                     {item.label}
                   </span>
+                  {/* Active indicator dot */}
                   {isActive && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
+                    <span
+                      className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"
+                      aria-hidden="true"
+                    />
                   )}
                 </>
               )}
