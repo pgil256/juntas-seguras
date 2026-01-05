@@ -89,8 +89,12 @@ export interface EarlyPayoutVerification {
   recipient?: {
     name: string;
     email: string;
-    stripeConnectAccountId?: string;
-    stripeLast4?: string;
+    payoutMethod?: {
+      type: 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank';
+      handle: string;
+      displayName?: string;
+    };
+    paymentLink?: string | null;
   };
   payoutAmount?: number;
   scheduledDate?: string;
