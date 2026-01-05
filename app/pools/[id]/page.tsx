@@ -40,7 +40,7 @@ import { ContributionStatusCard } from "../../../components/pools/ContributionSt
 import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
 import { AutoCollectionStatus } from "../../../components/pools/AutoCollectionStatus";
 import { AdminCollectionsDashboard } from "../../../components/pools/AdminCollectionsDashboard";
-import { StripeConnectSetup } from "../../../components/payments/StripeConnectSetup";
+import { PayoutMethodSetup } from "../../../components/payments/PayoutMethodSetup";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
 import {
   AlertDialog,
@@ -52,6 +52,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../../components/ui/dialog";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Textarea } from "../../../components/ui/textarea";
 import { usePool } from "../../../lib/hooks/usePool";
 import { usePoolMessages } from "../../../lib/hooks/usePoolMessages";
 import { usePoolContributions } from "../../../lib/hooks/usePoolContributions";
@@ -66,7 +77,10 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showContributionModal, setShowContributionModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsFormData, setSettingsFormData] = useState({ name: '', description: '' });
   const [stripeProcessing, setStripeProcessing] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{
     success: boolean;
@@ -267,6 +281,43 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
     getContributionStatus();
   }, [refreshPool, getContributionStatus]);
 
+  // Handler for opening the settings dialog
+  const handleOpenSettings = () => {
+    setSettingsFormData({
+      name: pool?.name || '',
+      description: pool?.description || '',
+    });
+    setShowSettingsDialog(true);
+  };
+
+  // Handler for saving pool settings
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch(`/api/pools/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: settingsFormData.name.trim(),
+          description: settingsFormData.description.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update pool');
+      }
+
+      // Refresh pool data and close dialog
+      refreshPool();
+      setShowSettingsDialog(false);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   // Handler for deleting the pool
   const handleDeletePool = async () => {
     setIsDeleting(true);
@@ -402,7 +453,13 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
-              <Button variant="outline" size="sm" className="flex items-center min-h-[44px] flex-1 sm:flex-none justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center min-h-[44px] flex-1 sm:flex-none justify-center"
+                onClick={handleOpenSettings}
+                disabled={!isAdmin}
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
@@ -572,13 +629,18 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
 
             {/* Payouts Tab */}
             <TabsContent value="payouts">
-              <PoolPayoutsManager
-                poolId={id}
-                userId={session?.user?.id || ''}
-                isAdmin={isAdmin}
-                poolName={pool.name}
-                onPayoutSuccess={handlePayoutSuccess}
-              />
+              <div className="space-y-6">
+                <PoolPayoutsManager
+                  poolId={id}
+                  userId={session?.user?.id || ''}
+                  isAdmin={isAdmin}
+                  poolName={pool.name}
+                  onPayoutSuccess={handlePayoutSuccess}
+                />
+
+                {/* Payout Method Setup - for receiving payouts */}
+                <PayoutMethodSetup />
+              </div>
             </TabsContent>
 
             {/* Auto-Pay Tab */}
@@ -594,9 +656,6 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                   currentRound={pool.currentRound}
                   userId={session?.user?.id || ''}
                 />
-
-                {/* Payout Account Setup - Always visible so members can set up before their turn */}
-                <StripeConnectSetup />
 
                 {/* Admin view: collections management dashboard */}
                 {isAdmin && (
@@ -1090,6 +1149,61 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Pool Settings Dialog */}
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Pool Settings</DialogTitle>
+            <DialogDescription>
+              Update your pool&apos;s name and description.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="pool-name">Pool Name</Label>
+              <Input
+                id="pool-name"
+                value={settingsFormData.name}
+                onChange={(e) => setSettingsFormData({ ...settingsFormData, name: e.target.value })}
+                placeholder="Enter pool name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pool-description">Description</Label>
+              <Textarea
+                id="pool-description"
+                value={settingsFormData.description}
+                onChange={(e) => setSettingsFormData({ ...settingsFormData, description: e.target.value })}
+                placeholder="Enter pool description"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSettingsDialog(false)}
+              disabled={isSavingSettings}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={isSavingSettings || !settingsFormData.name.trim()}
+            >
+              {isSavingSettings ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
