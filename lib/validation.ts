@@ -64,7 +64,13 @@ const ENV_VAR_CONFIG: EnvVarConfig[] = [
   {
     name: 'NEXT_PUBLIC_APP_URL',
     required: 'production',
-    validate: (v) => v.startsWith('https://'),
+    validate: (v) => {
+      // In production, require HTTPS. In development, allow HTTP for localhost
+      if (process.env.NODE_ENV === 'production') {
+        return v.startsWith('https://');
+      }
+      return v.startsWith('http://') || v.startsWith('https://');
+    },
     errorMessage: 'NEXT_PUBLIC_APP_URL must use HTTPS in production',
   },
 ];
