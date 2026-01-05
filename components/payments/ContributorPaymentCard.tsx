@@ -131,6 +131,7 @@ export function ContributorPaymentCard({
 
   // Generate links for each admin payment method
   const getPaymentLink = (type: PayoutMethodType): string | null => {
+    if (type === 'bank') return null; // Bank transfers don't have deep links
     const handle = adminPaymentMethods[type];
     if (!handle) return null;
     try {

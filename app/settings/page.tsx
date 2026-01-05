@@ -261,7 +261,7 @@ export default function SettingsPage() {
   const handleSaveMultiPayoutMethods = async () => {
     // Validate all fields before saving
     const errors: Record<string, string> = {};
-    const types: PayoutMethodType[] = ['venmo', 'cashapp', 'paypal', 'zelle'];
+    const types: (keyof Omit<PayoutMethods, 'preferred'>)[] = ['venmo', 'cashapp', 'paypal', 'zelle'];
 
     for (const type of types) {
       const value = multiPayoutFormData[type];

@@ -53,6 +53,7 @@ interface UsePoolContributionsReturn {
   } | null;
   getContributionStatus: () => Promise<void>;
   confirmManualPayment: (paymentMethod: string) => Promise<ConfirmPaymentResult>;
+  completeContribution: (sessionId?: string) => Promise<ConfirmPaymentResult>;
 }
 
 export function usePoolContributions({
@@ -154,6 +155,13 @@ export function usePoolContributions({
       })()
     : null;
 
+  // Legacy function for Stripe completion - now just delegates to confirmManualPayment
+  // This is kept for backwards compatibility with pages that expect this function
+  const completeContribution = useCallback(async (sessionId?: string): Promise<ConfirmPaymentResult> => {
+    // Since Stripe is removed, this just confirms a manual payment
+    return confirmManualPayment('manual');
+  }, [confirmManualPayment]);
+
   return {
     isLoading,
     error,
@@ -161,5 +169,6 @@ export function usePoolContributions({
     userContributionInfo,
     getContributionStatus,
     confirmManualPayment,
+    completeContribution,
   };
 }

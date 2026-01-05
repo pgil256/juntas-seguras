@@ -6,7 +6,7 @@
  */
 
 import jsQR from 'jsqr';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 
 export interface ZelleQRData {
   /** The Zelle token/identifier from the QR code */
