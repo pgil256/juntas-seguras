@@ -20,7 +20,6 @@ import ClientOnly from '../../../components/ClientOnly';
 
 export default function SignUp() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,10 +40,6 @@ export default function SignUp() {
   const [isVerified, setIsVerified] = useState(false);
   const [mfaError, setMfaError] = useState<string | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,13 +287,10 @@ export default function SignUp() {
     }
   }, [identityVerificationUrl]);
 
-  if (!mounted) {
-    return null;
-  }
-
-  if (showVerificationPopup) {
-    console.log('Rendering verification popup');
-    return (
+  // Render either credentials form, MFA setup form, or identity verification form
+  return (
+    <ClientOnly>
+      {/* Verification popup overlay */}
       <VerificationPopup
         isOpen={showVerificationPopup}
         onClose={() => setShowVerificationPopup(false)}
@@ -308,12 +300,7 @@ export default function SignUp() {
         error={error}
         emailForDisplay={email}
       />
-    );
-  }
 
-  // Render either credentials form, MFA setup form, or identity verification form
-  return (
-    <ClientOnly>
       <div className="flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-lg">
           <CardHeader className="space-y-1">
