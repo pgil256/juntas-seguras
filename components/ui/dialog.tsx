@@ -16,7 +16,10 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out",
+      "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "duration-200",
       className
     )}
     {...props}
@@ -24,21 +27,51 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+// Responsive dialog that becomes a bottom sheet on mobile
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    variant?: 'default' | 'sheet';
+  }
+>(({ className, children, variant = 'default', ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[90vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border border-gray-200 bg-white p-4 sm:p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg",
+        "fixed z-50 bg-white shadow-xl duration-300 overflow-hidden",
+        // Mobile: Bottom sheet style
+        "inset-x-0 bottom-0 sm:inset-auto",
+        "sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]",
+        // Width & sizing
+        "w-full sm:w-[calc(100%-2rem)] sm:max-w-lg",
+        "max-h-[85vh] sm:max-h-[90vh]",
+        // Border radius - rounded top on mobile, all corners on desktop
+        "rounded-t-2xl sm:rounded-xl",
+        // Padding
+        "p-4 sm:p-6",
+        // Animations - slide up on mobile, zoom on desktop
+        "data-[state=open]:animate-in data-[state=closed]:animate-out",
+        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        // Mobile slide animation
+        "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        // Desktop centered animation
+        "sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0",
+        "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+        // Border
+        "border-t sm:border border-gray-200",
+        // Content layout
+        "flex flex-col gap-4",
         className
       )}
       {...props}
     >
-      {children}
+      {/* Mobile drag handle indicator */}
+      <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 mx-auto -mt-1 mb-2 shrink-0" aria-hidden="true" />
+      {/* Scrollable content wrapper */}
+      <div className="overflow-y-auto overscroll-contain flex-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+        {children}
+      </div>
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
