@@ -8,6 +8,7 @@ import {
   Trophy,
   DollarSign,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -20,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { PaymentLinkButton, PaymentMethodType } from "./PaymentLinkButton";
 import { ZelleInstructionsCard } from "./ZelleCopyButton";
 import { cn } from "../../lib/utils";
@@ -117,6 +128,8 @@ export function AdminPayoutCard({
   const [notes, setNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [showConfirmSection, setShowConfirmSection] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showNoAccountAlert, setShowNoAccountAlert] = useState(false);
 
   const formattedAmount = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -149,9 +162,29 @@ export function AdminPayoutCard({
 
   const preferredMethod = winnerPayoutMethods?.preferred;
 
+  // Check if the selected method has a connected account
+  const hasConnectedAccount = (method: ManualPaymentMethod): boolean => {
+    if (method === 'cash' || method === 'other') return true;
+    return !!winnerPayoutMethods?.[method as keyof MemberPayoutMethods];
+  };
+
+  const handleInitiateConfirm = () => {
+    if (!selectedMethod) return;
+
+    // Check if the selected method has a connected account
+    if (!hasConnectedAccount(selectedMethod)) {
+      setShowNoAccountAlert(true);
+      return;
+    }
+
+    // Show confirmation dialog
+    setShowConfirmDialog(true);
+  };
+
   const handleConfirmPayout = async () => {
     if (!selectedMethod) return;
 
+    setShowConfirmDialog(false);
     setConfirming(true);
     try {
       await onConfirmPayout(selectedMethod, notes || undefined);
@@ -395,7 +428,7 @@ export function AdminPayoutCard({
 
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleConfirmPayout}
+                    onClick={handleInitiateConfirm}
                     disabled={!selectedMethod || confirming}
                     className="flex-1 bg-green-600 hover:bg-green-700"
                   >
@@ -424,6 +457,106 @@ export function AdminPayoutCard({
                 </div>
               </div>
             )}
+
+            {/* Confirmation Dialog */}
+            <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Payout</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-3">
+                      <p>
+                        Are you sure you want to confirm this payout?
+                      </p>
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Amount:</span>
+                          <span className="font-medium text-gray-900">{formattedAmount}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Recipient:</span>
+                          <span className="font-medium text-gray-900">{winnerName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Method:</span>
+                          <span className="font-medium text-gray-900">
+                            {selectedMethod ? methodLabels[selectedMethod] : 'Not selected'}
+                          </span>
+                        </div>
+                        {notes && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Notes:</span>
+                            <span className="font-medium text-gray-900 text-right max-w-[200px] truncate">
+                              {notes}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-amber-600">
+                        This action cannot be undone. Please verify that you have already sent the payment.
+                      </p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleConfirmPayout}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Yes, Confirm Payout
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* No Connected Account Alert */}
+            <AlertDialog open={showNoAccountAlert} onOpenChange={setShowNoAccountAlert}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100">
+                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <AlertDialogTitle>No Connected Account</AlertDialogTitle>
+                  </div>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-3">
+                      <p>
+                        {winnerName} does not have a {selectedMethod ? methodLabels[selectedMethod] : 'payment'} account connected.
+                      </p>
+                      <p className="text-sm">
+                        Please contact the recipient to set up their {selectedMethod ? methodLabels[selectedMethod] : 'payment'} account, or select a different payment method that they have configured.
+                      </p>
+                      {hasPaymentMethods && (
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Available payment methods:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {winnerPayoutMethods?.venmo && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Venmo</span>
+                            )}
+                            {winnerPayoutMethods?.cashapp && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Cash App</span>
+                            )}
+                            {winnerPayoutMethods?.paypal && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">PayPal</span>
+                            )}
+                            {winnerPayoutMethods?.zelle && (
+                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Zelle</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogAction onClick={() => setShowNoAccountAlert(false)}>
+                    Got it
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* Manual confirm button if not shown yet */}
             {!showConfirmSection && (
