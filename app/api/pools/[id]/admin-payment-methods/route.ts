@@ -80,7 +80,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       });
 
       if (adminUser?.payoutMethods) {
-        const { venmo, cashapp, paypal, zelle, preferred } = adminUser.payoutMethods;
+        const { venmo, cashapp, paypal, zelle, zelleQR, preferred } = adminUser.payoutMethods;
         // Only return if at least one method is set
         if (venmo || cashapp || paypal || zelle) {
           return NextResponse.json({
@@ -89,6 +89,7 @@ export async function GET(request: NextRequest, { params }: Params) {
               cashapp: cashapp || null,
               paypal: paypal || null,
               zelle: zelle || null,
+              zelleQR: zelleQR || null,
               preferred: preferred || null,
               // Mark this as coming from user profile (not pool-specific)
               fromUserProfile: true,

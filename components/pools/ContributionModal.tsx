@@ -28,14 +28,8 @@ import {
   supportsDeepLink,
   type PayoutMethodType,
 } from '../../lib/payments/deep-links';
-
-interface AdminPaymentMethods {
-  venmo?: string;
-  cashapp?: string;
-  paypal?: string;
-  zelle?: string;
-  preferred?: 'venmo' | 'cashapp' | 'paypal' | 'zelle' | null;
-}
+import { ZelleInstructionsCard } from '../payments/ZelleCopyButton';
+import type { AdminPaymentMethods } from '../../types/pool';
 
 interface ContributionModalProps {
   poolId: string;
@@ -321,79 +315,107 @@ export function ContributionModal({
                     </Alert>
                   ) : (
                     <div className="space-y-2">
-                      {availablePaymentMethods.map((method) => {
-                        const handle = adminPaymentMethods![method]!;
-                        const isPreferred = method === preferredMethod;
-                        const hasDeepLink = supportsDeepLink(method);
+                      {availablePaymentMethods
+                        .filter((method) => method !== 'zelle')
+                        .map((method) => {
+                          const handle = adminPaymentMethods![method]!;
+                          const isPreferred = method === preferredMethod;
+                          const hasDeepLink = supportsDeepLink(method);
 
-                        return (
-                          <div
-                            key={method}
-                            className={`p-3 rounded-lg border ${
-                              isPreferred
-                                ? 'border-blue-300 bg-blue-50'
-                                : 'border-gray-200 bg-white'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">
-                                  {getPayoutMethodLabel(method)}
-                                </span>
-                                {isPreferred && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                                    Preferred
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleCopyToClipboard(handle, method)}
-                                  className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
-                                  title="Copy handle"
-                                >
-                                  {copiedMethod === method ? (
-                                    <Check className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-4 w-4" />
-                                  )}
-                                </button>
-                                {hasDeepLink && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenPaymentLink(method, handle)}
-                                    className="text-xs"
-                                  >
-                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                    Open App
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {method === 'venmo' && `@${handle}`}
-                              {method === 'cashapp' && `$${handle}`}
-                              {method === 'paypal' && `paypal.me/${handle}`}
-                              {method === 'zelle' && handle}
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleConfirmPayment(method)}
-                              disabled={isSubmitting}
-                              className="mt-2 w-full text-sm"
+                          return (
+                            <div
+                              key={method}
+                              className={`p-3 rounded-lg border ${
+                                isPreferred
+                                  ? 'border-blue-300 bg-blue-50'
+                                  : 'border-gray-200 bg-white'
+                              }`}
                             >
-                              {isSubmitting ? (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                              )}
-                              I've Paid via {getPayoutMethodLabel(method)}
-                            </Button>
-                          </div>
-                        );
-                      })}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {getPayoutMethodLabel(method)}
+                                  </span>
+                                  {isPreferred && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                      Preferred
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleCopyToClipboard(handle, method)}
+                                    className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+                                    title="Copy handle"
+                                  >
+                                    {copiedMethod === method ? (
+                                      <Check className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                  {hasDeepLink && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenPaymentLink(method, handle)}
+                                      className="text-xs"
+                                    >
+                                      <ExternalLink className="h-3 w-3 mr-1" />
+                                      Open App
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {method === 'venmo' && `@${handle}`}
+                                {method === 'cashapp' && `$${handle}`}
+                                {method === 'paypal' && `paypal.me/${handle}`}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleConfirmPayment(method)}
+                                disabled={isSubmitting}
+                                className="mt-2 w-full text-sm"
+                              >
+                                {isSubmitting ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                )}
+                                I've Paid via {getPayoutMethodLabel(method)}
+                              </Button>
+                            </div>
+                          );
+                        })}
+
+                      {/* Zelle Section with QR Code Support */}
+                      {adminPaymentMethods?.zelle && (
+                        <div className="space-y-2">
+                          <ZelleInstructionsCard
+                            identifier={adminPaymentMethods.zelle}
+                            recipientName="Pool Admin"
+                            amount={contributionStatus.contributionAmount}
+                            zelleQR={adminPaymentMethods.zelleQR}
+                            note={`${poolName} - Round ${contributionStatus.currentRound} contribution`}
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleConfirmPayment('zelle')}
+                            disabled={isSubmitting}
+                            className="w-full text-sm bg-white border"
+                          >
+                            {isSubmitting ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                            )}
+                            I've Paid via Zelle
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
