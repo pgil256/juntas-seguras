@@ -3,18 +3,12 @@
 
 import React from "react";
 import {
-  CreditCard,
-  Users,
-  PieChart,
-  Calendar,
-  Search,
   Settings,
   HelpCircle,
   LogOut,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import ClientOnly from "./ClientOnly";
-import { MobileBottomNav } from "./MobileBottomNav";
 
 // Move data outside the component
 const poolStats = {
@@ -65,11 +59,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex-grow px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 sm:pb-6">
         {children}
       </div>
-
-      {/* Mobile Bottom Navigation */}
-      <ClientOnly>
-        <MobileBottomNav />
-      </ClientOnly>
 
       {/* Footer - hidden on mobile to make room for bottom nav */}
       <footer className="hidden sm:block bg-white border-t border-gray-200 mt-6 sm:mt-8">
