@@ -42,8 +42,8 @@ export function MobileBottomNav() {
     }
   }, []);
 
-  // Don't show on auth pages or when not logged in
-  if (pathname?.startsWith('/auth') || !isAuthenticated) {
+  // Don't show on auth pages, MFA pages, or when not logged in
+  if (pathname?.startsWith('/auth') || pathname?.startsWith('/mfa') || !isAuthenticated) {
     return null;
   }
 

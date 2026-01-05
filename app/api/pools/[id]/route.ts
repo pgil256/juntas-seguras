@@ -77,7 +77,7 @@ export async function PATCH(
       // The user's email is stored in the member record
       member.email === (pool.members.find((m: PoolMemberDB) => m.id.toString() === '1')?.email)
     );
-    
+
     if (!userMember || userMember.role !== 'admin') {
       throw new ApiError('Only pool administrators can update the pool', 403);
     }
