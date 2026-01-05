@@ -105,7 +105,9 @@
       "Bash(node \"node_modules/next/dist/bin/next\" build:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nEnhance UI for web and mobile responsiveness\n\n- Mobile bottom nav: Add haptic feedback, frosted glass effect, improved touch targets\n- Dialogs: Convert to bottom sheet on mobile with drag handle indicator\n- Navbar: Slide-in drawer menu, overlay with blur, body scroll lock\n- New StatCard component with responsive layout and trend indicators\n- Enhanced Input component with icon support, error/success states, floating labels\n- Improved Skeleton components with shimmer animation and new variants\n- Add pull-to-refresh hook for mobile refresh patterns\n- Global CSS: New touch utilities, animations, safe area support, accessibility\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git -C \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\" log --oneline -10)",
-      "Bash(node ./node_modules/typescript/bin/tsc:*)"
+      "Bash(node ./node_modules/typescript/bin/tsc:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix email verification code not being sent when resending\n\nWhen a user requested a verification code within 2 minutes of a previous\nrequest, the function would return true immediately without actually\nsending the email, leaving users unable to receive their codes.\n\nNow the code is reused (preventing code invalidation) but the email is\nstill sent, ensuring users receive their verification codes on resend.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git rev-parse:*)"
     ]
   },
   "enableAllProjectMcpServers": false
