@@ -141,8 +141,9 @@ export function usePoolContributions({
   // Calculate user's contribution info from the status
   const userContributionInfo = contributionStatus && userEmail
     ? (() => {
+        const normalizedUserEmail = userEmail.toLowerCase();
         const userMember = contributionStatus.contributions.find(
-          (c) => c.email === userEmail
+          (c) => c.email?.toLowerCase() === normalizedUserEmail
         );
         if (!userMember) return null;
         return {
