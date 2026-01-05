@@ -75,7 +75,10 @@
       "Bash(node node_modules/next/dist/bin/next lint:*)",
       "Bash(node node_modules/.bin/next lint:*)",
       "Bash(node node_modulesnextdistbinnext build)",
-      "Bash(node ./node_modules/next/dist/bin/next build:*)"
+      "Bash(node ./node_modules/next/dist/bin/next build:*)",
+      "Bash(node node_modules/.bin/tsc:*)",
+      "Bash(npm run build:no-lint:*)",
+      "Bash(npx next build:*)"
     ]
   },
   "enableAllProjectMcpServers": false

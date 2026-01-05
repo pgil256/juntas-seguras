@@ -27,7 +27,7 @@ export default function TechnicalDocumentationPage() {
             </p>
             <ul className="mt-2 space-y-3 text-gray-700 list-disc pl-5">
               <li>
-                <span className="font-medium">Frontend:</span> Next.js 14 with React Server Components and App Router
+                <span className="font-medium">Frontend:</span> Next.js 14.2 with React Server Components and App Router
               </li>
               <li>
                 <span className="font-medium">Styling:</span> Tailwind CSS with shadcn/ui components
@@ -143,7 +143,7 @@ export default function TechnicalDocumentationPage() {
                     POST
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">/api/pools/create</p>
+                    <p className="text-sm font-medium text-gray-900">/api/pools</p>
                     <p className="text-xs text-gray-500 mt-1">Creates a new savings pool</p>
                     <div className="mt-2">
                       <p className="text-xs font-medium text-gray-700">Request Format:</p>
@@ -151,10 +151,10 @@ export default function TechnicalDocumentationPage() {
 {`{
   "name": "Emergency Fund",
   "description": "For unexpected expenses",
-  "amount": 1200,
-  "memberLimit": 12,
-  "cycleType": "monthly",
-  "startDate": "2025-05-01"
+  "contributionAmount": 1200,
+  "maxMembers": 12,
+  "frequency": "monthly",
+  "startDate": "2026-05-01"
 }`}
                       </pre>
                     </div>
@@ -194,7 +194,7 @@ export default function TechnicalDocumentationPage() {
               Database Schema
             </h3>
             <p className="mt-2 text-gray-700">
-              Juntas Seguras uses MongoDB collections with the following structure:
+              Juntas Seguras uses MongoDB with 14 collections. Here are the core schemas:
             </p>
             <div className="mt-4 space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -209,18 +209,16 @@ export default function TechnicalDocumentationPage() {
   "emailVerified": Boolean,
   "phoneNumber": "String",
   "phoneVerified": Boolean,
-  "twoFactorEnabled": Boolean,
+  "mfaEnabled": Boolean,
+  "mfaMethod": "String",      // email, totp
+  "totpSecret": "String",
+  "identityVerified": Boolean,
   "createdAt": Date,
-  "updatedAt": Date,
-  "settings": {
-    "language": "String",
-    "notifications": Object,
-    "timezone": "String"
-  }
+  "updatedAt": Date
 }`}
                 </pre>
               </div>
-              
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Pool Collection</h4>
                 <pre className="p-2 bg-gray-800 text-gray-100 rounded text-xs overflow-x-auto">
@@ -228,36 +226,33 @@ export default function TechnicalDocumentationPage() {
   "_id": ObjectId("..."),
   "name": "String",
   "description": "String",
-  "creatorId": ObjectId("..."),  // Reference to User
-  "amount": Number,
-  "memberLimit": Number,
-  "currentMembers": Number,
-  "cycleType": "String",  // monthly, biweekly, etc.
-  "status": "String",     // active, completed, cancelled
+  "creatorId": ObjectId("..."),
+  "contributionAmount": Number,
+  "maxMembers": Number,
+  "frequency": "String",       // weekly, biweekly, monthly
+  "status": "String",          // active, completed, cancelled
+  "currentRound": Number,
+  "members": [{
+    "userId": ObjectId("..."),
+    "position": Number,
+    "role": "String"           // admin, member
+  }],
   "startDate": Date,
-  "endDate": Date,
-  "createdAt": Date,
-  "updatedAt": Date
+  "createdAt": Date
 }`}
                 </pre>
               </div>
-              
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Membership Collection</h4>
-                <pre className="p-2 bg-gray-800 text-gray-100 rounded text-xs overflow-x-auto">
-{`{
-  "_id": ObjectId("..."),
-  "userId": ObjectId("..."),   // Reference to User
-  "poolId": ObjectId("..."),   // Reference to Pool
-  "role": "String",            // admin, member
-  "status": "String",          // active, pending, removed
-  "joinDate": Date,
-  "cyclePosition": Number,     // Position in rotation
-  "payoutReceived": Boolean,
-  "createdAt": Date,
-  "updatedAt": Date
-}`}
-                </pre>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Other Collections</h4>
+                <p className="text-xs text-gray-600 mb-2">The database includes 14 models total:</p>
+                <ul className="text-xs text-gray-700 list-disc pl-5 space-y-1">
+                  <li>User, Pool, Payment, PaymentSetup</li>
+                  <li>PoolInvitation, Message, DirectMessage</li>
+                  <li>Discussion, DiscussionMention, DiscussionReadReceipt</li>
+                  <li>AuditLog, ScheduledCollection, Reminder</li>
+                  <li>NotificationPreference</li>
+                </ul>
               </div>
             </div>
           </section>
@@ -399,7 +394,7 @@ NEXTAUTH_URL=http://localhost:3000`}
             
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">Tip:</span> See MONGODB_SETUP.md and VERCEL_DEPLOYMENT.md in the repository root for detailed setup instructions.
+                <span className="font-medium">Tip:</span> See SETUP_GUIDE.md and VERCEL_DEPLOYMENT.md in the repository root for detailed setup instructions.
               </p>
             </div>
           </section>

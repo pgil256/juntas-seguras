@@ -8,6 +8,7 @@ import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { createNotification, notifyPoolMembers, NotificationTemplates } from '../../../../../lib/services/notifications';
 
 const Pool = getPoolModel();
 
@@ -317,6 +318,47 @@ export async function POST(
         }
       }
     );
+
+    // Send notifications
+    // Notify the recipient about their payout
+    if (payoutRecipient.email) {
+      await createNotification({
+        userId: payoutRecipient.email,
+        message: NotificationTemplates.payoutReceived(pool.name, payoutAmount),
+        type: 'transaction',
+        isImportant: true,
+      });
+    }
+
+    // Notify other pool members about the payout
+    const memberEmails = pool.members.map((m: any) => m.email).filter(Boolean);
+    await notifyPoolMembers(
+      pool.id,
+      memberEmails,
+      NotificationTemplates.payoutProcessed(pool.name, payoutRecipient.name, payoutAmount),
+      'pool',
+      payoutRecipient.email // Exclude the recipient since they got a special notification
+    );
+
+    // If a new round started, notify about it
+    if (currentRound < pool.totalRounds) {
+      await notifyPoolMembers(
+        pool.id,
+        memberEmails,
+        NotificationTemplates.newRoundStarted(pool.name, currentRound + 1, pool.totalRounds),
+        'pool'
+      );
+    } else {
+      // Pool completed
+      await notifyPoolMembers(
+        pool.id,
+        memberEmails,
+        NotificationTemplates.poolCompleted(pool.name),
+        'pool',
+        undefined,
+        true // Mark as important
+      );
+    }
 
     return NextResponse.json({
       success: true,

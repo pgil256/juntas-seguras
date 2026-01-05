@@ -3,6 +3,7 @@ import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { TransactionType, TransactionStatus } from '../../../../../types/payment';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { createNotification, notifyPoolMembers, NotificationTemplates } from '../../../../../lib/services/notifications';
 
 const Pool = getPoolModel();
 
@@ -287,6 +288,17 @@ export async function POST(
       });
 
       await pool.save();
+
+      // Notify pool admin about the payment confirmation
+      const adminMember = pool.members.find((m: any) => m.role === 'admin');
+      if (adminMember?.email) {
+        await createNotification({
+          userId: adminMember.email,
+          message: `${userMember.name} confirmed their $${pool.contributionAmount} payment via ${paymentMethod} for ${pool.name}. Please verify.`,
+          type: 'payment',
+          isImportant: true,
+        });
+      }
 
       return NextResponse.json({
         success: true,

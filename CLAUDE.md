@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development server |
+| `npm run dev:turbo` | Development with Turbo |
+| `npm run dev:force` | Development with polling |
 | `npm run build` | Build for production |
+| `npm run build:no-lint` | Build without ESLint |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
 | `npm run test-db` | Test database connection |
@@ -36,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Framework & Routing
-- **Next.js 15 App Router**: All pages in `app/` directory
+- **Next.js 14.2 App Router**: All pages in `app/` directory
 - **API Routes**: Located in `app/api/` following Next.js convention
 - **Middleware**: `middleware.ts` handles auth protection, security headers, rate limiting
 
@@ -49,16 +52,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Database
 - **MongoDB** with Mongoose ODM
 - **Connection**: `lib/db/connect.ts`
-- **Models** (9 total):
+- **Models** (14 total):
   - `User` - accounts, auth, MFA, identity verification
   - `Pool` - savings pool configuration, members, transactions
   - `Payment` - payment records with Stripe integration
-  - `PaymentMethod` - tokenized payment methods (never raw card data)
+  - `PaymentSetup` - payment method setup intents
   - `PoolInvitation` - pool member invitations
-  - `Message` - pool messaging
+  - `Message` - pool messaging (legacy)
   - `DirectMessage` - direct messages between members
+  - `Discussion` - pool discussion threads
+  - `DiscussionMention` - @mentions in discussions
+  - `DiscussionReadReceipt` - discussion read status tracking
   - `AuditLog` - comprehensive audit trail
   - `ScheduledCollection` - automated payment collection
+  - `Reminder` - payment reminders
+  - `NotificationPreference` - user notification settings
 
 ### Payment Processing
 - **Stripe** for all payments (no PayPal)
@@ -79,15 +87,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 my-juntas-app/
 ├── app/                          # Next.js App Router
-│   ├── api/                      # API routes (55+ endpoints)
-│   │   ├── auth/                 # Authentication
-│   │   ├── pools/                # Pool management
+│   ├── api/                      # API routes (60+ endpoints)
+│   │   ├── auth/                 # Authentication (14 endpoints)
+│   │   ├── pools/                # Pool management (20+ endpoints)
 │   │   ├── payments/             # Payment processing
 │   │   ├── stripe/               # Stripe integration
 │   │   ├── users/                # User management
+│   │   ├── user/                 # Current user endpoints
+│   │   ├── collections/          # Collection processing
+│   │   ├── cron/                 # Cron job endpoints
 │   │   ├── notifications/        # Notifications
 │   │   ├── identity/             # Identity verification
+│   │   ├── security/             # Security & 2FA
 │   │   ├── audit/                # Audit logging
+│   │   ├── email/                # Email sending
+│   │   ├── search/               # Search functionality
 │   │   └── support/              # Support tickets
 │   ├── auth/                     # Auth pages (signin, signup, etc.)
 │   ├── dashboard/                # Dashboard page
@@ -96,23 +110,35 @@ my-juntas-app/
 │   ├── help/                     # Help & documentation
 │   ├── settings/                 # User settings
 │   └── ...
-├── components/                   # React components (67 files)
+├── components/                   # React components (86 files)
 │   ├── pools/                    # Pool components (12 files)
 │   ├── payments/                 # Payment UI
 │   ├── auth/                     # Authentication UI
 │   ├── dashboard/                # Dashboard components
+│   ├── discussions/              # Discussion/thread components
 │   ├── notifications/            # Notification components
+│   ├── activity/                 # Activity tracking UI
+│   ├── analytics/                # Analytics components
+│   ├── search/                   # Search functionality UI
+│   ├── security/                 # Security components
+│   ├── settings/                 # User settings components
+│   ├── support/                  # Support system UI
 │   ├── ui/                       # shadcn/ui components
 │   └── ...
 ├── lib/                          # Utility libraries
 │   ├── db/                       # Database
-│   │   ├── models/               # Mongoose models
+│   │   ├── models/               # Mongoose models (14 schemas)
 │   │   └── connect.ts            # MongoDB connection
 │   ├── hooks/                    # React hooks (22 custom hooks)
 │   ├── services/                 # Business logic services
+│   ├── payments/                 # Payment processing logic
+│   ├── email/                    # Email service utilities
+│   ├── jobs/                     # Background job utilities
+│   ├── reminders/                # Reminder job logic
+│   ├── activity/                 # Activity tracking
 │   ├── stripe/                   # Stripe utilities
 │   └── utils/                    # Utility functions
-├── types/                        # TypeScript type definitions
+├── types/                        # TypeScript type definitions (11 files)
 ├── middleware.ts                 # Next.js middleware
 └── public/                       # Static assets
 ```
@@ -126,54 +152,113 @@ my-juntas-app/
 | `lib/auth.ts` | NextAuth configuration |
 | `lib/services/mfa.ts` | MFA code generation and verification |
 | `lib/stripe/client.ts` | Stripe client initialization |
+| `lib/email/send.ts` | Email sending service |
 | `lib/validation.ts` | Environment variable validation |
+| `next.config.js` | Next.js configuration |
+| `components.json` | shadcn/ui configuration |
 
 ## Custom Hooks
 
-Located in `lib/hooks/`:
+Located in `lib/hooks/` (22 hooks):
 - `usePool`, `usePools` - Pool data fetching
 - `usePoolContributions` - Contribution management
 - `usePoolPayouts` - Payout management
 - `usePoolMembers` - Member management
+- `usePoolAnalytics` - Pool analytics
+- `usePoolInvitations` - Pool invitations
+- `useCreatePool` - Pool creation
 - `usePaymentMethods`, `usePayments` - Payment handling
 - `useIdentityVerification` - KYC verification
 - `useAutoCollection` - Automatic collection status
+- `useEarlyPayout` - Early payout requests
 - `useDirectMessages`, `usePoolMessages` - Messaging
 - `useUserProfile`, `useUserSettings` - User data
+- `useUserId` - Current user ID
 - `useSearch` - Search functionality
 - `useTickets` - Support tickets
+- `useCreateNotification` - Notification creation
+- `useDebounce` - Debounce utility
 
 ## API Route Patterns
 
-### Authentication Routes
+### Authentication Routes (14 endpoints)
 ```
-POST /api/auth/register         # User registration
-POST /api/auth/verify           # Email verification
-POST /api/auth/verify-mfa       # MFA code verification
-POST /api/auth/totp-setup       # TOTP authenticator setup
-POST /api/auth/forgot-password  # Password reset request
-POST /api/auth/reset-password   # Password reset
+POST /api/auth/register              # User registration
+POST /api/auth/register/resend       # Resend verification email
+POST /api/auth/verify                # Email verification
+POST /api/auth/verify-mfa            # MFA code verification
+POST /api/auth/verify-totp           # TOTP authenticator verification
+POST /api/auth/resend-mfa            # Resend MFA code
+POST /api/auth/totp-setup            # TOTP setup
+POST /api/auth/forgot-password       # Password reset request
+POST /api/auth/reset-password        # Password reset
+POST /api/auth/send-verification-code # Send verification code
+GET  /api/auth/check-token           # Token validation
+POST /api/auth/force-refresh         # Force session refresh
+POST /api/auth/session-update        # Update session
 ```
 
-### Pool Routes
+### Pool Routes (20+ endpoints)
 ```
-GET/POST /api/pools             # List/create pools
-GET/PUT/DELETE /api/pools/[id]  # Pool CRUD
-GET/POST /api/pools/[id]/members      # Member management
-POST /api/pools/[id]/contributions    # Make contribution
-POST /api/pools/[id]/payouts          # Process payout
-GET/POST /api/pools/[id]/messages     # Pool messaging
-POST /api/pools/[id]/invitations      # Send invitations
+GET/POST /api/pools                        # List/create pools
+GET/PUT/DELETE /api/pools/[id]             # Pool CRUD
+GET/POST /api/pools/[id]/members           # Member management
+POST /api/pools/[id]/contributions         # Make contribution
+POST /api/pools/[id]/payouts               # Process payout
+POST /api/pools/[id]/round-payout          # Round payout
+GET/POST /api/pools/[id]/collections       # Collection management
+GET/POST /api/pools/[id]/discussions       # Discussion threads
+GET/PUT/DELETE /api/pools/[id]/discussions/[discussionId]  # Individual discussion
+POST /api/pools/[id]/discussions/read      # Mark discussions as read
+GET /api/pools/[id]/discussions/mentions   # @mentions handling
+GET/POST /api/pools/[id]/messages          # Pool messaging (legacy)
+POST /api/pools/[id]/invitations           # Send invitations
+POST /api/pools/[id]/early-payout          # Early payout requests
+GET/POST /api/pools/[id]/admin-payment-methods  # Admin payment methods
+GET /api/pools/[id]/payment-links          # Payment links
+GET /api/pools/[id]/zelle-qr               # Zelle QR codes
+POST /api/pools/invitations/accept         # Accept pool invitation
+POST /api/pools/invitations/reject         # Reject pool invitation
+GET /api/pools/invitations/validate        # Validate invitation
 ```
 
 ### Payment Routes
 ```
-GET /api/payments/history       # Payment history
-GET /api/payments/upcoming      # Upcoming payments
+GET /api/payments/history              # Payment history
+GET /api/payments/upcoming             # Upcoming payments
 GET/POST/DELETE /api/payments/methods  # Payment methods
+POST /api/payments/escrow/release      # Release escrow funds
 POST /api/stripe/create-payment-intent # Create payment
-POST /api/stripe/payout         # Process payout
-POST /api/stripe/webhook        # Stripe webhooks
+POST /api/stripe/payout                # Process payout
+POST /api/stripe/webhook               # Stripe webhooks
+```
+
+### User Routes
+```
+GET/PUT /api/users/profile             # Get/update user profile
+GET/PUT /api/users/settings            # User settings
+GET /api/users/[userId]                # User data
+GET /api/users/[userId]/payment-methods # User payment methods
+GET/POST /api/user/payout-method       # User payout method
+GET /api/user/zelle-qr                 # Zelle QR code
+```
+
+### Other Routes
+```
+POST /api/collections/process          # Process collections (cron)
+POST /api/cron/reminders               # Send reminders (cron)
+POST /api/identity/verification        # Identity verification
+GET/POST /api/notifications            # Notifications
+GET /api/security/activity-log         # Activity logging
+POST /api/security/two-factor          # 2FA management
+POST /api/security/two-factor/setup    # 2FA setup
+POST /api/security/two-factor/verify   # 2FA verification
+POST /api/security/two-factor/resend   # Resend 2FA code
+POST /api/email/send                   # Send emails
+POST /api/audit/log                    # Audit logging
+GET /api/search                        # Search functionality
+GET/POST /api/support/tickets          # Support tickets
+POST /api/support/contact              # Contact support
 ```
 
 ## Environment Variables

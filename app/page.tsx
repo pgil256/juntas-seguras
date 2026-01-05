@@ -242,7 +242,7 @@ export default function LandingPage() {
       <footer className="bg-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-gray-500">
-            &copy; 2025 Juntas Seguras. All rights reserved.
+            &copy; 2026 Juntas Seguras. All rights reserved.
           </p>
         </div>
       </footer>

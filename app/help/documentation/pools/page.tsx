@@ -149,7 +149,10 @@ export default function PoolsDocumentationPage() {
                 <span className="font-medium">Payout Management:</span> Schedule and confirm payouts to members
               </li>
               <li>
-                <span className="font-medium">Communication:</span> Send announcements and messages to pool members
+                <span className="font-medium">Discussions:</span> Start discussion threads with @mentions to communicate with specific members or the whole group
+              </li>
+              <li>
+                <span className="font-medium">Payment Reminders:</span> Configure automatic reminder emails for upcoming contributions
               </li>
               <li>
                 <span className="font-medium">Pool Settings:</span> Adjust pool parameters if necessary, with member approval
@@ -216,27 +219,27 @@ export default function PoolsDocumentationPage() {
                     </div>
                     <div className="ml-4">
                       <p className="font-medium text-gray-900">Round 1: Maria's Payout</p>
-                      <p className="text-sm text-gray-500">February 15, 2025</p>
+                      <p className="text-sm text-gray-500">February 15, 2026</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start">
                     <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 z-10">
                       <DollarSign className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="ml-4">
                       <p className="font-medium text-gray-900">Round 2: Carlos's Payout</p>
-                      <p className="text-sm text-gray-500">March 15, 2025</p>
+                      <p className="text-sm text-gray-500">March 15, 2026</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start">
                     <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 z-10">
                       <DollarSign className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="ml-4">
                       <p className="font-medium text-gray-900">Round 3: Ana's Payout</p>
-                      <p className="text-sm text-gray-500">April 15, 2025</p>
+                      <p className="text-sm text-gray-500">April 15, 2026</p>
                     </div>
                   </div>
                 </div>

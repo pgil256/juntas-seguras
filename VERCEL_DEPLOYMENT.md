@@ -144,24 +144,34 @@ Update redirect URIs in Azure Portal:
 
 ## Cron Jobs
 
-### Automatic Collection
+### Automatic Collection & Reminders
 
 Add to `vercel.json`:
 
 ```json
 {
-  "crons": [{
-    "path": "/api/collections/process",
-    "schedule": "0 0 * * *"
-  }]
+  "crons": [
+    {
+      "path": "/api/collections/process",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }
 ```
+
+**Cron Jobs:**
+- `/api/collections/process` - Process scheduled contribution collections (runs daily at midnight UTC)
+- `/api/cron/reminders` - Send payment reminder emails (runs daily at 8 AM UTC)
 
 **Note**: Vercel Hobby plan allows 1 cron job per day. Upgrade to Pro for more frequent schedules.
 
 ### Cron Authentication
 
-Set `CRON_SECRET` in environment variables. The cron endpoint validates this header.
+Set `CRON_SECRET` in environment variables. The cron endpoints validate this header.
 
 ---
 

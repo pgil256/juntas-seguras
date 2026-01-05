@@ -436,9 +436,9 @@ export default function MyPoolPage() {
                           </>
                         )
                       ) : (
-                        <>
-                          <Clock className="h-5 w-5 text-amber-600 mr-3" />
-                          <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center w-full gap-3">
+                          <div className="flex items-center flex-1 min-w-0">
+                            <Clock className="h-5 w-5 text-amber-600 mr-3 shrink-0" />
                             <p className="text-sm font-medium text-amber-800">
                               {userContributionStatus.isRecipient
                                 ? "You're the recipient! You still need to contribute to receive your payout."
@@ -448,11 +448,11 @@ export default function MyPoolPage() {
                           <Button
                             size="sm"
                             onClick={() => setShowContributionModal(true)}
-                            className="ml-3 bg-amber-600 hover:bg-amber-700 min-h-[44px]"
+                            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 min-h-[44px] shrink-0"
                           >
                             Contribute Now
                           </Button>
-                        </>
+                        </div>
                       )}
                     </div>
                   )}
@@ -749,6 +749,12 @@ export default function MyPoolPage() {
                 </li>
                 <li className="flex items-start">
                   <span className="h-5 w-5 text-blue-500 mr-2">•</span>
+                  <span>
+                    Contributions are made manually via Venmo, PayPal, Zelle, or Cash App directly to the pool admin.
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="h-5 w-5 text-blue-500 mr-2">•</span>
                   <span>Payments are due every Friday by 8:00 PM.</span>
                 </li>
                 <li className="flex items-start">
@@ -756,6 +762,12 @@ export default function MyPoolPage() {
                   <span>
                     The rotation order was determined randomly at the start of
                     the pool.
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="h-5 w-5 text-blue-500 mr-2">•</span>
+                  <span>
+                    Payouts are sent by the pool admin via your preferred payment method once all contributions are received.
                   </span>
                 </li>
                 <li className="flex items-start">

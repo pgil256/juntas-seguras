@@ -43,8 +43,20 @@ This guide outlines the production deployment configuration for the Juntas Segur
 | Stripe Connect | Done | Payouts to member bank accounts |
 | Stripe Identity | Done | KYC verification |
 | Manual Payout Methods | Done | Venmo, PayPal, Zelle, Cash App support |
+| Zelle QR Codes | Done | Generate Zelle QR codes for easy payments |
 | Webhook Handling | Done | Payment status updates |
 | Automatic Collections | Done | Scheduled contribution collection |
+| Payment Reminders | Done | Automated reminder emails |
+
+### Communication Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Pool Discussions | Done | Threaded discussions with @mentions |
+| Read Receipts | Done | Track discussion read status |
+| Direct Messages | Done | Member-to-member messaging |
+| Legacy Messaging | Done | In-pool message system |
+| Search | Done | Search across pools and users |
 
 ---
 
@@ -177,23 +189,32 @@ All environment variables must be set in the Vercel dashboard:
 
 ## Cron Jobs
 
-### Automatic Collection
+### Automatic Collection & Reminders
 
-The application uses Vercel Cron for automatic contribution collection:
+The application uses Vercel Cron for:
+- **Automatic Collection**: Daily processing of scheduled contribution collections
+- **Payment Reminders**: Automated reminder emails before due dates
 
-- **Schedule**: Daily at midnight UTC
-- **Endpoint**: `/api/collections/process`
-- **Authentication**: `CRON_SECRET` header
+| Endpoint | Schedule | Purpose |
+|----------|----------|---------|
+| `/api/collections/process` | Daily at midnight UTC | Process scheduled collections |
+| `/api/cron/reminders` | Daily at 8 AM UTC | Send payment reminder emails |
 
 ### Configuration
 
 In `vercel.json`:
 ```json
 {
-  "crons": [{
-    "path": "/api/collections/process",
-    "schedule": "0 0 * * *"
-  }]
+  "crons": [
+    {
+      "path": "/api/collections/process",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }
 ```
 

@@ -18,6 +18,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -234,12 +235,15 @@ const CreatePoolModal = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md px-4 sm:px-6 py-5 sm:py-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-center sm:text-left">
             Create a New Savings Pool
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Complete the steps below to create a new savings pool
+          </DialogDescription>
           <button
             onClick={onClose}
             className="absolute right-4 top-4 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded p-1 transition-colors"

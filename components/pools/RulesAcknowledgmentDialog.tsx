@@ -32,14 +32,19 @@ const POOL_RULES = [
     description: 'I understand that I must contribute every round, including the round when I receive my payout. Late or missed payments delay payouts for everyone.',
   },
   {
+    id: 'manual-payments',
+    title: 'Manual Payments to Admin',
+    description: 'I understand that contributions are made manually via Venmo, PayPal, Zelle, or Cash App directly to the pool admin. I must send my payment and mark it as completed in the app.',
+  },
+  {
     id: 'payout-order',
     title: 'Position-Based Payouts',
     description: 'I understand that members receive payouts based on their position in the queue. Payouts cannot be processed until all members have contributed for that round.',
   },
   {
-    id: 'stripe-required',
-    title: 'Stripe Account Required',
-    description: 'I understand that I must connect and verify a Stripe account to receive my payout. Payouts are sent directly to my linked bank account.',
+    id: 'payout-method',
+    title: 'Payout Method Required',
+    description: 'I understand that I must provide my preferred payout method (Venmo, PayPal, Zelle, or Cash App) to receive my payout from the pool admin.',
   },
   {
     id: 'commitment',
@@ -49,7 +54,7 @@ const POOL_RULES = [
   {
     id: 'trust',
     title: 'Trust & Responsibility',
-    description: 'I understand that this pool is based on mutual trust between members. I will fulfill my obligations and communicate promptly about any issues.',
+    description: 'I understand that this pool is based on mutual trust between members and the admin. I will fulfill my obligations and communicate promptly about any issues.',
   },
 ];
 

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { 
-  PlusCircle, 
-  MessageSquare, 
-  Search, 
-  Clock, 
-  CheckCircle, 
-  MoreHorizontal, 
+import { useSession } from 'next-auth/react';
+import {
+  PlusCircle,
+  MessageSquare,
+  Search,
+  Clock,
+  CheckCircle,
+  MoreHorizontal,
   HelpCircle,
   ChevronLeft
 } from 'lucide-react';
@@ -38,24 +39,23 @@ import { useTickets } from '../../../lib/hooks/useTickets';
 import ContactForm from '../../../components/support/ContactForm';
 import TicketViewer from '../../../components/support/TicketViewer';
 
-// Mock user data (would come from authentication in a real app)
-const mockUser = {
-  id: 'user123',
-  name: 'John Doe',
-  email: 'john@example.com'
-};
-
 export default function SupportPage() {
+  const { data: session, status } = useSession();
   const [view, setView] = useState<'list' | 'create' | 'view'>('list');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const { 
-    tickets, 
-    isLoading, 
-    error, 
-    refreshTickets 
-  } = useTickets({ userId: mockUser.id });
+
+  const user = session?.user;
+  const userId = (user as { id?: string })?.id || '';
+  const userName = user?.name || '';
+  const userEmail = user?.email || '';
+
+  const {
+    tickets,
+    isLoading: ticketsLoading,
+    error,
+    refreshTickets
+  } = useTickets({ userId });
   
   // Filter tickets based on search query
   const filteredTickets = tickets.filter(ticket => 
@@ -202,10 +202,10 @@ export default function SupportPage() {
                 Back to tickets
               </Button>
             </div>
-            <ContactForm 
-              userId={mockUser.id}
-              userName={mockUser.name}
-              userEmail={mockUser.email}
+            <ContactForm
+              userId={userId}
+              userName={userName}
+              userEmail={userEmail}
               onSuccess={handleTicketCreated}
               onCancel={() => setView('list')}
             />
@@ -218,9 +218,9 @@ export default function SupportPage() {
         }
         return (
           <div className="max-w-3xl mx-auto px-4">
-            <TicketViewer 
+            <TicketViewer
               ticketId={selectedTicketId}
-              userId={mockUser.id}
+              userId={userId}
               onBack={() => setView('list')}
             />
           </div>
@@ -260,16 +260,16 @@ export default function SupportPage() {
                   
                   <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback>{mockUser.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback>{userName.charAt(0) || '?'}</AvatarFallback>
                     </Avatar>
                     <div className="text-sm hidden md:block">
-                      <div className="font-medium">{mockUser.name}</div>
-                      <div className="text-gray-500 text-xs">{mockUser.email}</div>
+                      <div className="font-medium">{userName}</div>
+                      <div className="text-gray-500 text-xs">{userEmail}</div>
                     </div>
                   </div>
                 </div>
                 
-                {isLoading ? (
+                {status === 'loading' || ticketsLoading ? (
                   <div className="p-8 text-center">
                     <Clock className="h-8 w-8 mx-auto text-gray-300 animate-pulse mb-2" />
                     <p className="text-gray-500">Loading your tickets...</p>

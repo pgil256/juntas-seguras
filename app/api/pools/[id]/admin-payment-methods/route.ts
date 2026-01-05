@@ -28,9 +28,16 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     await connectToDatabase();
 
-    const pool = await Pool.findOne({
-      $or: [{ id }, { _id: id }],
-    });
+    // Build query based on id format - ObjectId format vs custom string id
+    const mongoose = (await import('mongoose')).default;
+    let query;
+    if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+      query = { $or: [{ id }, { _id: id }] };
+    } else {
+      query = { id };
+    }
+
+    const pool = await Pool.findOne(query);
 
     if (!pool) {
       return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
@@ -75,9 +82,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     await connectToDatabase();
 
-    const pool = await Pool.findOne({
-      $or: [{ id }, { _id: id }],
-    });
+    // Build query based on id format - ObjectId format vs custom string id
+    const mongoose = (await import('mongoose')).default;
+    let query;
+    if (mongoose.Types.ObjectId.isValid(id) && id.length === 24) {
+      query = { $or: [{ id }, { _id: id }] };
+    } else {
+      query = { id };
+    }
+
+    const pool = await Pool.findOne(query);
 
     if (!pool) {
       return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
@@ -173,7 +187,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const updatedPool = await Pool.findOneAndUpdate(
-      { $or: [{ id }, { _id: id }] },
+      query,
       { $set: updateData },
       { new: true }
     );
