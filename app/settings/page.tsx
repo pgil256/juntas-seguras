@@ -350,7 +350,7 @@ export default function SettingsPage() {
   };
 
   // Show loading state if any data is loading
-  const isLoading = profileLoading || settingsLoading || paymentMethodsLoading;
+  const isLoading = profileLoading || settingsLoading;
   
   // Show error state if there are any errors
   const hasError = profileError || settingsError;
