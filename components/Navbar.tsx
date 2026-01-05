@@ -160,7 +160,7 @@ export default function Navbar() {
       {/* Mobile menu panel - slides in from right */}
       <div
         className={cn(
-          "sm:hidden fixed top-0 right-0 bottom-0 z-50 w-[85%] max-w-sm",
+          "sm:hidden fixed inset-y-0 right-0 z-50 w-[80%] max-w-xs",
           "bg-white shadow-2xl",
           "transform transition-transform duration-300 ease-out",
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
@@ -170,9 +170,9 @@ export default function Navbar() {
         aria-modal="true"
         aria-label="Mobile navigation"
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full bg-white">
           {/* Menu header */}
-          <div className="flex items-center justify-between px-4 h-16 border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 h-16 border-b border-gray-200 bg-white">
             <span className="text-lg font-semibold text-gray-900">Menu</span>
             <button
               onClick={closeMobileMenu}
@@ -184,10 +184,10 @@ export default function Navbar() {
           </div>
 
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="flex-1 overflow-y-auto overscroll-contain bg-white">
             {/* Search for authenticated users */}
             {isAuthenticated && (
-              <div className="px-4 py-4 border-b border-gray-100">
+              <div className="px-4 py-4 border-b border-gray-100 bg-white">
                 <SearchInput
                   onSearch={closeMobileMenu}
                   className="w-full"
@@ -197,7 +197,7 @@ export default function Navbar() {
 
             {/* Auth buttons for non-authenticated users */}
             {!isAuthenticated && (
-              <div className="flex gap-3 px-4 py-4 border-b border-gray-100">
+              <div className="flex gap-3 px-4 py-4 border-b border-gray-100 bg-white">
                 <Link href="/auth/signin" className="flex-1" onClick={closeMobileMenu}>
                   <Button variant="outline" className="w-full h-12 text-base font-medium">Log in</Button>
                 </Link>
@@ -208,10 +208,10 @@ export default function Navbar() {
             )}
 
             {/* Navigation links */}
-            <div className="py-2">
+            <div className="py-2 bg-white">
               {navItems
                 .filter(item => !item.requiresAuth || isAuthenticated)
-                .map((item, index) => {
+                .map((item) => {
                   const isActive = pathname === item.href;
                   return (
                     <Link
@@ -220,13 +220,11 @@ export default function Navbar() {
                       className={cn(
                         "flex items-center justify-between px-4 py-3.5 mx-2 rounded-xl",
                         "text-base font-medium transition-all duration-200",
-                        "touch-feedback",
                         isActive
                           ? "bg-blue-50 text-blue-700"
                           : "text-gray-700 hover:bg-gray-50 active:bg-gray-100"
                       )}
                       onClick={closeMobileMenu}
-                      style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <span>{item.label}</span>
                       <ChevronRight className={cn(
@@ -240,27 +238,35 @@ export default function Navbar() {
           </div>
 
           {/* Profile section at bottom for authenticated users */}
-          {isAuthenticated && (
-            <div className="border-t border-gray-100 p-4 safe-area-bottom">
+          {isAuthenticated ? (
+            <div
+              className="border-t border-gray-200 p-4 bg-gray-50"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            >
               <Link
                 href="/profile"
-                className="flex items-center gap-3 p-3 -m-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors touch-feedback"
+                className="flex items-center gap-3 p-3 -m-1 rounded-xl bg-white hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm"
                 onClick={closeMobileMenu}
               >
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg shadow-md">
+                <div className="h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-base shadow-sm">
                   {session?.user?.name?.charAt(0).toUpperCase() || session?.user?.email?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">
+                  <p className="font-medium text-gray-900 truncate text-sm">
                     {session?.user?.name || 'User'}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">
-                    {session?.user?.email || 'View profile'}
+                  <p className="text-xs text-gray-500 truncate">
+                    View profile
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
               </Link>
             </div>
+          ) : (
+            <div
+              className="bg-white"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            />
           )}
         </div>
       </div>

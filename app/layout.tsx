@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "../components/ui/toaster";
 import { Providers } from "./providers";
-
+import { MobileBottomNav } from "../components/MobileBottomNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,6 +36,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
         <Providers>
           {children}
+          <MobileBottomNav />
           <Toaster />
         </Providers>
       </body>
