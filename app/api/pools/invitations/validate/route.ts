@@ -51,8 +51,9 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Check if already used
-    if (invitation.status === InvitationStatus.ACCEPTED) {
+    // Check if already used (skip for shareable links)
+    const isShareableLink = invitation.email?.includes('@shareable.local');
+    if (invitation.status === InvitationStatus.ACCEPTED && !isShareableLink) {
       return NextResponse.json({
         valid: false,
         error: 'This invitation has already been accepted'
