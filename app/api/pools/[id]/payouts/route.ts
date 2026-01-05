@@ -7,7 +7,6 @@ import { PoolMemberStatus, PoolMemberRole, PoolMember } from '../../../../../typ
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
-import { createTransfer } from '../../../../../lib/stripe';
 import { getCurrentUser } from '../../../../../lib/auth';
 
 const Pool = getPoolModel();
