@@ -24,6 +24,7 @@ import {
   Wallet,
   Loader2,
   CreditCard,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -69,6 +70,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { useUserProfile } from "../../lib/hooks/useUserProfile";
 import { useUserSettings } from "../../lib/hooks/useUserSettings";
 import { formatDate } from "../../lib/utils";
+import {
+  generatePayoutLink,
+  getPayoutMethodLabel,
+  getHandlePlaceholder,
+  getHandleHelpText,
+  supportsDeepLink,
+  validatePayoutHandle,
+  PayoutMethodType,
+} from "../../lib/payments/deep-links";
 
 interface NotificationPreferences {
   email: {
@@ -85,12 +95,18 @@ interface NotificationPreferences {
   };
 }
 
-type PayoutMethodType = 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank';
-
 interface PayoutMethod {
   type: PayoutMethodType;
   handle: string;
   displayName?: string;
+}
+
+interface PayoutMethods {
+  venmo?: string;
+  cashapp?: string;
+  paypal?: string;
+  zelle?: string;
+  preferred?: PayoutMethodType | null;
 }
 
 export default function SettingsPage() {
@@ -99,8 +115,10 @@ export default function SettingsPage() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Payout method state
+  // Payout method state (legacy single method for backwards compatibility)
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod | null>(null);
+  // New multiple payout methods state
+  const [payoutMethods, setPayoutMethods] = useState<PayoutMethods>({});
   const [payoutMethodLoading, setPayoutMethodLoading] = useState(true);
   const [editingPayoutMethod, setEditingPayoutMethod] = useState(false);
   const [payoutFormData, setPayoutFormData] = useState({
@@ -108,7 +126,11 @@ export default function SettingsPage() {
     handle: '',
     displayName: '',
   });
+  // Form data for multi-method editing
+  const [multiPayoutFormData, setMultiPayoutFormData] = useState<PayoutMethods>({});
   const [savingPayoutMethod, setSavingPayoutMethod] = useState(false);
+  // Validation errors for each method
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Get user profile data
   const { 
@@ -175,19 +197,33 @@ export default function SettingsPage() {
     }
   }, [userSettings]);
 
-  // Fetch payout method on mount
+  // Fetch payout methods on mount
   useEffect(() => {
     const fetchPayoutMethod = async () => {
       try {
         const response = await fetch('/api/user/payout-method');
         const data = await response.json();
-        if (response.ok && data.payoutMethod?.type) {
-          setPayoutMethod(data.payoutMethod);
-          setPayoutFormData({
-            type: data.payoutMethod.type,
-            handle: data.payoutMethod.handle || '',
-            displayName: data.payoutMethod.displayName || '',
-          });
+        if (response.ok) {
+          // Load legacy single method
+          if (data.payoutMethod?.type) {
+            setPayoutMethod(data.payoutMethod);
+            setPayoutFormData({
+              type: data.payoutMethod.type,
+              handle: data.payoutMethod.handle || '',
+              displayName: data.payoutMethod.displayName || '',
+            });
+          }
+          // Load new multiple methods
+          if (data.payoutMethods) {
+            setPayoutMethods(data.payoutMethods);
+            setMultiPayoutFormData({
+              venmo: data.payoutMethods.venmo || '',
+              cashapp: data.payoutMethods.cashapp || '',
+              paypal: data.payoutMethods.paypal || '',
+              zelle: data.payoutMethods.zelle || '',
+              preferred: data.payoutMethods.preferred || null,
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching payout method:', error);
@@ -198,9 +234,104 @@ export default function SettingsPage() {
     fetchPayoutMethod();
   }, []);
 
-  // Handle saving payout method
+  // Validate a single payment method handle
+  const validateHandle = (type: PayoutMethodType, handle: string): string | null => {
+    if (!handle || !handle.trim()) return null; // Empty is valid (not required)
+    const result = validatePayoutHandle(type, handle);
+    return result.valid ? null : result.error || 'Invalid handle';
+  };
+
+  // Handle multi-method form field change with validation
+  const handleMultiPayoutChange = (type: PayoutMethodType, value: string) => {
+    setMultiPayoutFormData(prev => ({ ...prev, [type]: value }));
+
+    // Validate on change
+    const error = validateHandle(type, value);
+    setValidationErrors(prev => {
+      if (error) {
+        return { ...prev, [type]: error };
+      } else {
+        const { [type]: removed, ...rest } = prev;
+        return rest;
+      }
+    });
+  };
+
+  // Handle saving multiple payout methods
+  const handleSaveMultiPayoutMethods = async () => {
+    // Validate all fields before saving
+    const errors: Record<string, string> = {};
+    const types: PayoutMethodType[] = ['venmo', 'cashapp', 'paypal', 'zelle'];
+
+    for (const type of types) {
+      const value = multiPayoutFormData[type];
+      if (value && value.trim()) {
+        const error = validateHandle(type, value);
+        if (error) {
+          errors[type] = error;
+        }
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    // If preferred is set, ensure it has a handle
+    if (multiPayoutFormData.preferred && multiPayoutFormData.preferred !== 'bank') {
+      const preferredHandle = multiPayoutFormData[multiPayoutFormData.preferred];
+      if (!preferredHandle || !preferredHandle.trim()) {
+        setValidationErrors({
+          preferred: `Please enter a ${getPayoutMethodLabel(multiPayoutFormData.preferred)} handle to set it as preferred`,
+        });
+        return;
+      }
+    }
+
+    setSavingPayoutMethod(true);
+    try {
+      const response = await fetch('/api/user/payout-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payoutMethods: {
+            venmo: multiPayoutFormData.venmo?.trim() || undefined,
+            cashapp: multiPayoutFormData.cashapp?.trim() || undefined,
+            paypal: multiPayoutFormData.paypal?.trim() || undefined,
+            zelle: multiPayoutFormData.zelle?.trim() || undefined,
+            preferred: multiPayoutFormData.preferred || null,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPayoutMethod(data.payoutMethod);
+        setPayoutMethods(data.payoutMethods);
+        setEditingPayoutMethod(false);
+        setValidationErrors({});
+      } else {
+        setValidationErrors({ general: data.error || 'Failed to save payout methods' });
+      }
+    } catch (error) {
+      console.error('Error saving payout methods:', error);
+      setValidationErrors({ general: 'Failed to save payout methods' });
+    } finally {
+      setSavingPayoutMethod(false);
+    }
+  };
+
+  // Handle saving payout method (legacy single method)
   const handleSavePayoutMethod = async () => {
     if (!payoutFormData.type || !payoutFormData.handle.trim()) return;
+
+    // Validate handle
+    const error = validateHandle(payoutFormData.type as PayoutMethodType, payoutFormData.handle);
+    if (error) {
+      setValidationErrors({ handle: error });
+      return;
+    }
 
     setSavingPayoutMethod(true);
     try {
@@ -217,25 +348,29 @@ export default function SettingsPage() {
       const data = await response.json();
       if (response.ok) {
         setPayoutMethod(data.payoutMethod);
+        setPayoutMethods(data.payoutMethods);
         setEditingPayoutMethod(false);
+        setValidationErrors({});
+      } else {
+        setValidationErrors({ handle: data.error || 'Failed to save' });
       }
     } catch (error) {
       console.error('Error saving payout method:', error);
+      setValidationErrors({ handle: 'Failed to save payout method' });
     } finally {
       setSavingPayoutMethod(false);
     }
   };
 
-  // Get payout method label
-  const getPayoutMethodLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      venmo: 'Venmo',
-      paypal: 'PayPal',
-      zelle: 'Zelle',
-      cashapp: 'Cash App',
-      bank: 'Bank Transfer',
-    };
-    return labels[type] || type;
+  // Generate preview link for a payout method
+  const getPreviewLink = (type: PayoutMethodType, handle: string, amount: number = 100) => {
+    if (!handle || !handle.trim()) return null;
+    return generatePayoutLink(type, { recipientHandle: handle, amount, note: 'Test payment' });
+  };
+
+  // Check if there are any saved payout methods
+  const hasAnyPayoutMethod = () => {
+    return payoutMethods.venmo || payoutMethods.cashapp || payoutMethods.paypal || payoutMethods.zelle;
   };
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -998,146 +1133,405 @@ export default function SettingsPage() {
           <TabsContent value="payment">
             <Card>
               <CardHeader>
-                <CardTitle>Payout Method</CardTitle>
+                <CardTitle>Payout Methods</CardTitle>
                 <CardDescription>
-                  Set up how you receive your pool payouts
+                  Set up how you receive your pool payouts. Add multiple payment methods and choose your preferred one.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Payout Method Section */}
+                {/* Payout Methods Section */}
                 <div>
-                    {payoutMethodLoading ? (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading...
-                      </div>
-                    ) : editingPayoutMethod || !payoutMethod ? (
-                      <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-                        <div>
-                          <Label htmlFor="payout-type">Payout Method</Label>
-                          <Select
-                            value={payoutFormData.type}
-                            onValueChange={(value) =>
-                              setPayoutFormData({ ...payoutFormData, type: value as PayoutMethodType })
-                            }
-                          >
-                            <SelectTrigger id="payout-type" className="mt-1">
-                              <SelectValue placeholder="Select payout method" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="venmo">Venmo</SelectItem>
-                              <SelectItem value="paypal">PayPal</SelectItem>
-                              <SelectItem value="zelle">Zelle</SelectItem>
-                              <SelectItem value="cashapp">Cash App</SelectItem>
-                            </SelectContent>
-                          </Select>
+                  {payoutMethodLoading ? (
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </div>
+                  ) : editingPayoutMethod ? (
+                    /* Edit Mode - Show all payment method fields */
+                    <div className="space-y-6 bg-gray-50 p-4 rounded-lg">
+                      {/* General error */}
+                      {validationErrors.general && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                          {validationErrors.general}
                         </div>
+                      )}
 
-                        {payoutFormData.type && (
-                          <>
-                            <div>
-                              <Label htmlFor="payout-handle">
-                                {payoutFormData.type === 'venmo' && 'Venmo Username or Phone'}
-                                {payoutFormData.type === 'paypal' && 'PayPal Email'}
-                                {payoutFormData.type === 'zelle' && 'Zelle Email or Phone'}
-                                {payoutFormData.type === 'cashapp' && 'Cash App $Cashtag'}
-                              </Label>
-                              <Input
-                                id="payout-handle"
-                                type="text"
-                                placeholder={
-                                  payoutFormData.type === 'venmo' ? '@username or phone' :
-                                  payoutFormData.type === 'paypal' ? 'email@example.com' :
-                                  payoutFormData.type === 'zelle' ? 'email or phone' :
-                                  '$cashtag'
-                                }
-                                value={payoutFormData.handle}
-                                onChange={(e) =>
-                                  setPayoutFormData({ ...payoutFormData, handle: e.target.value })
-                                }
-                                className="mt-1"
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="payout-display-name">
-                                Display Name <span className="text-gray-400">(optional)</span>
-                              </Label>
-                              <Input
-                                id="payout-display-name"
-                                type="text"
-                                placeholder="e.g., John's Venmo"
-                                value={payoutFormData.displayName}
-                                onChange={(e) =>
-                                  setPayoutFormData({ ...payoutFormData, displayName: e.target.value })
-                                }
-                                className="mt-1"
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={handleSavePayoutMethod}
-                            disabled={savingPayoutMethod || !payoutFormData.type || !payoutFormData.handle.trim()}
-                            className="min-h-[44px]"
-                          >
-                            {savingPayoutMethod ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                Save Payout Method
-                              </>
-                            )}
-                          </Button>
-                          {payoutMethod && (
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setEditingPayoutMethod(false);
-                                setPayoutFormData({
-                                  type: payoutMethod.type,
-                                  handle: payoutMethod.handle,
-                                  displayName: payoutMethod.displayName || '',
-                                });
-                              }}
-                              className="min-h-[44px]"
-                            >
-                              Cancel
-                            </Button>
+                      {/* Venmo */}
+                      <div className="space-y-2">
+                        <Label htmlFor="venmo-handle" className="flex items-center gap-2">
+                          <span className="font-medium">Venmo</span>
+                          {payoutMethods.preferred === 'venmo' && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
                           )}
-                        </div>
+                        </Label>
+                        <Input
+                          id="venmo-handle"
+                          type="text"
+                          placeholder={getHandlePlaceholder('venmo')}
+                          value={multiPayoutFormData.venmo || ''}
+                          onChange={(e) => handleMultiPayoutChange('venmo', e.target.value)}
+                          className={validationErrors.venmo ? 'border-red-300' : ''}
+                        />
+                        {validationErrors.venmo ? (
+                          <p className="text-xs text-red-600">{validationErrors.venmo}</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">{getHandleHelpText('venmo')}</p>
+                        )}
+                        {/* Preview Link */}
+                        {multiPayoutFormData.venmo && !validationErrors.venmo && (
+                          <div className="flex items-center gap-2 mt-1">
+                            {(() => {
+                              const link = getPreviewLink('venmo', multiPayoutFormData.venmo);
+                              return link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Test payment link
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-purple-50 border border-purple-200 p-4 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-purple-100 p-2 rounded-md">
-                            <Wallet className="h-6 w-6 text-purple-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{getPayoutMethodLabel(payoutMethod.type)}</div>
-                            <div className="text-sm text-gray-600">{payoutMethod.handle}</div>
-                            {payoutMethod.displayName && (
-                              <div className="text-xs text-gray-500">{payoutMethod.displayName}</div>
-                            )}
-                          </div>
+
+                      {/* Cash App */}
+                      <div className="space-y-2">
+                        <Label htmlFor="cashapp-handle" className="flex items-center gap-2">
+                          <span className="font-medium">Cash App</span>
+                          {payoutMethods.preferred === 'cashapp' && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                          )}
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                          <Input
+                            id="cashapp-handle"
+                            type="text"
+                            placeholder="cashtag"
+                            value={multiPayoutFormData.cashapp || ''}
+                            onChange={(e) => handleMultiPayoutChange('cashapp', e.target.value.replace(/^\$/, ''))}
+                            className={`pl-7 ${validationErrors.cashapp ? 'border-red-300' : ''}`}
+                          />
                         </div>
+                        {validationErrors.cashapp ? (
+                          <p className="text-xs text-red-600">{validationErrors.cashapp}</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">{getHandleHelpText('cashapp')}</p>
+                        )}
+                        {/* Preview Link */}
+                        {multiPayoutFormData.cashapp && !validationErrors.cashapp && (
+                          <div className="flex items-center gap-2 mt-1">
+                            {(() => {
+                              const link = getPreviewLink('cashapp', multiPayoutFormData.cashapp);
+                              return link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Test payment link
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PayPal */}
+                      <div className="space-y-2">
+                        <Label htmlFor="paypal-handle" className="flex items-center gap-2">
+                          <span className="font-medium">PayPal</span>
+                          {payoutMethods.preferred === 'paypal' && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                          )}
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">paypal.me/</span>
+                          <Input
+                            id="paypal-handle"
+                            type="text"
+                            placeholder="username"
+                            value={multiPayoutFormData.paypal || ''}
+                            onChange={(e) => handleMultiPayoutChange('paypal', e.target.value)}
+                            className={`pl-[5.5rem] ${validationErrors.paypal ? 'border-red-300' : ''}`}
+                          />
+                        </div>
+                        {validationErrors.paypal ? (
+                          <p className="text-xs text-red-600">{validationErrors.paypal}</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">{getHandleHelpText('paypal')}</p>
+                        )}
+                        {/* Preview Link */}
+                        {multiPayoutFormData.paypal && !validationErrors.paypal && (
+                          <div className="flex items-center gap-2 mt-1">
+                            {(() => {
+                              const link = getPreviewLink('paypal', multiPayoutFormData.paypal);
+                              return link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Test payment link
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Zelle */}
+                      <div className="space-y-2">
+                        <Label htmlFor="zelle-handle" className="flex items-center gap-2">
+                          <span className="font-medium">Zelle</span>
+                          {payoutMethods.preferred === 'zelle' && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                          )}
+                        </Label>
+                        <Input
+                          id="zelle-handle"
+                          type="text"
+                          placeholder={getHandlePlaceholder('zelle')}
+                          value={multiPayoutFormData.zelle || ''}
+                          onChange={(e) => handleMultiPayoutChange('zelle', e.target.value)}
+                          className={validationErrors.zelle ? 'border-red-300' : ''}
+                        />
+                        {validationErrors.zelle ? (
+                          <p className="text-xs text-red-600">{validationErrors.zelle}</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">{getHandleHelpText('zelle')} (no deep link available)</p>
+                        )}
+                      </div>
+
+                      {/* Preferred Method Selector */}
+                      <div className="border-t pt-4 mt-4">
+                        <Label htmlFor="preferred-method">Preferred Payout Method</Label>
+                        <Select
+                          value={multiPayoutFormData.preferred || ''}
+                          onValueChange={(value) => setMultiPayoutFormData(prev => ({ ...prev, preferred: value as PayoutMethodType || null }))}
+                        >
+                          <SelectTrigger id="preferred-method" className="mt-1">
+                            <SelectValue placeholder="Select preferred method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {multiPayoutFormData.venmo && <SelectItem value="venmo">Venmo</SelectItem>}
+                            {multiPayoutFormData.cashapp && <SelectItem value="cashapp">Cash App</SelectItem>}
+                            {multiPayoutFormData.paypal && <SelectItem value="paypal">PayPal</SelectItem>}
+                            {multiPayoutFormData.zelle && <SelectItem value="zelle">Zelle</SelectItem>}
+                            {!multiPayoutFormData.venmo && !multiPayoutFormData.cashapp && !multiPayoutFormData.paypal && !multiPayoutFormData.zelle && (
+                              <SelectItem value="" disabled>Add a payment method first</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {validationErrors.preferred && (
+                          <p className="text-xs text-red-600 mt-1">{validationErrors.preferred}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          This is the method pool admins will see when sending you payouts.
+                        </p>
+                      </div>
+
+                      {/* Save/Cancel Buttons */}
+                      <div className="flex gap-2 pt-4">
                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingPayoutMethod(true)}
+                          onClick={handleSaveMultiPayoutMethods}
+                          disabled={savingPayoutMethod}
                           className="min-h-[44px]"
                         >
-                          Edit
+                          {savingPayoutMethod ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              Save Payment Methods
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditingPayoutMethod(false);
+                            setMultiPayoutFormData({
+                              venmo: payoutMethods.venmo || '',
+                              cashapp: payoutMethods.cashapp || '',
+                              paypal: payoutMethods.paypal || '',
+                              zelle: payoutMethods.zelle || '',
+                              preferred: payoutMethods.preferred || null,
+                            });
+                            setValidationErrors({});
+                          }}
+                          className="min-h-[44px]"
+                        >
+                          Cancel
                         </Button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    /* View Mode - Show saved payment methods */
+                    <div className="space-y-4">
+                      {hasAnyPayoutMethod() ? (
+                        <>
+                          {/* List of saved payment methods */}
+                          <div className="space-y-3">
+                            {payoutMethods.venmo && (
+                              <div className={`flex items-center justify-between p-3 rounded-lg border ${payoutMethods.preferred === 'venmo' ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md ${payoutMethods.preferred === 'venmo' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                                    <Wallet className={`h-5 w-5 ${payoutMethods.preferred === 'venmo' ? 'text-purple-600' : 'text-gray-600'}`} />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm flex items-center gap-2">
+                                      Venmo
+                                      {payoutMethods.preferred === 'venmo' && (
+                                        <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">@{payoutMethods.venmo}</div>
+                                  </div>
+                                </div>
+                                {supportsDeepLink('venmo') && (
+                                  <a
+                                    href={getPreviewLink('venmo', payoutMethods.venmo) || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:text-purple-800"
+                                    title="Test payment link"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                            {payoutMethods.cashapp && (
+                              <div className={`flex items-center justify-between p-3 rounded-lg border ${payoutMethods.preferred === 'cashapp' ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md ${payoutMethods.preferred === 'cashapp' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                                    <Wallet className={`h-5 w-5 ${payoutMethods.preferred === 'cashapp' ? 'text-purple-600' : 'text-gray-600'}`} />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm flex items-center gap-2">
+                                      Cash App
+                                      {payoutMethods.preferred === 'cashapp' && (
+                                        <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">${payoutMethods.cashapp}</div>
+                                  </div>
+                                </div>
+                                {supportsDeepLink('cashapp') && (
+                                  <a
+                                    href={getPreviewLink('cashapp', payoutMethods.cashapp) || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:text-purple-800"
+                                    title="Test payment link"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                            {payoutMethods.paypal && (
+                              <div className={`flex items-center justify-between p-3 rounded-lg border ${payoutMethods.preferred === 'paypal' ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md ${payoutMethods.preferred === 'paypal' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                                    <Wallet className={`h-5 w-5 ${payoutMethods.preferred === 'paypal' ? 'text-purple-600' : 'text-gray-600'}`} />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm flex items-center gap-2">
+                                      PayPal
+                                      {payoutMethods.preferred === 'paypal' && (
+                                        <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">paypal.me/{payoutMethods.paypal}</div>
+                                  </div>
+                                </div>
+                                {supportsDeepLink('paypal') && (
+                                  <a
+                                    href={getPreviewLink('paypal', payoutMethods.paypal) || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:text-purple-800"
+                                    title="Test payment link"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                            {payoutMethods.zelle && (
+                              <div className={`flex items-center justify-between p-3 rounded-lg border ${payoutMethods.preferred === 'zelle' ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md ${payoutMethods.preferred === 'zelle' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                                    <Wallet className={`h-5 w-5 ${payoutMethods.preferred === 'zelle' ? 'text-purple-600' : 'text-gray-600'}`} />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm flex items-center gap-2">
+                                      Zelle
+                                      {payoutMethods.preferred === 'zelle' && (
+                                        <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Preferred</span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">{payoutMethods.zelle}</div>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-gray-400">No deep link</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingPayoutMethod(true);
+                              setMultiPayoutFormData({
+                                venmo: payoutMethods.venmo || '',
+                                cashapp: payoutMethods.cashapp || '',
+                                paypal: payoutMethods.paypal || '',
+                                zelle: payoutMethods.zelle || '',
+                                preferred: payoutMethods.preferred || null,
+                              });
+                            }}
+                            className="min-h-[44px]"
+                          >
+                            Edit Payment Methods
+                          </Button>
+                        </>
+                      ) : (
+                        /* No payment methods set up yet */
+                        <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                          <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-1">No Payout Methods</h3>
+                          <p className="text-sm text-gray-500 mb-4">
+                            Add your Venmo, Cash App, PayPal, or Zelle to receive payouts.
+                          </p>
+                          <Button
+                            onClick={() => setEditingPayoutMethod(true)}
+                            className="min-h-[44px]"
+                          >
+                            <Wallet className="h-4 w-4 mr-2" />
+                            Add Payment Methods
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="border-t pt-6">
                   <h3 className="text-lg font-medium text-gray-900">

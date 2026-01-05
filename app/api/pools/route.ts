@@ -5,6 +5,7 @@ import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
 import { User } from '../../../lib/db/models/user';
 import { handleApiRequest, ApiError, findUserById } from '../../../lib/api';
+import { createDefaultReminderSchedules } from '../../../lib/reminders/scheduler';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {
@@ -161,6 +162,15 @@ export async function POST(request: NextRequest) {
     
     // Save the new pool to the database first
     const poolDoc = await PoolModel.create(newPool);
+
+    // Create default reminder schedules for the new pool
+    try {
+      await createDefaultReminderSchedules(poolId, user._id);
+      console.log(`Created default reminder schedules for pool ${poolId}`);
+    } catch (reminderError) {
+      // Log but don't fail pool creation if reminder setup fails
+      console.error('Failed to create reminder schedules:', reminderError);
+    }
 
     // Add this pool to the user's pools (ensure pools array exists)
     if (!user.pools) {

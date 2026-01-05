@@ -18,9 +18,24 @@ import {
   CheckCircle2,
   AlertCircle,
   Award,
-  Info,
   ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
+import {
+  generatePayoutLink,
+  getPayoutMethodLabel,
+  supportsDeepLink,
+  type PayoutMethodType,
+} from '../../lib/payments/deep-links';
+
+interface AdminPaymentMethods {
+  venmo?: string;
+  cashapp?: string;
+  paypal?: string;
+  zelle?: string;
+  preferred?: 'venmo' | 'cashapp' | 'paypal' | 'zelle' | null;
+}
 
 interface ContributionModalProps {
   poolId: string;
@@ -45,22 +60,40 @@ export function ContributionModal({
     contributionStatus,
     userContributionInfo,
     getContributionStatus,
-    initiateContribution,
   } = usePoolContributions({ poolId, userEmail });
 
+  const [adminPaymentMethods, setAdminPaymentMethods] = useState<AdminPaymentMethods | null>(null);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedMethod, setCopiedMethod] = useState<string | null>(null);
   const [result, setResult] = useState<{
     success: boolean;
     message?: string;
   } | null>(null);
 
-  // Load contribution status when modal opens
+  // Load contribution status and admin payment methods when modal opens
   useEffect(() => {
     if (isOpen) {
       getContributionStatus();
       setResult(null);
+      fetchAdminPaymentMethods();
     }
-  }, [isOpen, getContributionStatus]);
+  }, [isOpen, getContributionStatus, poolId]);
+
+  const fetchAdminPaymentMethods = async () => {
+    setIsLoadingPaymentMethods(true);
+    try {
+      const response = await fetch(`/api/pools/${poolId}/admin-payment-methods`);
+      if (response.ok) {
+        const data = await response.json();
+        setAdminPaymentMethods(data.adminPaymentMethods || null);
+      }
+    } catch (err) {
+      console.error('Error fetching admin payment methods:', err);
+    } finally {
+      setIsLoadingPaymentMethods(false);
+    }
+  };
 
   // Format currency amounts
   const formatCurrency = (amount: number) => {
@@ -70,32 +103,70 @@ export function ContributionModal({
     }).format(amount);
   };
 
-  const handleMakeContribution = async () => {
+  const handleCopyToClipboard = async (text: string, method: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMethod(method);
+      setTimeout(() => setCopiedMethod(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleOpenPaymentLink = (method: PayoutMethodType, handle: string) => {
+    if (!contributionStatus) return;
+
+    const link = generatePayoutLink(method, {
+      recipientHandle: handle,
+      amount: contributionStatus.contributionAmount,
+      note: `${poolName} - Round ${contributionStatus.currentRound} contribution`,
+    });
+
+    if (link) {
+      window.open(link, '_blank');
+    }
+  };
+
+  const handleConfirmPayment = async (paymentMethod: string) => {
     setIsSubmitting(true);
     setResult(null);
 
     try {
-      const response = await initiateContribution();
+      const response = await fetch(`/api/pools/${poolId}/contributions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'confirm_manual',
+          paymentMethod,
+        }),
+      });
 
-      if (response.success && response.approvalUrl) {
-        // Store the order ID in sessionStorage for when user returns
-        if (response.orderId) {
-          sessionStorage.setItem(`stripe_order_${poolId}`, response.orderId);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setResult({
+          success: true,
+          message: 'Payment confirmation sent! The pool admin will verify your payment.',
+        });
+        if (onContributionSuccess) {
+          onContributionSuccess();
         }
-        // Redirect to Stripe for payment approval
-        window.location.href = response.approvalUrl;
+        // Refresh contribution status
+        await getContributionStatus();
       } else {
         setResult({
           success: false,
-          message: response.error || 'Failed to initiate payment',
+          message: data.error || 'Failed to confirm payment',
         });
-        setIsSubmitting(false);
       }
     } catch {
       setResult({
         success: false,
-        message: 'Failed to initiate payment',
+        message: 'Failed to confirm payment',
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -106,15 +177,22 @@ export function ContributionModal({
   };
 
   // Determine user state
-  // UNIVERSAL CONTRIBUTION MODEL: Recipients also need to contribute
   const isRecipient = userContributionInfo?.isRecipient ?? false;
   const hasContributed = userContributionInfo?.hasContributed ?? false;
-  // Recipients can and must contribute - they just also receive the payout
   const canContribute = !hasContributed;
+
+  // Get available payment methods
+  const availablePaymentMethods = adminPaymentMethods
+    ? (['venmo', 'cashapp', 'paypal', 'zelle'] as const).filter(
+        (method) => adminPaymentMethods[method]
+      )
+    : [];
+
+  const preferredMethod = adminPaymentMethods?.preferred;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
@@ -127,7 +205,7 @@ export function ContributionModal({
 
         <div className="space-y-4 py-4">
           {/* Loading state */}
-          {isLoading && !contributionStatus && (
+          {(isLoading || isLoadingPaymentMethods) && !contributionStatus && (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
             </div>
@@ -181,7 +259,6 @@ export function ContributionModal({
               )}
 
               {/* User is recipient */}
-              {/* UNIVERSAL CONTRIBUTION MODEL: Recipients also contribute */}
               {isRecipient && !hasContributed && (
                 <Alert className="bg-emerald-50 border-emerald-200">
                   <Award className="h-4 w-4 text-emerald-600" />
@@ -229,8 +306,100 @@ export function ContributionModal({
                 </div>
               )}
 
+              {/* Payment Methods */}
+              {canContribute && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">Pay the Pool Admin</h4>
+
+                  {availablePaymentMethods.length === 0 ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>No Payment Methods Available</AlertTitle>
+                      <AlertDescription>
+                        The pool admin hasn't set up payment methods yet. Please contact them directly.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2">
+                      {availablePaymentMethods.map((method) => {
+                        const handle = adminPaymentMethods![method]!;
+                        const isPreferred = method === preferredMethod;
+                        const hasDeepLink = supportsDeepLink(method);
+
+                        return (
+                          <div
+                            key={method}
+                            className={`p-3 rounded-lg border ${
+                              isPreferred
+                                ? 'border-blue-300 bg-blue-50'
+                                : 'border-gray-200 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {getPayoutMethodLabel(method)}
+                                </span>
+                                {isPreferred && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    Preferred
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleCopyToClipboard(handle, method)}
+                                  className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+                                  title="Copy handle"
+                                >
+                                  {copiedMethod === method ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </button>
+                                {hasDeepLink && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenPaymentLink(method, handle)}
+                                    className="text-xs"
+                                  >
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    Open App
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {method === 'venmo' && `@${handle}`}
+                              {method === 'cashapp' && `$${handle}`}
+                              {method === 'paypal' && `paypal.me/${handle}`}
+                              {method === 'zelle' && handle}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleConfirmPayment(method)}
+                              disabled={isSubmitting}
+                              className="mt-2 w-full text-sm"
+                            >
+                              {isSubmitting ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                              )}
+                              I've Paid via {getPayoutMethodLabel(method)}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Contribution progress */}
-              {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
               {canContribute && (
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-sm text-gray-600 mb-2">
@@ -262,47 +431,18 @@ export function ContributionModal({
                   </div>
                 </div>
               )}
-
             </>
           )}
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          {result?.success ? (
-            <Button onClick={handleClose} className="w-full sm:w-auto">
-              Close
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-              {canContribute && (
-                <Button
-                  onClick={handleMakeContribution}
-                  disabled={isSubmitting || isLoading}
-                  className="w-full sm:w-auto bg-[#635bff] hover:bg-[#5046e5]"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting to Stripe...
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Pay with Stripe
-                    </>
-                  )}
-                </Button>
-              )}
-            </>
-          )}
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
+            {result?.success ? 'Close' : 'Cancel'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

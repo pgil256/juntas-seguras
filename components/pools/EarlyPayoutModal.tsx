@@ -29,6 +29,12 @@ import {
   Check,
   Info,
 } from 'lucide-react';
+import {
+  generateJuntaPayoutLink,
+  getPayoutMethodLabel,
+  getManualPaymentInstructions,
+  PayoutMethodType,
+} from '../../lib/payments/deep-links';
 
 interface EarlyPayoutModalProps {
   poolId: string;
@@ -262,10 +268,7 @@ export function EarlyPayoutModal({
                       <span className="font-medium text-purple-800">Payout Method</span>
                     </div>
                     <p className="text-purple-700 font-medium">
-                      {earlyPayoutStatus.recipient.payoutMethod.type === 'venmo' && 'Venmo'}
-                      {earlyPayoutStatus.recipient.payoutMethod.type === 'paypal' && 'PayPal'}
-                      {earlyPayoutStatus.recipient.payoutMethod.type === 'zelle' && 'Zelle'}
-                      {earlyPayoutStatus.recipient.payoutMethod.type === 'cashapp' && 'Cash App'}
+                      {getPayoutMethodLabel(earlyPayoutStatus.recipient.payoutMethod.type as PayoutMethodType)}
                     </p>
                     <p className="text-purple-600 font-mono text-lg">
                       {earlyPayoutStatus.recipient.payoutMethod.handle}
@@ -276,27 +279,40 @@ export function EarlyPayoutModal({
                       </p>
                     )}
 
-                    {/* Payment link button */}
-                    {earlyPayoutStatus.recipient.paymentLink && (
-                      <a
-                        href={earlyPayoutStatus.recipient.paymentLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Send via {earlyPayoutStatus.recipient.payoutMethod.type === 'venmo' ? 'Venmo' :
-                          earlyPayoutStatus.recipient.payoutMethod.type === 'paypal' ? 'PayPal' :
-                          earlyPayoutStatus.recipient.payoutMethod.type === 'cashapp' ? 'Cash App' :
-                          earlyPayoutStatus.recipient.payoutMethod.type}
-                      </a>
-                    )}
+                    {/* Payment link button - generate with pool name and round as note */}
+                    {(() => {
+                      const paymentLink = generateJuntaPayoutLink(
+                        earlyPayoutStatus.recipient.payoutMethod.type as PayoutMethodType,
+                        earlyPayoutStatus.recipient.payoutMethod.handle,
+                        earlyPayoutStatus.payoutAmount || 0,
+                        poolName,
+                        earlyPayoutStatus.currentRound
+                      );
 
-                    {!earlyPayoutStatus.recipient.paymentLink && earlyPayoutStatus.recipient.payoutMethod.type === 'zelle' && (
-                      <p className="mt-2 text-sm text-purple-500">
-                        Open your Zelle app and send to: {earlyPayoutStatus.recipient.payoutMethod.handle}
-                      </p>
-                    )}
+                      if (paymentLink) {
+                        return (
+                          <a
+                            href={paymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Send via {getPayoutMethodLabel(earlyPayoutStatus.recipient.payoutMethod.type as PayoutMethodType)}
+                          </a>
+                        );
+                      }
+
+                      // Show manual instructions for methods without deep link support
+                      return (
+                        <p className="mt-2 text-sm text-purple-500">
+                          {getManualPaymentInstructions(
+                            earlyPayoutStatus.recipient.payoutMethod.type as PayoutMethodType,
+                            earlyPayoutStatus.recipient.payoutMethod.handle
+                          )}
+                        </p>
+                      );
+                    })()}
                   </div>
                 )}
 

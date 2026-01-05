@@ -3,7 +3,6 @@ import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { TransactionType, TransactionStatus } from '../../../../../types/payment';
 import { getCurrentUser } from '../../../../../lib/auth';
-import { stripe } from '../../../../../lib/stripe';
 
 const Pool = getPoolModel();
 
@@ -74,7 +73,7 @@ export async function GET(
       const isRecipient = member.position === currentRound;
 
       // Check if this member has contributed for the current round
-      // Note: Even the recipient must contribute under the universal model
+      // Check both transactions and currentRoundPayments
       const contribution = pool.transactions.find(
         (t: any) =>
           t.member === member.name &&
@@ -82,16 +81,27 @@ export async function GET(
           t.round === currentRound
       );
 
+      // Also check currentRoundPayments for pending/confirmed payments
+      const roundPayment = pool.currentRoundPayments?.find(
+        (p: any) => p.memberId === member.id || p.memberEmail === member.email
+      );
+
+      const hasConfirmedPayment = roundPayment?.status === 'member_confirmed' ||
+                                   roundPayment?.status === 'admin_verified';
+
       return {
         memberId: member.id,
         name: member.name,
         email: member.email,
         position: member.position,
         isRecipient,
-        // All members have contribution status tracked, including recipient
-        hasContributed: !!contribution,
-        contributionDate: contribution?.date || null,
-        contributionStatus: contribution?.status || null,
+        // Member has contributed if there's a transaction OR admin-verified payment
+        hasContributed: !!contribution || roundPayment?.status === 'admin_verified',
+        // Payment is pending if member confirmed but admin hasn't verified
+        paymentPending: roundPayment?.status === 'member_confirmed',
+        contributionDate: contribution?.date || roundPayment?.memberConfirmedAt || null,
+        contributionStatus: contribution?.status || roundPayment?.status || null,
+        paymentMethod: roundPayment?.memberConfirmedVia || null,
         amount: contribution?.amount || pool.contributionAmount
       };
     });
@@ -128,7 +138,7 @@ export async function GET(
 }
 
 /**
- * POST /api/pools/[id]/contributions - Initiate or complete a contribution
+ * POST /api/pools/[id]/contributions - Confirm a manual contribution payment
  *
  * UNIVERSAL CONTRIBUTION MODEL:
  * All members contribute every week, INCLUDING the payout recipient.
@@ -136,8 +146,7 @@ export async function GET(
  * This ensures the payout amount = contribution_amount × total_members
  *
  * Actions:
- * - initiate: Creates a Stripe Checkout session and returns the URL
- * - complete: Verifies Stripe payment and records the contribution
+ * - confirm_manual: Member confirms they've sent payment via a manual method (Venmo, Cash App, etc.)
  */
 export async function POST(
   request: NextRequest,
@@ -146,7 +155,7 @@ export async function POST(
   try {
     const { id: poolId } = await params;
     const body = await request.json();
-    const { action = 'initiate', sessionId } = body;
+    const { action, paymentMethod } = body;
 
     if (!poolId) {
       return NextResponse.json(
@@ -189,10 +198,6 @@ export async function POST(
 
     const currentRound = pool.currentRound;
 
-    // UNIVERSAL CONTRIBUTION MODEL: Recipients also contribute
-    // The recipient check has been removed - all members must contribute every round
-    // This ensures payout = contributionAmount × memberCount
-
     // Check if user has already contributed for this round
     const existingContribution = pool.transactions.find(
       (t: any) =>
@@ -208,129 +213,66 @@ export async function POST(
       );
     }
 
-    // Handle initiate action - create Stripe Checkout session
-    if (action === 'initiate') {
-      const baseUrl = process.env.NEXTAUTH_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-
-      const successUrl = `${baseUrl}/pools/${poolId}?stripe_success=true&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${baseUrl}/pools/${poolId}?stripe_cancelled=true`;
-
-      // Create Stripe Checkout session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: 'payment',
-        customer_email: user.email,
-        line_items: [
-          {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: `${pool.name} - Round ${currentRound} Contribution`,
-                description: `Contribution to ${pool.name}`,
-              },
-              unit_amount: Math.round(pool.contributionAmount * 100), // Convert to cents
-            },
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          poolId,
-          round: currentRound.toString(),
-          userId: user._id.toString(),
-          memberName: userMember.name,
-          type: 'contribution',
-        },
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      });
-
-      return NextResponse.json({
-        success: true,
-        action: 'initiate',
-        orderId: session.id,
-        approvalUrl: session.url,
-        amount: pool.contributionAmount,
-        message: 'Stripe checkout session created. Redirect user to approval URL.',
-      });
-    }
-
-    // Handle complete action - verify Stripe payment and record contribution
-    if (action === 'complete') {
-      if (!sessionId) {
+    // Handle confirm_manual action - member confirms they've paid via manual method
+    if (action === 'confirm_manual') {
+      if (!paymentMethod) {
         return NextResponse.json(
-          { error: 'Session ID is required to complete payment' },
+          { error: 'Payment method is required' },
           { status: 400 }
         );
       }
 
-      // Retrieve the Stripe session to verify payment
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-      if (session.payment_status !== 'paid') {
+      const validMethods = ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other'];
+      if (!validMethods.includes(paymentMethod)) {
         return NextResponse.json(
-          { error: `Payment not completed. Status: ${session.payment_status}` },
+          { error: 'Invalid payment method' },
           { status: 400 }
         );
       }
 
-      // Verify the session is for this pool and round
-      if (session.metadata?.poolId !== poolId ||
-          session.metadata?.round !== currentRound.toString()) {
-        return NextResponse.json(
-          { error: 'Invalid session for this pool/round' },
-          { status: 400 }
-        );
-      }
-
-      // Check if this session was already processed
-      const existingSessionContribution = pool.transactions.find(
-        (t: any) => t.stripeSessionId === sessionId
+      // Check if there's already a pending payment for this member
+      const existingPayment = pool.currentRoundPayments?.find(
+        (p: any) => (p.memberId === userMember.id || p.memberEmail === userMember.email)
       );
 
-      if (existingSessionContribution) {
-        return NextResponse.json({
-          success: true,
-          action: 'complete',
-          message: 'This payment has already been recorded.',
-          alreadyProcessed: true,
-        });
+      if (existingPayment) {
+        if (existingPayment.status === 'admin_verified') {
+          return NextResponse.json(
+            { error: 'Your payment has already been verified' },
+            { status: 400 }
+          );
+        }
+        if (existingPayment.status === 'member_confirmed') {
+          return NextResponse.json(
+            { error: 'You have already confirmed a payment. Please wait for admin verification.' },
+            { status: 400 }
+          );
+        }
       }
 
-      // Create the contribution transaction
-      const transactionId = Math.max(
-        ...pool.transactions.map((t: any) => t.id || 0),
-        0
-      ) + 1;
+      // Initialize currentRoundPayments array if it doesn't exist
+      if (!pool.currentRoundPayments) {
+        pool.currentRoundPayments = [];
+      }
 
-      const contribution = {
-        id: transactionId,
-        type: TransactionType.CONTRIBUTION,
-        amount: pool.contributionAmount,
-        date: new Date().toISOString(),
-        member: userMember.name,
-        status: TransactionStatus.COMPLETED,
-        round: currentRound,
-        stripeSessionId: sessionId,
-        stripePaymentIntentId: session.payment_intent as string,
-      };
-
-      // Add to pool transactions
-      pool.transactions.push(contribution);
-
-      // Update member's contribution stats
-      const memberIndex = pool.members.findIndex(
-        (m: any) => m.email === userMember.email
+      // Remove any existing pending payment for this member
+      pool.currentRoundPayments = pool.currentRoundPayments.filter(
+        (p: any) => p.memberId !== userMember.id && p.memberEmail !== userMember.email
       );
-      if (memberIndex !== -1) {
-        pool.members[memberIndex].totalContributed =
-          (pool.members[memberIndex].totalContributed || 0) + pool.contributionAmount;
-        pool.members[memberIndex].paymentsOnTime =
-          (pool.members[memberIndex].paymentsOnTime || 0) + 1;
-      }
 
-      // Update pool's total amount
-      pool.totalAmount = (pool.totalAmount || 0) + pool.contributionAmount;
+      // Add the new payment confirmation
+      pool.currentRoundPayments.push({
+        memberId: userMember.id,
+        memberName: userMember.name,
+        memberEmail: userMember.email,
+        amount: pool.contributionAmount,
+        status: 'member_confirmed',
+        memberConfirmedAt: new Date(),
+        memberConfirmedVia: paymentMethod,
+        dueDate: pool.nextPayoutDate ? new Date(pool.nextPayoutDate) : null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
       // Add a system message
       const messageId = Math.max(
@@ -340,47 +282,27 @@ export async function POST(
       pool.messages.push({
         id: messageId,
         author: 'System',
-        content: `${userMember.name} has contributed $${pool.contributionAmount} for round ${currentRound}.`,
+        content: `${userMember.name} has confirmed sending their $${pool.contributionAmount} contribution via ${paymentMethod} for round ${currentRound}. Awaiting admin verification.`,
         date: new Date().toISOString()
       });
 
       await pool.save();
 
-      // Check if all members have now contributed
-      // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including the recipient
-      const payoutRecipient = pool.members.find(
-        (m: any) => m.position === currentRound
-      );
-
-      const allMembersContributed = pool.members.every((member: any) => {
-        // No exclusion - all members including recipient must contribute
-        return pool.transactions.some(
-          (t: any) =>
-            t.member === member.name &&
-            t.type === TransactionType.CONTRIBUTION &&
-            t.round === currentRound
-        );
-      });
-
       return NextResponse.json({
         success: true,
-        action: 'complete',
-        contribution: {
-          id: contribution.id,
-          amount: contribution.amount,
-          date: contribution.date,
-          status: contribution.status,
-          stripeSessionId: sessionId,
+        action: 'confirm_manual',
+        payment: {
+          amount: pool.contributionAmount,
+          method: paymentMethod,
+          status: 'member_confirmed',
+          confirmedAt: new Date().toISOString(),
         },
-        allMembersContributed,
-        message: allMembersContributed
-          ? `Payment successful! All contributions received. ${payoutRecipient?.name || 'The recipient'} can now receive the payout.`
-          : `Payment successful! Contribution recorded. Waiting for other members to contribute.`
+        message: 'Payment confirmation recorded. The pool admin will verify your payment.',
       });
     }
 
     return NextResponse.json(
-      { error: 'Invalid action. Use "initiate" or "complete".' },
+      { error: 'Invalid action. Use "confirm_manual".' },
       { status: 400 }
     );
   } catch (error) {

@@ -9,6 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
 import { EarlyPayoutModal } from './EarlyPayoutModal';
 import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap, Wallet, Copy, ExternalLink } from 'lucide-react';
+import {
+  generateJuntaPayoutLink,
+  getPayoutMethodLabel as getPayoutLabel,
+  getManualPaymentInstructions,
+  supportsDeepLink,
+  PayoutMethodType,
+} from '../../lib/payments/deep-links';
 
 interface PoolPayoutsManagerProps {
   poolId: string;
@@ -37,16 +44,9 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
   const [showEarlyPayoutModal, setShowEarlyPayoutModal] = useState(false);
   const [copiedHandle, setCopiedHandle] = useState(false);
 
-  // Helper to get payout method label
+  // Helper to get payout method label - use imported function
   const getPayoutMethodLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      venmo: 'Venmo',
-      paypal: 'PayPal',
-      zelle: 'Zelle',
-      cashapp: 'Cash App',
-      bank: 'Bank Transfer',
-    };
-    return labels[type] || type;
+    return getPayoutLabel(type as PayoutMethodType);
   };
 
   // Copy payout handle to clipboard
@@ -56,29 +56,26 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
     setTimeout(() => setCopiedHandle(false), 2000);
   };
 
-  // Generate payment link based on payout method type
+  // Generate payment link based on payout method type with note support
   const getPaymentLink = (type: string, handle: string, amount?: number) => {
-    const cleanHandle = handle.replace(/^[@$]/, ''); // Remove @ or $ prefix if present
-    switch (type) {
-      case 'venmo':
-        // Venmo deep link - opens app or web
-        return amount
-          ? `https://venmo.com/${cleanHandle}?txn=pay&amount=${amount}`
-          : `https://venmo.com/${cleanHandle}`;
-      case 'paypal':
-        // PayPal.me link
-        return amount
-          ? `https://paypal.me/${cleanHandle}/${amount}`
-          : `https://paypal.me/${cleanHandle}`;
-      case 'cashapp':
-        // Cash App link - use $ prefix for cashtag
-        return `https://cash.app/$${cleanHandle}`;
-      case 'zelle':
-        // Zelle doesn't have a universal link - return null
-        return null;
-      default:
-        return null;
+    if (!amount) {
+      // Without amount, generate a simple link
+      return generateJuntaPayoutLink(
+        type as PayoutMethodType,
+        handle,
+        0,
+        poolName
+      );
     }
+
+    // Generate link with amount and pool name as note
+    return generateJuntaPayoutLink(
+      type as PayoutMethodType,
+      handle,
+      amount,
+      poolName,
+      payoutStatus?.round
+    );
   };
 
   // Load status on mount
@@ -303,10 +300,10 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
                   }
                   return (
                     <p className="text-purple-500 text-xs mt-3">
-                      {payoutStatus.recipient.payoutMethod.type === 'zelle'
-                        ? `Open your Zelle app and send to: ${payoutStatus.recipient.payoutMethod.handle}`
-                        : `Send the payout manually using this ${getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)} account`
-                      }
+                      {getManualPaymentInstructions(
+                        payoutStatus.recipient.payoutMethod.type as PayoutMethodType,
+                        payoutStatus.recipient.payoutMethod.handle
+                      )}
                     </p>
                   );
                 })()}

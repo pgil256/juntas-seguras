@@ -36,6 +36,22 @@ export enum TransactionType {
   PAYOUT = 'payout',
 }
 
+export interface ZelleQRData {
+  token?: string;
+  rawContent?: string;
+  imageDataUrl?: string;
+  uploadedAt?: string;
+}
+
+export interface MemberPayoutMethods {
+  venmo?: string;
+  cashapp?: string;
+  paypal?: string;
+  zelle?: string;
+  zelleQR?: ZelleQRData;
+  preferred?: 'venmo' | 'cashapp' | 'paypal' | 'zelle' | null;
+}
+
 export interface PoolMember {
   id: number;
   userId?: any; // MongoDB ObjectId reference to User
@@ -52,7 +68,7 @@ export interface PoolMember {
   payoutReceived: boolean;
   payoutDate: string;
   avatar?: string;
-  stripeConnectAccountId?: string; // Stripe Connect account for payouts
+  payoutMethods?: MemberPayoutMethods; // Member's payout methods for when they win
 }
 
 export interface PoolInvitation {
@@ -112,6 +128,39 @@ export interface PoolMessage {
   readAt?: string;      // ISO timestamp when message was read (for direct messages)
 }
 
+export type PaymentMethodType = 'venmo' | 'cashapp' | 'paypal' | 'zelle';
+export type ManualPaymentMethod = 'venmo' | 'cashapp' | 'paypal' | 'zelle' | 'cash' | 'other';
+export type RoundPaymentStatus = 'pending' | 'member_confirmed' | 'admin_verified' | 'late' | 'missed' | 'excused';
+export type PayoutStatus = 'pending_collection' | 'ready_to_pay' | 'paid' | 'completed';
+
+export interface AdminPaymentMethods {
+  venmo?: string;
+  cashapp?: string;
+  paypal?: string;
+  zelle?: string;
+  zelleQR?: ZelleQRData;
+  preferred?: PaymentMethodType | null;
+  updatedAt?: string;
+}
+
+export interface RoundPayment {
+  memberId: number;
+  memberName?: string;
+  memberEmail?: string;
+  amount: number;
+  status: RoundPaymentStatus;
+  memberConfirmedAt?: string;
+  memberConfirmedVia?: ManualPaymentMethod;
+  adminVerifiedAt?: string;
+  adminVerifiedBy?: string;
+  adminNotes?: string;
+  reminderSentAt?: string;
+  reminderCount: number;
+  dueDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Pool {
   id: string;
   name: string;
@@ -128,6 +177,17 @@ export interface Pool {
   members: PoolMember[];
   transactions: PoolTransaction[];
   messages: PoolMessage[];
+
+  // Admin's collection payment methods (where contributors send money)
+  adminPaymentMethods?: AdminPaymentMethods;
+
+  // Manual payment tracking for current round
+  currentRoundPayments?: RoundPayment[];
+  currentRoundPayoutStatus?: PayoutStatus;
+  currentRoundPayoutCompletedAt?: string;
+  currentRoundPayoutMethod?: ManualPaymentMethod;
+  currentRoundPayoutNotes?: string;
+  currentRoundPayoutConfirmedBy?: string;
 }
 
 // API Request & Response Types
