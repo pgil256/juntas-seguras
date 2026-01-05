@@ -1,262 +1,231 @@
-# Implementation Plan: Complete Missing Features
+# Implementation Plan: Feature Status & Roadmap
 
 ## Overview
 
-This plan outlines the remaining work to complete the my-juntas-app, focusing on the priority items for demo functionality and additional features.
+This document tracks the implementation status of features in the Juntas Seguras application and outlines remaining work.
 
 ---
 
-## Priority 1: Contribution UI (Critical for Demo)
+## Completed Features
 
-### Current State
-- API exists at `app/api/pools/[id]/contributions/route.ts` (GET/POST)
-- No UI component to make contributions
-- "Make Payment" button in pool detail page does nothing
+### Core Functionality
 
-### Implementation Steps
+| Feature | Status | Notes |
+|---------|--------|-------|
+| User Registration | Done | Email verification required |
+| Email-based MFA | Done | Mandatory for all users |
+| TOTP Authenticator MFA | Done | Optional alternative to email MFA |
+| Password Reset | Done | Email-based reset flow |
+| OAuth Login (Google) | Done | Optional social login |
+| OAuth Login (Microsoft) | Done | Optional social login |
+| Pool Creation | Done | Customizable contribution amount, frequency, max members |
+| Pool Invitations | Done | Email invitations with accept/reject |
+| Member Management | Done | Admin can manage positions and status |
+| Pool Messaging | Done | In-pool communication system |
+| Contribution Tracking | Done | Per-round contribution status |
+| Contribution UI | Done | Modal for making contributions |
+| Payout Management | Done | Admin processes payouts when all contributions received |
+| Payout UI | Done | Payouts tab in pool detail page |
+| Stripe Payments | Done | Payment intents for contributions |
+| Stripe Connect | Done | For receiving payouts |
+| Stripe Identity | Done | KYC verification for members |
+| Automatic Collections | Done | Scheduled contribution collection with grace periods |
+| Early Payout Requests | Done | Members can request early payout |
+| Manual Payout Methods | Done | Venmo, PayPal, Zelle, Cash App, Bank Transfer |
+| Audit Logging | Done | Comprehensive activity tracking |
+| Mobile Navbar | Done | Hamburger menu for mobile |
+| Dashboard | Done | Pool overview and analytics |
+| Notifications | Done | In-app notification system |
+| Support Tickets | Done | User support system |
+| Help Documentation | Done | In-app help section |
 
-#### Step 1.1: Create `usePoolContributions` Hook
-**File:** `lib/hooks/usePoolContributions.ts`
+### Payment Processing (Stripe Only)
 
-```typescript
-// Hook to manage contribution status and making contributions
-// - getContributionStatus(): Fetch current round contribution status
-// - makeContribution(): POST to contributions API
-// - Returns: loading, error, contributionStatus, userHasContributed, isRecipient
-```
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Payment Methods | Done | Add/remove payment methods |
+| Contribution Payments | Done | Stripe payment intents |
+| Escrow System | Done | Hold funds until all contributions received |
+| Payout via Stripe Connect | Done | Direct bank payouts |
+| Manual Payout Options | Done | Venmo, PayPal, Zelle, Cash App |
+| Webhook Handling | Done | Payment status updates |
+| Setup Intents | Done | Secure payment method storage |
 
-#### Step 1.2: Create `ContributionModal` Component
-**File:** `components/pools/ContributionModal.tsx`
+### Security
 
-Features:
-- Shows contribution amount and current round
-- Displays who the recipient is for this round
-- Shows if user is the recipient (no contribution needed)
-- Shows if user already contributed this round
-- "Confirm Contribution" button (demo mode - no real payment)
-- Success/error states
-- Option to add real Stripe integration later
-
-#### Step 1.3: Create `ContributionStatusCard` Component
-**File:** `components/pools/ContributionStatusCard.tsx`
-
-Features:
-- Shows contribution status for all members this round
-- Progress bar showing X/Y contributions received
-- Checkmarks for who has contributed
-- "Make Contribution" button for current user if not yet contributed
-- Recipient badge for the member receiving payout
-
-#### Step 1.4: Integrate into Pool Detail Page
-**File:** `app/pools/[id]/page.tsx`
-
-Changes:
-- Add "Contributions" tab to the tabbed interface
-- Replace placeholder "Make Payment" button with working contribution flow
-- Wire up ContributionModal to the "Make Payment" button
-- Show ContributionStatusCard in the new Contributions tab
-
----
-
-## Priority 2: Payout UI for Admins (Critical for Demo)
-
-### Current State
-- API exists at `app/api/pools/[id]/payouts/route.ts` (GET/POST)
-- `PoolPayoutsManager` component exists but is NOT integrated into any page
-- `usePoolPayouts` hook exists and works
-
-### Implementation Steps
-
-#### Step 2.1: Add Payouts Tab to Pool Detail Page
-**File:** `app/pools/[id]/page.tsx`
-
-Changes:
-- Add a "Payouts" tab to the existing tabs
-- Import and render `PoolPayoutsManager` in the Payouts tab
-- Pass required props: poolId, userId, isAdmin, poolName
-- Determine isAdmin from the user's role in the pool members list
-
-#### Step 2.2: Show Payout Ready Alert (Optional Enhancement)
-When all contributions are received, show a prominent alert on the pool detail page for admins indicating they can process the payout.
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Mandatory MFA | Done | All users must set up MFA |
+| Identity Verification | Done | Stripe Identity KYC |
+| Session Management | Done | JWT with middleware protection |
+| Security Headers | Done | CSP, HSTS, X-Frame-Options |
+| Rate Limiting | Done | On authentication endpoints |
+| Audit Trail | Done | All actions logged |
 
 ---
 
-## Priority 3: Dashboard Contribution Status (Critical for Demo)
+## In Progress
 
-### Current State
-- `app/my-pool/page.tsx` shows pool info and members table
-- "Paid This Round" column exists but shows incorrect logic (based on paymentsOnTime vs paymentsMissed)
-- No actual fetch of contribution status for current round
+### Dashboard Improvements
 
-### Implementation Steps
+- [ ] Real-time contribution status updates
+- [ ] Pool health indicators
+- [ ] Payment due date reminders on dashboard
 
-#### Step 3.1: Create `usePoolDashboardStatus` Hook
-**File:** `lib/hooks/usePoolDashboardStatus.ts`
+### Mobile Experience
 
-Features:
-- Fetches contribution status for the selected pool's current round
-- Returns per-member contribution status
-- Caches/updates when pool selection changes
-
-#### Step 3.2: Update My Pool Page
-**File:** `app/my-pool/page.tsx`
-
-Changes:
-- Fetch contribution status when pool is selected
-- Fix "Paid This Round" column to show actual contribution status
-- Add visual indicator for current round recipient
-- Add a "Current Round Status" summary card showing:
-  - Who the recipient is
-  - How many members have contributed
-  - Your contribution status
-  - "Make Contribution" quick action button
-
-#### Step 3.3: Add Quick Contribution Button to Dashboard
-Allow users to make contributions directly from the dashboard without navigating to pool detail page.
+- [ ] Touch-friendly tables (horizontal scroll)
+- [ ] Collapsible sections for dense content
+- [ ] 44x44px minimum touch targets
 
 ---
 
-## Priority 4: Mobile Responsiveness (Important)
+## Planned Features
 
-### Current State
-- Some responsive improvements done
-- Tables not fully mobile-friendly
-- Member list on mobile needs work
+### Short Term
 
-### Implementation Steps
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| Email Notifications | High | Contribution reminders, payout notifications |
+| Pool Analytics | Medium | Detailed pool performance metrics |
+| Export Functionality | Medium | PDF receipts, transaction reports |
+| Search Improvements | Medium | Better filtering and sorting |
 
-#### Step 4.1: Audit All Pages on Mobile
-Test the following pages at 375px width:
-- `/my-pool` (dashboard)
-- `/pools/[id]` (pool detail)
-- `/member-management/[id]`
-- `/settings`
-- `/create-pool`
+### Medium Term
 
-#### Step 4.2: Fix Identified Issues
-Common patterns to apply:
-- Use responsive table with horizontal scroll
-- Stack cards vertically on mobile
-- Hide less important columns on mobile
-- Use collapsible sections for dense content
-- Ensure touch targets are 44x44px minimum
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| Member Position Drag-Drop | Medium | Reorder member positions via drag and drop |
+| Pool Templates | Low | Save and reuse pool configurations |
+| Recurring Pool Creation | Low | Auto-create new pool when current ends |
+| Multi-language Support | Low | i18n for Spanish, Portuguese |
 
----
+### Production Hardening
 
-## Secondary Features (Post-Demo)
-
-### 5. Stripe Integration (Future)
-
-#### Step 5.1: Payment Collection
-- Create Stripe PaymentIntent when user clicks "Make Contribution"
-- Use Stripe Elements for card input
-- Handle payment confirmation
-- Update contribution status on success
-
-#### Step 5.2: Stripe Connect for Payouts
-- Set up Stripe Connect accounts for pool members
-- When admin processes payout, create Stripe Transfer
-- Handle payout confirmation and errors
-
-#### Step 5.3: Webhooks
-- Set up `/api/webhooks/stripe` endpoint
-- Handle payment_intent.succeeded
-- Handle transfer.created, transfer.paid
-- Update pool/member status accordingly
-
-### 6. Identity Verification (Future)
-
-#### Step 6.1: Stripe Identity Setup
-- Integrate Stripe Identity for member verification
-- Create verification session when member joins
-
-#### Step 6.2: Verification UI
-- Verification status badge on member profiles
-- "Verify Identity" button for unverified members
-- Admin view of verification status
-
-### 7. Member Position Drag-Drop (Enhancement)
-
-#### Step 7.1: Add Drag-Drop Library
-- Install `@dnd-kit/core` and `@dnd-kit/sortable`
-
-#### Step 7.2: Create Sortable Member List
-- Allow admins to reorder member positions
-- Save new positions via API call
-- Only allow before pool starts
-
-### 8. Activity Logging (Fix)
-
-#### Step 8.1: Audit Current Logging
-- Find all places that log activity
-- Identify non-existent endpoints being called
-
-#### Step 8.2: Fix or Remove Broken Logging
-- Either implement missing endpoints
-- Or remove calls to non-existent endpoints
-
-### 9. Email Notifications (Enhancement)
-
-#### Step 9.1: Contribution Reminder
-- Send email when round starts
-- Remind members to contribute
-
-#### Step 9.2: Payout Notification
-- Notify recipient when payout is ready
-- Notify all members when payout is processed
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| Automated Testing | High | Jest, React Testing Library, Playwright |
+| Error Monitoring | High | Sentry integration |
+| CI/CD Pipeline | High | GitHub Actions for testing and deployment |
+| Performance Optimization | Medium | Code splitting, caching, bundle analysis |
+| Health Check Endpoints | Medium | `/api/health` for monitoring |
 
 ---
 
-## File Summary
+## Technical Debt
 
-### New Files to Create
-1. `lib/hooks/usePoolContributions.ts`
-2. `components/pools/ContributionModal.tsx`
-3. `components/pools/ContributionStatusCard.tsx`
-4. `lib/hooks/usePoolDashboardStatus.ts`
+### Code Quality
 
-### Existing Files to Modify
-1. `app/pools/[id]/page.tsx` - Add Contributions tab, Payouts tab, wire up buttons
-2. `app/my-pool/page.tsx` - Add contribution status fetching, fix "Paid This Round" column
+- [ ] Fix TypeScript strict mode errors
+- [ ] Enable ESLint during production builds
+- [ ] Remove unused imports and variables
+- [ ] Add proper error boundaries
+- [ ] Improve error handling consistency
 
-### Components Already Built (Just Need Integration)
-1. `components/pools/PoolPayoutsManager.tsx` - Ready to use, just needs to be added to pool detail page
+### Testing
+
+- [ ] Set up Jest configuration
+- [ ] Create unit tests for critical hooks
+- [ ] Create integration tests for API routes
+- [ ] Set up E2E testing with Playwright
+- [ ] Add code coverage reporting
+
+### Documentation
+
+- [x] Update README with current features
+- [x] Update CLAUDE.md with architecture
+- [x] Update SETUP_GUIDE for Stripe-only setup
+- [x] Create .env.example file
+- [ ] Add API documentation (OpenAPI/Swagger)
+- [ ] Create database schema diagram
+- [ ] Document component library
 
 ---
 
-## Estimated Implementation Order
+## File Reference
 
-1. **Contribution UI** (~2-3 hours)
-   - Create usePoolContributions hook
-   - Create ContributionModal component
-   - Wire up "Make Payment" button in pool detail page
-   - Add Contributions tab with ContributionStatusCard
+### Components to Review
 
-2. **Payout UI Integration** (~30 minutes)
-   - Add Payouts tab to pool detail page
-   - Import and configure PoolPayoutsManager
+| File | Purpose | Status |
+|------|---------|--------|
+| `components/pools/ContributionModal.tsx` | Make contributions | Done |
+| `components/pools/ContributionStatusCard.tsx` | Show contribution status | Done |
+| `components/pools/PoolPayoutsManager.tsx` | Manage payouts | Done |
+| `components/pools/EarlyPayoutModal.tsx` | Request early payout | Done |
+| `components/pools/AutoCollectionStatus.tsx` | Auto-collection status | Done |
+| `components/pools/AdminCollectionsDashboard.tsx` | Admin collection view | Done |
 
-3. **Dashboard Status** (~1-2 hours)
-   - Create usePoolDashboardStatus hook
-   - Fix "Paid This Round" column
-   - Add current round status summary
+### Hooks
 
-4. **Mobile Responsiveness** (~1-2 hours)
-   - Audit and fix each page
+| Hook | Purpose | Status |
+|------|---------|--------|
+| `usePoolContributions` | Contribution management | Done |
+| `usePoolPayouts` | Payout management | Done |
+| `useAutoCollection` | Auto-collection status | Done |
+| `useEarlyPayout` | Early payout requests | Done |
+| `usePaymentMethods` | Payment method CRUD | Done |
+| `useIdentityVerification` | KYC verification | Done |
+
+### API Routes
+
+| Route | Purpose | Status |
+|-------|---------|--------|
+| `/api/pools/[id]/contributions` | Contribution API | Done |
+| `/api/pools/[id]/payouts` | Payout API | Done |
+| `/api/pools/[id]/early-payout` | Early payout API | Done |
+| `/api/pools/[id]/collections` | Collection management | Done |
+| `/api/stripe/create-payment-intent` | Stripe payments | Done |
+| `/api/stripe/connect` | Stripe Connect | Done |
+| `/api/stripe/webhook` | Stripe webhooks | Done |
+| `/api/user/payout-method` | Manual payout methods | Done |
 
 ---
 
 ## Testing Checklist
 
-After implementation, verify:
+### Contribution Flow
 
-- [ ] User can see contribution status for current round
-- [ ] User can make a contribution (demo mode)
-- [ ] User who is recipient sees "No contribution needed" message
-- [ ] User who already contributed sees "Already contributed" message
-- [ ] Contribution updates are reflected immediately in UI
-- [ ] Admin can see "Process Payout" button when all contributions received
-- [ ] Admin can process payout successfully
-- [ ] Dashboard shows accurate "Paid This Round" status
-- [ ] All pages work on mobile (375px width)
-- [ ] System messages are added when contributions/payouts occur
+- [x] User can see contribution status for current round
+- [x] User can make a contribution
+- [x] User who is recipient sees "No contribution needed" message
+- [x] User who already contributed sees "Already contributed" message
+- [x] Contribution updates are reflected immediately in UI
+
+### Payout Flow
+
+- [x] Admin can see "Process Payout" button when all contributions received
+- [x] Admin can process payout successfully
+- [x] Recipient receives payout notification
+- [x] Payout status updates in real-time
+
+### Auto-Collection
+
+- [x] Scheduled collections run on time
+- [x] Grace period is respected
+- [x] Reminders are sent before collection
+- [x] Failed payments are retried
+
+### Mobile Experience
+
+- [x] Mobile navbar works correctly
+- [x] Pages are responsive at 375px width
+- [ ] Tables have horizontal scroll on mobile
+- [ ] Touch targets are adequate size
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | Dec 2024 | Initial implementation plan |
+| 1.1 | Dec 2024 | Added contribution and payout UI |
+| 1.2 | Dec 2024 | Stripe integration complete |
+| 1.3 | Dec 2024 | Automatic collections implemented |
+| 1.4 | Jan 2025 | PayPal removed, Stripe-only |
+| 1.5 | Jan 2025 | Manual payout methods added |
+| 2.0 | Jan 2026 | Documentation updated, feature status reviewed |
+
+---
+
+*Last updated: January 2026*

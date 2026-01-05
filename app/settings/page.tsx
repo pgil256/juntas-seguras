@@ -1139,7 +1139,41 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                              </CardContent>
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Auto-Pay Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Configure automatic contributions to your pools via Stripe
+                  </p>
+
+                  <div className="mt-4 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Enable Auto-Pay
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Automatically pay your contributions when they&apos;re due
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Payment Reminders
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Get notified 3 days before a payment is due
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
 

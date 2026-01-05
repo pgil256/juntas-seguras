@@ -20,6 +20,7 @@ import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { getAuditLogModel } from '../../../../../lib/db/models/auditLog';
 import { User } from '../../../../../lib/db/models/user';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { stripe } from '../../../../../lib/stripe';
 
 const Pool = getPoolModel();
 const AuditLog = getAuditLogModel();

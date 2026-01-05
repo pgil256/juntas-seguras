@@ -141,6 +141,11 @@ Copy the output and add it to your `.env.local` file as `NEXTAUTH_SECRET`.
    NEXTAUTH_SECRET=<your-generated-secret>
    ```
 
+3. **Set App URL**
+   ```env
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+
 ---
 
 ### Google OAuth
@@ -258,6 +263,7 @@ You can modify `lib/services/mfa.ts` to use other providers:
 - **SendGrid**: https://sendgrid.com/
 - **Mailgun**: https://www.mailgun.com/
 - **Amazon SES**: https://aws.amazon.com/ses/
+- **Resend**: https://resend.com/
 
 ---
 
@@ -296,7 +302,7 @@ TWILIO_PHONE_NUMBER=+1234567890
 
 ## Payment Processing (Stripe)
 
-Stripe is required for pool contributions, escrow payments, and identity verification.
+Stripe is required for pool contributions, escrow payments, payouts, and identity verification.
 
 ### Step 1: Create Stripe Account
 
@@ -310,38 +316,61 @@ Stripe is required for pool contributions, escrow payments, and identity verific
 2. Copy "Publishable key" (starts with `pk_test_` or `pk_live_`)
 3. Copy "Secret key" (starts with `sk_test_` or `sk_live_`)
 
-### Step 3: Set Up Webhooks
-
-1. Go to: https://dashboard.stripe.com/webhooks
-2. Click "Add endpoint"
-3. Enter endpoint URL: `https://yourdomain.com/api/webhooks/stripe`
-4. Select events to listen to:
-   - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
-   - `identity.verification_session.verified`
-   - `identity.verification_session.requires_input`
-5. Click "Add endpoint"
-6. Copy the "Signing secret" (starts with `whsec_`)
-
-### Step 4: Enable Stripe Connect (for payouts)
-
-1. Go to: https://dashboard.stripe.com/settings/connect
-2. Enable Stripe Connect
-3. Configure platform settings
-
-### Step 5: Enable Identity Verification
-
-1. Go to: https://dashboard.stripe.com/settings/identity
-2. Enable Identity
-3. Configure verification settings
-
-### Step 6: Configure Environment Variables
+### Step 3: Configure Environment Variables
 
 ```env
 STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### Step 4: Set Up Webhooks
+
+1. Go to: https://dashboard.stripe.com/webhooks
+2. Click "Add endpoint"
+3. Enter endpoint URL: `https://yourdomain.com/api/stripe/webhook`
+4. Select events to listen to:
+   - `payment_intent.succeeded`
+   - `payment_intent.payment_failed`
+   - `setup_intent.succeeded`
+   - `identity.verification_session.verified`
+   - `identity.verification_session.requires_input`
+   - `account.updated` (for Connect)
+   - `transfer.created`
+   - `transfer.paid`
+5. Click "Add endpoint"
+6. Copy the "Signing secret" (starts with `whsec_`)
+
+```env
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+### Step 5: Enable Stripe Connect (for payouts)
+
+1. Go to: https://dashboard.stripe.com/settings/connect
+2. Enable Stripe Connect
+3. Configure platform settings:
+   - Choose Express or Custom account type
+   - Set branding and onboarding options
+   - Configure payout settings
+
+### Step 6: Enable Identity Verification (for KYC)
+
+1. Go to: https://dashboard.stripe.com/settings/identity
+2. Enable Identity
+3. Configure verification settings:
+   - Select required document types
+   - Set verification options
+
+### Manual Payout Methods
+
+In addition to Stripe Connect, users can set up manual payout methods:
+- **Venmo**: User provides Venmo username
+- **PayPal**: User provides PayPal email
+- **Zelle**: User provides Zelle phone/email
+- **Cash App**: User provides Cash App cashtag
+- **Bank Transfer**: User provides bank details
+
+These are managed through the user's profile settings.
 
 ---
 
@@ -374,6 +403,12 @@ npm run build
 npm run start
 ```
 
+### Pre-Deployment Check
+
+```bash
+npm run pre-deploy-check
+```
+
 ---
 
 ## Production Deployment
@@ -382,12 +417,15 @@ npm run start
 
 - [ ] Generate new `NEXTAUTH_SECRET` for production
 - [ ] Update `NEXTAUTH_URL` to production domain
+- [ ] Update `NEXT_PUBLIC_APP_URL` to production domain
 - [ ] Switch Stripe keys from `test` to `live`
 - [ ] Configure production MongoDB Atlas cluster
 - [ ] Set up SSL/HTTPS
 - [ ] Update OAuth callback URLs to production domain
 - [ ] Configure webhook endpoints with production URLs
 - [ ] Remove any test users/data
+- [ ] Set up Stripe Connect for production
+- [ ] Enable Stripe Identity for production
 
 ### Environment Variables Summary
 
@@ -399,29 +437,35 @@ MONGODB_URI=mongodb+srv://...
 NEXTAUTH_URL=https://yourdomain.com
 NEXTAUTH_SECRET=<secure-random-string>
 
-# Google OAuth
+# App URL
+NEXT_PUBLIC_APP_URL=https://yourdomain.com
+
+# Google OAuth (Optional)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 
-# Microsoft OAuth
+# Microsoft OAuth (Optional)
 AZURE_AD_CLIENT_ID=...
 AZURE_AD_CLIENT_SECRET=...
 AZURE_AD_TENANT_ID=common
 
-# Email
+# Email (Required for MFA)
 EMAIL_USER=...
 EMAIL_PASSWORD=...
 EMAIL_FROM=...
 
-# Twilio (Optional)
+# Twilio (Optional - for SMS MFA)
 TWILIO_ACCOUNT_SID=...
 TWILIO_AUTH_TOKEN=...
 TWILIO_PHONE_NUMBER=...
 
-# Stripe
+# Stripe (Required for payments)
 STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PUBLISHABLE_KEY=pk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Cron Jobs
+CRON_SECRET=<secure-random-string>
 
 # Environment
 NODE_ENV=production
@@ -435,6 +479,8 @@ NODE_ENV=production
 2. Import project in Vercel: https://vercel.com/import
 3. Add environment variables in Vercel dashboard
 4. Deploy
+
+See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for detailed instructions.
 
 #### Other Platforms
 
@@ -465,13 +511,16 @@ Error: OAuthCallbackError
 ```
 Error: Invalid login
 ```
-**Solution**: Ensure you're using an App Password, not your regular Gmail password. Check that 2-Step Verification is enabled.
+**Solution**: Ensure you're using an App Password, not your regular Gmail password. Check that 2-Step Verification is enabled. See [GMAIL_SMTP_TROUBLESHOOTING.md](GMAIL_SMTP_TROUBLESHOOTING.md).
 
 #### Stripe Webhook Signature Invalid
 ```
 Error: Webhook signature verification failed
 ```
 **Solution**: Ensure `STRIPE_WEBHOOK_SECRET` matches the signing secret from Stripe dashboard.
+
+#### MFA Code Not Received
+**Solution**: Check spam folder. Verify EMAIL_USER and EMAIL_PASSWORD are correct. Test email with `npm run test-db`.
 
 ### Debug Mode
 
@@ -490,6 +539,7 @@ In development mode:
 - Check the documentation in `/app/help/documentation/`
 - Review API routes in `/app/api/`
 - Check component structure in `/components/`
+- See [GMAIL_SMTP_TROUBLESHOOTING.md](GMAIL_SMTP_TROUBLESHOOTING.md) for email issues
 
 ---
 
@@ -503,7 +553,7 @@ In development mode:
 | Google OAuth | No | Social login option |
 | Microsoft OAuth | No | Social login option |
 | Twilio | No | SMS-based MFA |
-| Stripe | No** | Payments & identity verification |
+| Stripe | Yes** | Payments, payouts & identity verification |
 
 *Required if using email-based MFA (default)
 **Required for payment features
@@ -517,10 +567,11 @@ In development mode:
 3. Configure MongoDB connection
 4. Generate and set `NEXTAUTH_SECRET`
 5. Configure email credentials (Gmail App Password)
-6. (Optional) Set up OAuth providers
-7. (Optional) Set up Stripe for payments
-8. Run the app: `npm run dev`
+6. Configure Stripe credentials
+7. (Optional) Set up OAuth providers
+8. (Optional) Set up Twilio for SMS MFA
+9. Run the app: `npm run dev`
 
 ---
 
-*Last updated: December 2024*
+*Last updated: January 2026*
