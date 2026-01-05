@@ -57,7 +57,16 @@
       "Bash(node:*)",
       "Bash(./node_modules/.bin/next lint:*)",
       "Bash(git fetch:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(their Stripe account for payouts\" error when initiating early payouts.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(timeout 15s npm run dev)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd manual payout method system with Venmo, PayPal, Zelle, Cash App support\n\nReplace Stripe Connect payout system with simpler manual payout tracking.\nUsers can now set their preferred payout method (Venmo, PayPal, Zelle, Cash App)\nin their profile settings. Pool admins mark payouts as sent after transferring\nfunds via the recipient''s chosen method.\n\n- Add payout method API endpoint for CRUD operations\n- Add PayoutMethodForm component for selecting payout preferences  \n- Add PoolOnboardingModal for payment + payout setup after joining\n- Update payouts route to use manual payout flow\n- Add payout method section to settings page\n- Update User model with payoutMethod field\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\" log --oneline --graph --all --decorate -20)",
+      "Bash(xargs:*)",
+      "Bash(npm run lint)",
+      "Bash(npx next lint:*)",
+      "Bash(git push:*)",
+      "Bash(npx next build)"
     ]
   },
   "enableAllProjectMcpServers": false
