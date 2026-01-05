@@ -20,7 +20,6 @@ import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { getAuditLogModel } from '../../../../../lib/db/models/auditLog';
 import { User } from '../../../../../lib/db/models/user';
 import { getCurrentUser } from '../../../../../lib/auth';
-import { stripe } from '../../../../../lib/stripe';
 
 const Pool = getPoolModel();
 const AuditLog = getAuditLogModel();
@@ -452,95 +451,27 @@ export async function POST(
       scheduledPayoutDate,
     } = result;
 
-    // Verify Stripe credentials are configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null,
-          },
-        }
-      );
-
-      return NextResponse.json(
-        { error: 'Stripe credentials are not configured. Please contact support.' },
-        { status: 500 }
-      );
+    // Get recipient's payout method for reference (manual payout system)
+    let recipientPayoutMethod = null;
+    if (payoutRecipient.email) {
+      const recipientUser = await User.findOne({ email: payoutRecipient.email });
+      if (recipientUser?.payoutMethod?.type) {
+        recipientPayoutMethod = {
+          type: recipientUser.payoutMethod.type,
+          handle: recipientUser.payoutMethod.handle,
+          displayName: recipientUser.payoutMethod.displayName,
+        };
+      }
     }
 
-    const recipientStripeAccountId = payoutRecipient.stripeConnectAccountId;
-
-    if (!recipientStripeAccountId) {
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null,
-          },
-        }
-      );
-
-      return NextResponse.json(
-        { error: 'Recipient has not set up their Stripe Connect account for payouts.' },
-        { status: 400 }
-      );
-    }
-
-    let stripeTransferId: string | null = null;
-
-    // Process Stripe transfer with idempotency key to prevent duplicates
-    try {
-      const transfer = await stripe.transfers.create(
-        {
-          amount: Math.round(payoutAmount * 100), // Convert to cents
-          currency: 'usd',
-          destination: recipientStripeAccountId,
-          metadata: {
-            type: 'cycle_payout',
-            poolId: pool.id,
-            cycleNumber: String(currentRound),
-            recipientUserId: String(payoutRecipient.userId || payoutRecipient.email),
-            wasEarlyPayout: 'true',
-            initiatedBy: String(requestingUser.id),
-            scheduledPayoutDate,
-            description: `Early payout for ${pool.name} - Round ${currentRound}`,
-          },
-        },
-        {
-          idempotencyKey: `early-payout-${pool.id}-cycle-${currentRound}`,
-        }
-      );
-
-      stripeTransferId = transfer.id;
-    } catch (transferError: any) {
-      console.error('Stripe transfer error:', transferError);
-
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null,
-          },
-        }
-      );
-
-      return NextResponse.json(
-        { error: `Stripe transfer failed: ${transferError.message}` },
-        { status: 400 }
-      );
-    }
-
-    // Update the transaction with Stripe details and mark as completed
+    // Manual payout system - mark transaction as completed
+    // Admin is responsible for sending payment via recipient's preferred method
     await Pool.findOneAndUpdate(
       { id: pool.id },
       {
         $set: {
           [`transactions.${pool.transactions.length - 1}.status`]: TransactionStatus.COMPLETED,
-          [`transactions.${pool.transactions.length - 1}.stripeTransferId`]: stripeTransferId,
+          [`transactions.${pool.transactions.length - 1}.payoutMethod`]: recipientPayoutMethod?.type || 'manual',
           [`members.${recipientIndex}.payoutReceived`]: true,
           [`members.${recipientIndex}.status`]: PoolMemberStatus.COMPLETED,
           [`members.${recipientIndex}.payoutDate`]: new Date().toISOString(),
@@ -630,7 +561,7 @@ export async function POST(
         amount: payoutAmount,
         scheduledPayoutDate,
         actualPayoutDate: new Date().toISOString(),
-        stripeTransferId,
+        payoutMethod: recipientPayoutMethod?.type || 'manual',
         reason: earlyPayoutReason || 'No reason provided',
       },
       poolId: pool.id,
@@ -647,9 +578,9 @@ export async function POST(
         recipient: payoutRecipient.name,
         wasEarlyPayout: true,
         scheduledPayoutDate,
-        stripeTransferId,
+        payoutMethod: recipientPayoutMethod,
       },
-      message: `Early payout of $${payoutAmount} processed for round ${currentRound}`,
+      message: `Early payout of $${payoutAmount} marked as sent for round ${currentRound}`,
       nextRound: currentRound < pool.totalRounds ? currentRound + 1 : currentRound,
       isComplete: currentRound >= pool.totalRounds,
     });

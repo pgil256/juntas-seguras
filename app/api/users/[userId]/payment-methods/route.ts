@@ -1,8 +1,10 @@
 /**
  * User Payment Methods API Route
  *
- * GET - Get user's saved payment methods
+ * GET - Get user's saved payment methods (payout methods)
  * DELETE - Remove a payment method
+ *
+ * Note: This app uses manual payments, not Stripe integration
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,7 +13,6 @@ import connectToDatabase from '@/lib/db/connect';
 import User from '@/lib/db/models/user';
 import { getPaymentSetupModel, PaymentSetupStatus } from '@/lib/db/models/paymentSetup';
 import { getPoolModel } from '@/lib/db/models/pool';
-import { listCustomerPaymentMethods, detachPaymentMethod } from '@/lib/stripe/setup-intents';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
 
@@ -59,30 +60,12 @@ export async function GET(
     const pools = await Pool.find({ id: { $in: poolIds } });
     const poolMap = new Map(pools.map(p => [p.id, p.name]));
 
-    // Get Stripe payment methods if user has a customer ID
-    let stripePaymentMethods: Array<{
-      id: string;
-      type: string;
-      card?: { brand: string; last4: string; expMonth: number; expYear: number };
-    }> = [];
-
-    if (user.stripeCustomerId) {
-      try {
-        const methods = await listCustomerPaymentMethods(user.stripeCustomerId);
-        stripePaymentMethods = methods.map(pm => ({
-          id: pm.id,
-          type: pm.type,
-          card: pm.card ? {
-            brand: pm.card.brand,
-            last4: pm.card.last4,
-            expMonth: pm.card.exp_month,
-            expYear: pm.card.exp_year,
-          } : undefined,
-        }));
-      } catch (error) {
-        console.error('Error fetching Stripe payment methods:', error);
-      }
-    }
+    // Get user's payout method (Venmo, PayPal, Zelle, Cash App)
+    const payoutMethod = user.payoutMethod ? {
+      type: user.payoutMethod.type,
+      handle: user.payoutMethod.handle,
+      displayName: user.payoutMethod.displayName,
+    } : null;
 
     // Format response
     const formattedSetups = paymentSetups.map(ps => ({
@@ -108,9 +91,8 @@ export async function GET(
     return NextResponse.json({
       success: true,
       userId,
-      stripeCustomerId: user.stripeCustomerId,
+      payoutMethod,
       paymentSetups: formattedSetups,
-      stripePaymentMethods,
     });
   } catch (error) {
     console.error('Error getting payment methods:', error);
@@ -188,26 +170,15 @@ export async function DELETE(
     paymentSetup.status = PaymentSetupStatus.CANCELLED;
     await paymentSetup.save();
 
-    // Optionally detach from Stripe
-    if (paymentMethodId) {
-      try {
-        await detachPaymentMethod(paymentMethodId);
-      } catch (error) {
-        console.error('Error detaching payment method from Stripe:', error);
-        // Continue anyway - the setup is cancelled in our system
-      }
-    }
-
     // Audit log
     await AuditLog.create({
       id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       userId: user._id.toString(),
       type: AuditLogType.PAYMENT,
-      action: 'payment_method_removed',
+      action: 'payment_setup_removed',
       metadata: {
         poolId,
-        paymentMethodId: paymentSetup.stripePaymentMethodId,
       },
       success: true,
     });

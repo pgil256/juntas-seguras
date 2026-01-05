@@ -11,10 +11,79 @@ import connectToDatabase from '@/lib/db/connect';
 import { getPoolModel } from '@/lib/db/models/pool';
 import { getScheduledCollectionModel, CollectionStatus } from '@/lib/db/models/scheduledCollection';
 import { getPaymentSetupModel, PaymentSetupStatus } from '@/lib/db/models/paymentSetup';
-import { createOffSessionPayment } from '@/lib/stripe/off-session-payments';
-import { cancelScheduledCollection, scheduleCollectionsForRound } from '@/lib/jobs/collection-processor';
 import { getAuditLogModel } from '@/lib/db/models/auditLog';
 import { AuditLogType } from '@/types/audit';
+
+// Manual payment helpers (Stripe removed)
+async function cancelScheduledCollection(
+  collectionId: string,
+  cancelledBy: string,
+  reason: string
+): Promise<void> {
+  const ScheduledCollection = getScheduledCollectionModel();
+  const collection = await ScheduledCollection.findOne({ collectionId });
+
+  if (!collection) {
+    throw new Error(`Collection not found: ${collectionId}`);
+  }
+
+  if (collection.status === CollectionStatus.COMPLETED) {
+    throw new Error('Cannot cancel a completed collection');
+  }
+
+  collection.status = CollectionStatus.CANCELLED;
+  collection.cancelledAt = new Date();
+  collection.cancelledBy = cancelledBy as unknown as typeof collection.cancelledBy;
+  collection.cancelReason = reason;
+
+  await collection.save();
+}
+
+async function scheduleCollectionsForRound(
+  poolId: string,
+  round: number,
+  dueDate: Date,
+  gracePeriodHours: number = 24
+): Promise<void> {
+  const Pool = getPoolModel();
+  const ScheduledCollection = getScheduledCollectionModel();
+
+  const pool = await Pool.findOne({ id: poolId });
+  if (!pool) {
+    throw new Error(`Pool not found: ${poolId}`);
+  }
+
+  const collectionEligibleAt = new Date(dueDate.getTime() + gracePeriodHours * 60 * 60 * 1000);
+
+  for (const member of pool.members) {
+    if (!member.userId) continue;
+
+    // Check if collection already scheduled
+    const existing = await ScheduledCollection.findOne({
+      poolId,
+      userId: member.userId,
+      round,
+    });
+
+    if (existing) continue;
+
+    const collectionId = `col_${poolId}_r${round}_${member.userId.toString().substring(0, 8)}`;
+
+    await ScheduledCollection.create({
+      collectionId,
+      poolId,
+      userId: member.userId,
+      memberName: member.name,
+      memberEmail: member.email,
+      round,
+      amount: pool.contributionAmount,
+      dueDate,
+      gracePeriodHours,
+      collectionEligibleAt,
+      status: CollectionStatus.SCHEDULED,
+    });
+  }
+}
 
 export const runtime = 'nodejs';
 
@@ -245,66 +314,30 @@ export async function POST(
           );
         }
 
-        // Get payment setup
-        const paymentSetup = await PaymentSetup.findOne({
-          userId: collection.userId,
-          poolId,
-          status: PaymentSetupStatus.ACTIVE,
-        });
-
-        if (!paymentSetup) {
-          return NextResponse.json(
-            { error: 'No active payment method for this member' },
-            { status: 400 }
-          );
-        }
-
-        // Process payment
-        const result = await createOffSessionPayment({
-          amount: collection.amount,
-          customerId: paymentSetup.stripeCustomerId,
-          paymentMethodId: paymentSetup.stripePaymentMethodId,
-          poolId,
-          userId: collection.userId.toString(),
-          round: collection.round,
-          memberName: collection.memberName,
-          collectionId: `${collection.collectionId}-manual-${Date.now()}`,
-        });
-
-        if (result.success) {
-          collection.status = CollectionStatus.COMPLETED;
-          collection.completedAt = new Date();
-          collection.stripePaymentIntentId = result.paymentIntentId;
-          await collection.save();
-        } else {
-          collection.lastErrorCode = result.error?.code;
-          collection.failureReason = result.error?.message;
-          await collection.save();
-        }
+        // Manual payment system - mark collection as completed by admin
+        // The admin confirms they have received payment manually (Venmo, PayPal, Zelle, etc.)
+        collection.status = CollectionStatus.COMPLETED;
+        collection.completedAt = new Date();
+        await collection.save();
 
         await AuditLog.create({
           id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           timestamp: new Date().toISOString(),
           userId: user._id.toString(),
           type: AuditLogType.PAYMENT,
-          action: 'manual_collection_triggered',
+          action: 'manual_collection_confirmed',
           metadata: {
             poolId,
             collectionId,
             targetUserId: collection.userId.toString(),
-            success: result.success,
-            paymentIntentId: result.paymentIntentId,
+            success: true,
           },
-          success: result.success,
+          success: true,
         });
 
         return NextResponse.json({
-          success: result.success,
-          message: result.success
-            ? 'Manual collection successful'
-            : `Collection failed: ${result.error?.message}`,
-          paymentIntentId: result.paymentIntentId,
-          error: result.error,
+          success: true,
+          message: 'Collection marked as completed',
         });
       }
 
