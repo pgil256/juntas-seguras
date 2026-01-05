@@ -40,6 +40,7 @@ import { ContributionStatusCard } from "../../../components/pools/ContributionSt
 import { PoolPayoutsManager } from "../../../components/pools/PoolPayoutsManager";
 import { AutoCollectionStatus } from "../../../components/pools/AutoCollectionStatus";
 import { AdminCollectionsDashboard } from "../../../components/pools/AdminCollectionsDashboard";
+import { StripeConnectSetup } from "../../../components/payments/StripeConnectSetup";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
 import {
   AlertDialog,
@@ -593,6 +594,9 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                   currentRound={pool.currentRound}
                   userId={session?.user?.id || ''}
                 />
+
+                {/* Payout Account Setup - Always visible so members can set up before their turn */}
+                <StripeConnectSetup />
 
                 {/* Admin view: collections management dashboard */}
                 {isAdmin && (
