@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -15,24 +15,18 @@ function VerifyMfaContent() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Only run client-side
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!code) {
       setError("Verification code is required");
       return;
     }
-    
+
     setIsLoading(true);
     setError("");
-    
+
     try {
       const response = await fetch('/api/auth/verify-mfa', {
         method: 'POST',
@@ -50,7 +44,7 @@ function VerifyMfaContent() {
 
       // Get return URL from query params or default to dashboard
       const returnUrl = searchParams.get('returnUrl') || '/dashboard';
-      
+
       // If verification is successful, redirect to the return URL or dashboard
       router.push(decodeURIComponent(returnUrl));
       router.refresh();
@@ -61,13 +55,9 @@ function VerifyMfaContent() {
     }
   };
 
-  if (!mounted) {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white py-12">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <Card className="w-full max-w-md mx-auto">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Two-Factor Authentication</CardTitle>
           <CardDescription className="text-center">
@@ -81,21 +71,25 @@ function VerifyMfaContent() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="code">Verification Code</Label>
               <Input
                 id="code"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="Enter 6-digit code"
                 maxLength={6}
+                className="text-center font-mono text-lg"
+                autoComplete="one-time-code"
                 required
               />
             </div>
-            
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
@@ -113,9 +107,43 @@ function VerifyMfaContent() {
   );
 }
 
+// Static fallback that matches the layout to prevent flash
+function VerifyMfaFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Two-Factor Authentication</CardTitle>
+          <CardDescription className="text-center">
+            Enter the verification code sent to your email
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="code">Verification Code</Label>
+              <Input
+                id="code"
+                type="text"
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                className="text-center font-mono text-lg"
+                disabled
+              />
+            </div>
+            <Button className="w-full" disabled>
+              Verify Code
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function VerifyMfa() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<VerifyMfaFallback />}>
       <VerifyMfaContent />
     </Suspense>
   );
