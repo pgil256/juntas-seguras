@@ -23,6 +23,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { PayoutMethodForm } from './PayoutMethodForm';
+import { PaymentMethodType } from '@/types/pool';
 
 interface PoolOnboardingModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ interface PoolOnboardingModalProps {
   poolName: string;
   contributionAmount: number;
   frequency: string;
+  allowedPaymentMethods?: PaymentMethodType[];
 }
 
 type OnboardingStep = 'payout' | 'complete';
@@ -47,6 +49,7 @@ export function PoolOnboardingModal({
   poolName,
   contributionAmount,
   frequency,
+  allowedPaymentMethods,
 }: PoolOnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>('payout');
 
@@ -132,7 +135,11 @@ export function PoolOnboardingModal({
               </div>
             </div>
           ) : (
-            <PayoutMethodForm onSuccess={handlePayoutSuccess} onSkip={handlePayoutSkip} />
+            <PayoutMethodForm
+              onSuccess={handlePayoutSuccess}
+              onSkip={handlePayoutSkip}
+              allowedMethods={allowedPaymentMethods}
+            />
           )}
         </div>
       </DialogContent>

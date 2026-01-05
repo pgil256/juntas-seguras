@@ -117,6 +117,22 @@ export async function POST(request: NextRequest) {
     const startDate = body.startDate ? new Date(body.startDate) : new Date();
     const nextPayoutDate = calculateNextPayoutDate(startDate, body.frequency);
     
+    // Validate and set allowed payment methods (default to all if not provided)
+    const validPaymentMethods: ('venmo' | 'cashapp' | 'paypal' | 'zelle')[] = ['venmo', 'cashapp', 'paypal', 'zelle'];
+    let allowedPaymentMethods: ('venmo' | 'cashapp' | 'paypal' | 'zelle')[] = [...validPaymentMethods];
+
+    if (body.allowedPaymentMethods && Array.isArray(body.allowedPaymentMethods)) {
+      // Filter to only valid payment methods
+      const filteredMethods = body.allowedPaymentMethods.filter(
+        (method): method is 'venmo' | 'cashapp' | 'paypal' | 'zelle' =>
+          validPaymentMethods.includes(method as any)
+      );
+      // If no valid methods provided, default to all
+      if (filteredMethods.length > 0) {
+        allowedPaymentMethods = filteredMethods;
+      }
+    }
+
     // Create a new pool with the creator as the admin
     const newPool: Pool = {
       id: poolId,
@@ -131,6 +147,7 @@ export async function POST(request: NextRequest) {
       totalRounds: body.totalRounds,
       nextPayoutDate: nextPayoutDate.toISOString(),
       memberCount,
+      allowedPaymentMethods,
       members: [
         {
           id: 1,

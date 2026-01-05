@@ -30,6 +30,15 @@ import {
 import { Badge } from '../../../components/ui/badge';
 import { RulesAcknowledgmentDialog } from '../../../components/pools/RulesAcknowledgmentDialog';
 import { PoolOnboardingModal } from '../../../components/payments/PoolOnboardingModal';
+import { PaymentMethodType } from '../../../types/pool';
+
+// Payment method labels for display
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  venmo: 'Venmo',
+  cashapp: 'Cash App',
+  paypal: 'PayPal',
+  zelle: 'Zelle',
+};
 
 function JoinPoolContent() {
   const router = useRouter();
@@ -44,7 +53,7 @@ function JoinPoolContent() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showRulesDialog, setShowRulesDialog] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [joinedPoolData, setJoinedPoolData] = useState<{ id: string; name: string; contributionAmount: number; frequency: string } | null>(null);
+  const [joinedPoolData, setJoinedPoolData] = useState<{ id: string; name: string; contributionAmount: number; frequency: string; allowedPaymentMethods?: PaymentMethodType[] } | null>(null);
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -116,6 +125,7 @@ function JoinPoolContent() {
           name: validationResult.pool.name,
           contributionAmount: validationResult.pool.contributionAmount,
           frequency: validationResult.pool.frequency,
+          allowedPaymentMethods: validationResult.pool.allowedPaymentMethods,
         });
         // Show onboarding modal (payment + payout setup)
         setShowRulesDialog(false);
@@ -292,6 +302,19 @@ function JoinPoolContent() {
                       </div>
                     </div>
                   </div>
+
+                  {validationResult.pool.allowedPaymentMethods && validationResult.pool.allowedPaymentMethods.length > 0 && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm text-gray-500 mb-2">Accepted Payment Methods</p>
+                      <div className="flex flex-wrap gap-2">
+                        {validationResult.pool.allowedPaymentMethods.map((method: string) => (
+                          <Badge key={method} variant="secondary">
+                            {PAYMENT_METHOD_LABELS[method] || method}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {validationResult.invitation.message && (
@@ -407,6 +430,7 @@ function JoinPoolContent() {
             poolName={joinedPoolData.name}
             contributionAmount={joinedPoolData.contributionAmount}
             frequency={joinedPoolData.frequency}
+            allowedPaymentMethods={joinedPoolData.allowedPaymentMethods}
           />
         )}
       </Card>

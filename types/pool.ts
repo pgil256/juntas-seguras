@@ -178,6 +178,9 @@ export interface Pool {
   transactions: PoolTransaction[];
   messages: PoolMessage[];
 
+  // Allowed payment methods for this pool (selected by admin during creation)
+  allowedPaymentMethods?: PaymentMethodType[];
+
   // Admin's collection payment methods (where contributors send money)
   adminPaymentMethods?: AdminPaymentMethods;
 
@@ -199,6 +202,7 @@ export interface CreatePoolRequest {
   totalRounds: number;
   startDate?: string;
   invitations?: string[];
+  allowedPaymentMethods?: PaymentMethodType[];
 }
 
 export interface UpdatePoolRequest {
