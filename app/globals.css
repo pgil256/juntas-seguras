@@ -346,3 +346,242 @@
     opacity: 0.5;
   }
 }
+
+/* Enhanced Mobile Touch Interactions */
+@layer utilities {
+  /* Smooth press feedback for touch devices */
+  .touch-feedback {
+    @apply transition-all duration-150 ease-out;
+    @apply active:scale-[0.97] active:opacity-90;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Card press effect - subtle but satisfying */
+  .card-press {
+    @apply transition-all duration-150;
+    @apply active:scale-[0.98] active:shadow-sm;
+  }
+
+  /* Button bounce effect */
+  .btn-bounce {
+    @apply transition-transform duration-200;
+    @apply active:scale-95;
+  }
+
+  /* Ripple effect container */
+  .ripple-container {
+    @apply relative overflow-hidden;
+  }
+
+  /* Pull-to-refresh indicator */
+  .pull-indicator {
+    @apply flex items-center justify-center py-3;
+    @apply text-gray-400 text-sm;
+  }
+
+  /* Swipeable list item */
+  .swipe-item {
+    @apply transition-transform duration-200 ease-out;
+    touch-action: pan-y;
+  }
+
+  /* Bottom sheet handle */
+  .sheet-handle {
+    @apply w-10 h-1 rounded-full bg-gray-300 mx-auto mb-2;
+  }
+
+  /* iOS-style blur effect for headers/navbars */
+  .blur-header {
+    @apply backdrop-blur-lg bg-white/90;
+    @supports (backdrop-filter: blur(12px)) {
+      background-color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
+  /* Elastic overscroll effect */
+  .elastic-scroll {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Momentum scrolling for iOS */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Snap scrolling for carousels */
+  .snap-scroll-x {
+    @apply overflow-x-auto scrollbar-hide;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .snap-item {
+    scroll-snap-align: start;
+  }
+
+  /* Loading shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply fixed bottom-20 right-4 z-40;
+    @apply w-14 h-14 rounded-full;
+    @apply bg-blue-600 text-white shadow-lg shadow-blue-500/30;
+    @apply flex items-center justify-center;
+    @apply transition-all duration-200;
+    @apply active:scale-95 active:shadow-md;
+  }
+
+  .fab:hover {
+    @apply bg-blue-700 shadow-xl;
+  }
+
+  /* Mobile-friendly spacing for bottom nav */
+  .pb-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Responsive container that respects safe areas */
+  .container-safe {
+    @apply px-4 sm:px-6 lg:px-8;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* New keyframe animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes bounce-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation utility classes */
+@layer utilities {
+  .animate-bounce-soft {
+    animation: bounce-soft 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 200ms ease-out;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 200ms ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 200ms ease-out;
+  }
+
+  /* Staggered animation delays for lists */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+}
+
+/* Improved focus states for accessibility */
+@layer base {
+  /* Better focus ring for interactive elements */
+  .focus-ring-primary {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+  }
+
+  /* Larger touch targets on mobile */
+  @media (pointer: coarse) {
+    button:not([class*="h-"]),
+    a:not([class*="h-"]) {
+      min-height: 44px;
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-width: 24px;
+      min-height: 24px;
+    }
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
