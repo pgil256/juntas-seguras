@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '../../../../components/Navbar';
 import TwoFactorSetup from '../../../../components/security/TwoFactorSetup';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -249,24 +248,19 @@ export default function TwoFactorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-4 sm:px-0">
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              className="flex items-center text-gray-600 hover:text-gray-900"
-              onClick={() => router.push('/profile')}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back to Profile
-            </Button>
-          </div>
-
-          {renderContent()}
-        </div>
+    <div>
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          className="flex items-center text-gray-600 hover:text-gray-900"
+          onClick={() => router.push('/profile')}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back to Profile
+        </Button>
       </div>
+
+      {renderContent()}
     </div>
   );
 }
