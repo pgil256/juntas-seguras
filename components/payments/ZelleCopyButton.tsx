@@ -105,10 +105,19 @@ export function ZelleCopyButton({
   );
 }
 
+interface ZelleQRData {
+  token?: string;
+  rawContent?: string;
+  imageDataUrl?: string;
+  uploadedAt?: string;
+}
+
 interface ZelleInstructionsCardProps {
   identifier: string;
   recipientName: string;
   amount: number;
+  zelleQR?: ZelleQRData | null;
+  note?: string;
   className?: string;
 }
 
@@ -116,15 +125,20 @@ export function ZelleInstructionsCard({
   identifier,
   recipientName,
   amount,
+  zelleQR,
+  note,
   className,
 }: ZelleInstructionsCardProps) {
   const [copied, setCopied] = useState(false);
+  const [showFullQR, setShowFullQR] = useState(false);
 
   const isEmail = identifier.includes('@');
   const formattedAmount = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
   }).format(amount);
+
+  const hasQR = !!zelleQR?.imageDataUrl;
 
   const handleCopy = async () => {
     try {
@@ -143,16 +157,46 @@ export function ZelleInstructionsCard({
         className
       )}
     >
-      <div className="flex items-center gap-2 mb-3">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
         <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-lg font-bold">
           Z
         </span>
         <span className="text-lg font-semibold">Pay via Zelle</span>
       </div>
 
+      {/* QR Code Section (if available) */}
+      {hasQR && (
+        <div className="mb-4">
+          <div className="bg-white rounded-lg p-3 flex flex-col items-center">
+            <button
+              onClick={() => setShowFullQR(true)}
+              className="relative group cursor-pointer"
+            >
+              <img
+                src={zelleQR!.imageDataUrl}
+                alt={`Zelle QR code for ${recipientName}`}
+                className="w-32 h-32 object-contain"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded transition-colors flex items-center justify-center">
+                <span className="text-xs text-transparent group-hover:text-gray-600 font-medium">
+                  Tap to enlarge
+                </span>
+              </div>
+            </button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Scan with your bank app
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Recipient Info */}
       <div className="space-y-3">
         <div className="bg-white/10 rounded-md p-3">
-          <div className="text-sm text-white/70 mb-1">Send to:</div>
+          <div className="text-sm text-white/70 mb-1">
+            {hasQR ? 'Or send manually to:' : 'Send to:'}
+          </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isEmail ? (
@@ -160,11 +204,11 @@ export function ZelleInstructionsCard({
               ) : (
                 <Phone className="h-4 w-4 text-white/70" />
               )}
-              <span className="font-medium">{identifier}</span>
+              <span className="font-medium break-all">{identifier}</span>
             </div>
             <button
               onClick={handleCopy}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
               title={copied ? 'Copied!' : 'Copy'}
             >
               {copied ? (
@@ -185,14 +229,92 @@ export function ZelleInstructionsCard({
           <span className="text-white/70">Amount:</span>
           <span className="font-bold text-lg">{formattedAmount}</span>
         </div>
+
+        {note && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-white/70">Note:</span>
+            <span className="font-medium text-right max-w-[60%] truncate">{note}</span>
+          </div>
+        )}
       </div>
 
+      {/* Step-by-step Instructions */}
       <div className="mt-4 pt-3 border-t border-white/20">
-        <p className="text-xs text-white/60">
-          Open your bank&apos;s Zelle feature or the Zelle app to send this payment.
-          Zelle transfers are typically instant.
+        <p className="text-xs font-medium text-white/80 mb-2">How to pay:</p>
+        <ol className="text-xs text-white/60 space-y-1 list-decimal list-inside">
+          <li>Open your bank app (Chase, Wells Fargo, etc.) or Zelle app</li>
+          <li>Go to &quot;Send Money with Zelle&quot;</li>
+          {hasQR ? (
+            <li>Scan the QR code above, or enter: <span className="text-white/80 font-medium">{identifier}</span></li>
+          ) : (
+            <li>Enter recipient: <span className="text-white/80 font-medium">{identifier}</span></li>
+          )}
+          <li>Enter amount: <span className="text-white/80 font-medium">{formattedAmount}</span></li>
+          <li>Review and send payment</li>
+        </ol>
+        <p className="text-xs text-white/50 mt-2">
+          Zelle transfers are typically instant and free.
         </p>
       </div>
+
+      {/* Full QR Modal */}
+      {showFullQR && hasQR && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowFullQR(false)}
+        >
+          <div
+            className="bg-white rounded-xl p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#6D1ED4] text-white text-sm font-bold">
+                  Z
+                </span>
+                <span className="font-semibold text-gray-900">Zelle Payment</span>
+              </div>
+              <button
+                onClick={() => setShowFullQR(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <img
+                src={zelleQR!.imageDataUrl}
+                alt={`Zelle QR code for ${recipientName}`}
+                className="w-64 h-64 object-contain"
+              />
+              <p className="text-lg font-semibold text-gray-900 mt-4">{recipientName}</p>
+              <p className="text-sm text-gray-500">{identifier}</p>
+              <p className="text-2xl font-bold text-[#6D1ED4] mt-2">{formattedAmount}</p>
+              <p className="text-xs text-gray-400 mt-4 text-center">
+                Scan this QR code with your bank&apos;s Zelle feature
+              </p>
+            </div>
+
+            <button
+              onClick={handleCopy}
+              className="mt-4 w-full py-2 px-4 bg-[#6D1ED4] text-white rounded-lg font-medium hover:bg-[#5a19b0] transition-colors flex items-center justify-center gap-2"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy {isEmail ? 'Email' : 'Phone'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
