@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -12,6 +13,7 @@ import { Loader2 } from "lucide-react";
 function VerifyMfaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { update: updateSession } = useSession();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +46,10 @@ function VerifyMfaContent() {
 
       // Get return URL from query params or default to dashboard
       const returnUrl = searchParams.get('returnUrl') || '/dashboard';
+
+      // Update the NextAuth session to clear requiresMfa flag
+      // This triggers the JWT callback with trigger='update' which clears MFA requirement
+      await updateSession();
 
       // If verification is successful, redirect to the return URL or dashboard
       router.push(decodeURIComponent(returnUrl));
