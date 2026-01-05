@@ -73,16 +73,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   };
 
   // Fetch notifications when authentication status changes
+  // Skip if MFA verification is pending
   useEffect(() => {
+    // Don't fetch if MFA is required (session.requiresMfa)
+    const requiresMfa = (session as any)?.requiresMfa;
+    if (requiresMfa) {
+      return;
+    }
+
     if (status === 'authenticated' || status === 'unauthenticated') {
       getNotifications();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]); // getNotifications is intentionally omitted to prevent infinite loops
+  }, [status, (session as any)?.requiresMfa]); // getNotifications is intentionally omitted to prevent infinite loops
 
   // Auto-refresh notifications every 60 seconds when authenticated
+  // Skip if MFA verification is pending
   useEffect(() => {
     if (status !== 'authenticated') return;
+
+    // Don't auto-refresh if MFA is required
+    const requiresMfa = (session as any)?.requiresMfa;
+    if (requiresMfa) return;
 
     const interval = setInterval(() => {
       getNotifications();
@@ -90,7 +102,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, (session as any)?.requiresMfa]);
 
   const markAsRead = async (id: number) => {
     try {
