@@ -21,7 +21,9 @@ This document tracks the implementation status of features in the Juntas Seguras
 | Pool Creation | Done | Customizable contribution amount, frequency, max members |
 | Pool Invitations | Done | Email invitations with accept/reject |
 | Member Management | Done | Admin can manage positions and status |
-| Pool Messaging | Done | In-pool communication system |
+| Pool Messaging | Done | Legacy in-pool communication system |
+| Pool Discussions | Done | Discussion threads with @mentions and read receipts |
+| Payment Reminders | Done | Automated payment reminder system |
 | Contribution Tracking | Done | Per-round contribution status |
 | Contribution UI | Done | Modal for making contributions |
 | Payout Management | Done | Admin processes payouts when all contributions received |
@@ -32,6 +34,8 @@ This document tracks the implementation status of features in the Juntas Seguras
 | Automatic Collections | Done | Scheduled contribution collection with grace periods |
 | Early Payout Requests | Done | Members can request early payout |
 | Manual Payout Methods | Done | Venmo, PayPal, Zelle, Cash App, Bank Transfer |
+| Zelle QR Codes | Done | Generate Zelle QR codes for easy payments |
+| Admin Payment Methods | Done | Pool admin payment method management |
 | Audit Logging | Done | Comprehensive activity tracking |
 | Mobile Navbar | Done | Hamburger menu for mobile |
 | Dashboard | Done | Pool overview and analytics |
@@ -86,10 +90,10 @@ This document tracks the implementation status of features in the Juntas Seguras
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
-| Email Notifications | High | Contribution reminders, payout notifications |
-| Pool Analytics | Medium | Detailed pool performance metrics |
+| Email Notifications | Done | Contribution reminders, payout notifications |
+| Pool Analytics | Done | Pool analytics hooks and components |
 | Export Functionality | Medium | PDF receipts, transaction reports |
-| Search Improvements | Medium | Better filtering and sorting |
+| Search Improvements | Done | Search functionality with API and UI |
 
 ### Medium Term
 
@@ -133,9 +137,10 @@ This document tracks the implementation status of features in the Juntas Seguras
 ### Documentation
 
 - [x] Update README with current features
-- [x] Update CLAUDE.md with architecture
+- [x] Update CLAUDE.md with architecture (updated with 14 models, 86 components, 60+ API routes)
 - [x] Update SETUP_GUIDE for Stripe-only setup
 - [x] Create .env.example file
+- [x] Update IMPLEMENTATION_PLAN.md with current status
 - [ ] Add API documentation (OpenAPI/Swagger)
 - [ ] Create database schema diagram
 - [ ] Document component library
@@ -154,8 +159,13 @@ This document tracks the implementation status of features in the Juntas Seguras
 | `components/pools/EarlyPayoutModal.tsx` | Request early payout | Done |
 | `components/pools/AutoCollectionStatus.tsx` | Auto-collection status | Done |
 | `components/pools/AdminCollectionsDashboard.tsx` | Admin collection view | Done |
+| `components/pools/ReminderSettings.tsx` | Payment reminder settings | Done |
+| `components/pools/CreatePoolModal.tsx` | Pool creation modal | Done |
+| `components/pools/CreatorRulesAcknowledgmentDialog.tsx` | Creator rules dialog | Done |
+| `components/pools/RulesAcknowledgmentDialog.tsx` | Member rules dialog | Done |
+| `components/discussions/*` | Discussion thread components | Done |
 
-### Hooks
+### Hooks (22 Total)
 
 | Hook | Purpose | Status |
 |------|---------|--------|
@@ -165,6 +175,18 @@ This document tracks the implementation status of features in the Juntas Seguras
 | `useEarlyPayout` | Early payout requests | Done |
 | `usePaymentMethods` | Payment method CRUD | Done |
 | `useIdentityVerification` | KYC verification | Done |
+| `usePoolAnalytics` | Pool analytics | Done |
+| `usePoolInvitations` | Pool invitations | Done |
+| `useCreatePool` | Pool creation | Done |
+| `usePool`, `usePools` | Pool data fetching | Done |
+| `usePoolMembers` | Member management | Done |
+| `useDirectMessages`, `usePoolMessages` | Messaging | Done |
+| `useUserProfile`, `useUserSettings` | User data | Done |
+| `useUserId` | Current user ID | Done |
+| `useSearch` | Search functionality | Done |
+| `useTickets` | Support tickets | Done |
+| `useCreateNotification` | Notification creation | Done |
+| `useDebounce` | Debounce utility | Done |
 
 ### API Routes
 
@@ -172,12 +194,19 @@ This document tracks the implementation status of features in the Juntas Seguras
 |-------|---------|--------|
 | `/api/pools/[id]/contributions` | Contribution API | Done |
 | `/api/pools/[id]/payouts` | Payout API | Done |
+| `/api/pools/[id]/round-payout` | Round payout API | Done |
 | `/api/pools/[id]/early-payout` | Early payout API | Done |
 | `/api/pools/[id]/collections` | Collection management | Done |
+| `/api/pools/[id]/discussions` | Discussion threads | Done |
+| `/api/pools/[id]/admin-payment-methods` | Admin payment methods | Done |
+| `/api/pools/[id]/zelle-qr` | Zelle QR codes | Done |
 | `/api/stripe/create-payment-intent` | Stripe payments | Done |
 | `/api/stripe/connect` | Stripe Connect | Done |
 | `/api/stripe/webhook` | Stripe webhooks | Done |
 | `/api/user/payout-method` | Manual payout methods | Done |
+| `/api/user/zelle-qr` | User Zelle QR | Done |
+| `/api/cron/reminders` | Payment reminders | Done |
+| `/api/search` | Search API | Done |
 
 ---
 
@@ -225,6 +254,19 @@ This document tracks the implementation status of features in the Juntas Seguras
 | 1.4 | Jan 2025 | PayPal removed, Stripe-only |
 | 1.5 | Jan 2025 | Manual payout methods added |
 | 2.0 | Jan 2026 | Documentation updated, feature status reviewed |
+| 2.1 | Jan 2026 | Added discussions, reminders, Zelle QR, search, analytics |
+
+---
+
+## Codebase Statistics
+
+| Category | Count |
+|----------|-------|
+| React Components | 86 files |
+| API Endpoints | 60+ |
+| Database Models | 14 schemas |
+| Custom Hooks | 22 |
+| Type Definitions | 11 files |
 
 ---
 

@@ -110,7 +110,7 @@ export default function Navbar() {
           {/* Mobile menu button - only item on right side for mobile */}
           <button
             type="button"
-            className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
+            className="sm:hidden inline-flex items-center justify-center p-2 min-h-[44px] min-w-[44px] rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
             aria-controls="mobile-menu"
             aria-expanded={mobileMenuOpen}
             onClick={toggleMobileMenu}

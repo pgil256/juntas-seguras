@@ -1023,9 +1023,12 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                           every {pool.frequency.toLowerCase()}, <strong>including the round's payout recipient</strong>.
                         </li>
                         <li>
-                          Contributions are collected automatically via saved payment methods.
+                          Contributions are made manually via Venmo, PayPal, Zelle, or Cash App directly to the pool admin.
                         </li>
                         <li>Payments are due every Friday by 8:00 PM.</li>
+                        <li>
+                          After sending your payment, mark it as completed in the app so the admin can verify receipt.
+                        </li>
                         <li>
                           Members who fail to make payments on time will receive
                           a warning. After two missed payments, they may be
@@ -1051,7 +1054,10 @@ export default function PoolDetailPage({ params }: { params: { id: string } }) {
                           during their assigned round.
                         </li>
                         <li>
-                          Payouts will be processed every two weeks on Saturday.
+                          Payouts are sent by the pool admin via your preferred payment method (Venmo, PayPal, Zelle, or Cash App).
+                        </li>
+                        <li>
+                          Make sure to set up your payout method in the Payouts tab to receive funds.
                         </li>
                       </ul>
                     </div>

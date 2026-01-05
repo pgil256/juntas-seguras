@@ -31,7 +31,11 @@ This document tracks production readiness items for the Juntas Seguras applicati
 - [x] **Contribution System** - Track and process contributions
 - [x] **Payout System** - Process payouts when contributions complete
 - [x] **Invitation System** - Email invitations for members
-- [x] **Messaging System** - In-pool communication
+- [x] **Messaging System** - Legacy in-pool communication
+- [x] **Discussion Threads** - Pool discussions with @mentions and read receipts
+- [x] **Payment Reminders** - Automated reminder system
+- [x] **Zelle QR Codes** - Generate Zelle QR codes for payments
+- [x] **Search Functionality** - Search across pools and users
 
 ---
 
@@ -105,11 +109,12 @@ This document tracks production readiness items for the Juntas Seguras applicati
 
 ### Documentation
 
-- [x] README with current features
-- [x] CLAUDE.md with architecture
-- [x] SETUP_GUIDE updated
+- [x] README with current features (86 components, 60+ API routes, 14 models)
+- [x] CLAUDE.md with architecture (updated with accurate counts)
+- [x] SETUP_GUIDE updated (includes cron jobs documentation)
 - [x] PRODUCTION_README updated
 - [x] .env.example file
+- [x] IMPLEMENTATION_PLAN.md updated with current status
 - [ ] API documentation (OpenAPI/Swagger)
 - [ ] Database schema diagram
 - [ ] Component library documentation
@@ -262,6 +267,19 @@ This document tracks production readiness items for the Juntas Seguras applicati
 | 1.1 | Dec 2024 | Added security items |
 | 1.2 | Jan 2025 | Updated for Stripe-only |
 | 2.0 | Jan 2026 | Comprehensive update, marked completed items |
+| 2.1 | Jan 2026 | Added discussions, reminders, search, Zelle QR features |
+
+---
+
+## Codebase Statistics
+
+| Category | Count |
+|----------|-------|
+| React Components | 86 files |
+| API Endpoints | 60+ |
+| Database Models | 14 schemas |
+| Custom Hooks | 22 |
+| Type Definitions | 11 files |
 
 ---
 

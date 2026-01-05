@@ -80,6 +80,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]); // getNotifications is intentionally omitted to prevent infinite loops
 
+  // Auto-refresh notifications every 60 seconds when authenticated
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+
+    const interval = setInterval(() => {
+      getNotifications();
+    }, 60000); // Refresh every 60 seconds
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   const markAsRead = async (id: number) => {
     try {
       const response = await fetch('/api/notifications', {

@@ -1252,14 +1252,14 @@ export default function SettingsPage() {
                           )}
                         </Label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">paypal.me/</span>
+                          <span className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">paypal.me/</span>
                           <Input
                             id="paypal-handle"
                             type="text"
-                            placeholder="username"
+                            placeholder="paypal.me/username"
                             value={multiPayoutFormData.paypal || ''}
                             onChange={(e) => handleMultiPayoutChange('paypal', e.target.value)}
-                            className={`pl-[5.5rem] ${validationErrors.paypal ? 'border-red-300' : ''}`}
+                            className={`sm:pl-[5.5rem] ${validationErrors.paypal ? 'border-red-300' : ''}`}
                           />
                         </div>
                         {validationErrors.paypal ? (
@@ -1327,7 +1327,7 @@ export default function SettingsPage() {
                             {multiPayoutFormData.paypal && <SelectItem value="paypal">PayPal</SelectItem>}
                             {multiPayoutFormData.zelle && <SelectItem value="zelle">Zelle</SelectItem>}
                             {!multiPayoutFormData.venmo && !multiPayoutFormData.cashapp && !multiPayoutFormData.paypal && !multiPayoutFormData.zelle && (
-                              <SelectItem value="" disabled>Add a payment method first</SelectItem>
+                              <SelectItem value="none" disabled>Add a payment method first</SelectItem>
                             )}
                           </SelectContent>
                         </Select>

@@ -17,14 +17,17 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 - Configurable contribution amounts and frequencies
 - Member position management and round tracking
 - Pool invitations with email notifications
-- In-pool messaging for member communication
+- **Discussion threads** for member communication with @mentions
+- Legacy in-pool messaging system
 
 ### Payment Processing
 - **Stripe Integration** for secure contributions and payouts
 - Stripe Connect for direct payouts to member bank accounts
 - Escrow system holds funds until all contributions received
 - Automatic contribution collection with configurable schedules
+- **Payment reminders** with customizable settings
 - **Manual Payout Methods**: Venmo, PayPal, Zelle, Cash App support
+- Zelle QR code generation for easy payments
 
 ### Security
 - **Mandatory Multi-Factor Authentication (MFA)** for all users
@@ -45,7 +48,7 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 14.2 (App Router)
 - **Language**: TypeScript
 - **Frontend**: React 18
 - **Styling**: Tailwind CSS + shadcn/ui components
@@ -100,23 +103,24 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 ```
 my-juntas-app/
 ├── app/                    # Next.js App Router pages & API routes
-│   ├── api/               # API endpoints (55+ routes)
+│   ├── api/               # API endpoints (60+ routes)
 │   ├── auth/              # Authentication pages
 │   ├── dashboard/         # User dashboard
 │   ├── pools/             # Pool detail pages
 │   ├── help/              # Help & documentation
 │   └── ...
-├── components/            # React components (67 files)
+├── components/            # React components (86 files)
 │   ├── pools/            # Pool-related components
 │   ├── payments/         # Payment UI components
+│   ├── discussions/      # Discussion/thread components
 │   ├── ui/               # shadcn/ui components
 │   └── ...
 ├── lib/                   # Utility libraries
-│   ├── db/               # Database models (9 Mongoose schemas)
+│   ├── db/               # Database models (14 Mongoose schemas)
 │   ├── hooks/            # Custom React hooks (22 hooks)
 │   ├── services/         # Business logic services
 │   └── stripe/           # Stripe utilities
-├── types/                # TypeScript type definitions
+├── types/                # TypeScript type definitions (11 files)
 └── public/               # Static assets
 ```
 
@@ -183,24 +187,35 @@ The application can also be deployed to:
 | User | User accounts, authentication, MFA, identity verification |
 | Pool | Savings pool configuration, members, transactions |
 | Payment | Payment records with Stripe integration |
-| PaymentMethod | Tokenized payment methods |
+| PaymentSetup | Payment method setup intents |
 | PoolInvitation | Pool member invitations |
-| Message | Pool messaging |
+| Message | Pool messaging (legacy) |
 | DirectMessage | Direct messages between members |
+| Discussion | Pool discussion threads |
+| DiscussionMention | @mentions in discussions |
+| DiscussionReadReceipt | Discussion read status tracking |
 | AuditLog | Comprehensive audit trail |
 | ScheduledCollection | Automated payment collection |
+| Reminder | Payment reminders |
+| NotificationPreference | User notification settings |
 
 ## API Routes
 
-The application includes 55+ API endpoints organized by feature:
+The application includes 60+ API endpoints organized by feature:
 - `/api/auth/*` - Authentication (register, verify, MFA, password reset)
-- `/api/pools/*` - Pool management (CRUD, members, messages)
+- `/api/pools/*` - Pool management (CRUD, members, discussions, collections)
 - `/api/payments/*` - Payment processing (history, methods, escrow)
 - `/api/stripe/*` - Stripe integration (payments, Connect, webhooks)
 - `/api/users/*` - User management (profile, settings)
+- `/api/user/*` - Current user endpoints (payout methods, Zelle QR)
 - `/api/notifications/*` - Notification system
 - `/api/identity/*` - Identity verification
+- `/api/security/*` - Security & 2FA management
+- `/api/collections/*` - Collection processing (cron)
+- `/api/cron/*` - Cron job endpoints (reminders)
 - `/api/audit/*` - Audit logging
+- `/api/search/*` - Search functionality
+- `/api/support/*` - Support tickets
 
 ## Contributing
 

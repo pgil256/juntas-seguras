@@ -6,8 +6,10 @@ import { InvitationStatus } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
+import { User } from '../../../../../lib/db/models/user';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { createNotification, NotificationTemplates } from '../../../../../lib/services/notifications';
 
 // Create email transporter
 const getEmailTransporter = () => {
@@ -236,7 +238,7 @@ export async function POST(
     
     // Send invitation email
     await sendInvitationEmail(newInvitation, pool, session.user);
-    
+
     // Log activity
     try {
       await logActivity(session.user.id, 'pool_invitation_sent', {
@@ -247,7 +249,22 @@ export async function POST(
     } catch (error) {
       console.error('Failed to log invitation activity:', error);
     }
-    
+
+    // If the invited email belongs to an existing user, send them an in-app notification
+    try {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        await createNotification({
+          userId: existingUser.email,
+          message: NotificationTemplates.invitationReceived(pool.name, session.user.name || session.user.email || 'Someone'),
+          type: 'invite',
+          isImportant: true,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send invitation notification:', error);
+    }
+
     return NextResponse.json({
       success: true,
       invitation: {

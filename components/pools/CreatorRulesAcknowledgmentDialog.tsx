@@ -32,9 +32,9 @@ const CREATOR_RULES = [
     description: 'All members, including you as the creator and any round\'s payout recipient, must contribute every round. There are no exceptions - everyone pays, everyone benefits.',
   },
   {
-    id: 'autopay',
-    title: 'Automatic Payment Collection',
-    description: 'Contributions are collected automatically via Stripe. All members must set up a valid payment method to participate. Payments are charged automatically on each due date.',
+    id: 'manual-payments',
+    title: 'Manual Payment Collection',
+    description: 'Contributions are collected manually via Venmo, PayPal, Zelle, or Cash App. Members send payments directly to the pool admin. You must verify and confirm receipt of each payment.',
   },
   {
     id: 'payout-order',
@@ -42,9 +42,9 @@ const CREATOR_RULES = [
     description: 'Members receive payouts based on their position in the queue. Payouts cannot be processed until all members have contributed for that round.',
   },
   {
-    id: 'stripe-required',
-    title: 'Stripe Account Required',
-    description: 'All members must connect and verify a Stripe account to receive their payout. Payouts are sent directly to each member\'s linked bank account.',
+    id: 'payout-responsibility',
+    title: 'Payout Distribution',
+    description: 'As the pool admin, you are responsible for sending payouts to members via their preferred method (Venmo, PayPal, Zelle, or Cash App) once all contributions are received.',
   },
   {
     id: 'commitment',
@@ -53,8 +53,8 @@ const CREATOR_RULES = [
   },
   {
     id: 'creator-responsibility',
-    title: 'Creator Responsibilities',
-    description: 'As the pool creator, you are responsible for inviting trustworthy members and ensuring the pool runs smoothly. You will participate as a regular member with all the same obligations.',
+    title: 'Admin Responsibilities',
+    description: 'As the pool admin, you are responsible for collecting payments, distributing payouts, inviting trustworthy members, and ensuring the pool runs smoothly. You will also participate as a contributing member.',
   },
 ];
 

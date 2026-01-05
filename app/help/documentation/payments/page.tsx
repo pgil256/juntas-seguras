@@ -121,7 +121,7 @@ export default function PaymentsDocumentationPage() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      Pool administrators will send payouts manually using your provided details.
+                      Pool administrators will send payouts manually using your provided details. Zelle users can generate a QR code for easy payments.
                     </p>
                   </div>
                 </div>

@@ -366,11 +366,19 @@ STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 In addition to Stripe Connect, users can set up manual payout methods:
 - **Venmo**: User provides Venmo username
 - **PayPal**: User provides PayPal email
-- **Zelle**: User provides Zelle phone/email
+- **Zelle**: User provides Zelle phone/email (with QR code generation)
 - **Cash App**: User provides Cash App cashtag
 - **Bank Transfer**: User provides bank details
 
 These are managed through the user's profile settings.
+
+### Cron Jobs (Automatic Collection & Reminders)
+
+The application uses cron jobs for:
+- **Automatic Collection**: Daily processing of scheduled collections
+- **Payment Reminders**: Automated reminder emails before due dates
+
+Configure `CRON_SECRET` for authenticated cron endpoints. See `vercel.json` for cron schedule configuration.
 
 ---
 
