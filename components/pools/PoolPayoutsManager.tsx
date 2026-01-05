@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
 import { EarlyPayoutModal } from './EarlyPayoutModal';
-import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap, Wallet, Copy } from 'lucide-react';
+import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap, Wallet, Copy, ExternalLink } from 'lucide-react';
 
 interface PoolPayoutsManagerProps {
   poolId: string;
@@ -54,6 +54,31 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
     navigator.clipboard.writeText(handle);
     setCopiedHandle(true);
     setTimeout(() => setCopiedHandle(false), 2000);
+  };
+
+  // Generate payment link based on payout method type
+  const getPaymentLink = (type: string, handle: string, amount?: number) => {
+    const cleanHandle = handle.replace(/^[@$]/, ''); // Remove @ or $ prefix if present
+    switch (type) {
+      case 'venmo':
+        // Venmo deep link - opens app or web
+        return amount
+          ? `https://venmo.com/${cleanHandle}?txn=pay&amount=${amount}`
+          : `https://venmo.com/${cleanHandle}`;
+      case 'paypal':
+        // PayPal.me link
+        return amount
+          ? `https://paypal.me/${cleanHandle}/${amount}`
+          : `https://paypal.me/${cleanHandle}`;
+      case 'cashapp':
+        // Cash App link - use $ prefix for cashtag
+        return `https://cash.app/$${cleanHandle}`;
+      case 'zelle':
+        // Zelle doesn't have a universal link - return null
+        return null;
+      default:
+        return null;
+    }
   };
 
   // Load status on mount
@@ -239,22 +264,52 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyPayoutHandle(payoutStatus.recipient.payoutMethod!.handle)}
-                    className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
-                  >
-                    {copiedHandle ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyPayoutHandle(payoutStatus.recipient.payoutMethod!.handle)}
+                      className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                      title="Copy handle"
+                    >
+                      {copiedHandle ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-purple-500 text-xs mt-2">
-                  Send the payout manually using this {getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)} account
-                </p>
+
+                {/* Payment link button */}
+                {(() => {
+                  const paymentLink = getPaymentLink(
+                    payoutStatus.recipient.payoutMethod.type,
+                    payoutStatus.recipient.payoutMethod.handle,
+                    payoutStatus.payoutAmount
+                  );
+                  if (paymentLink) {
+                    return (
+                      <a
+                        href={paymentLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Send via {getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)}
+                      </a>
+                    );
+                  }
+                  return (
+                    <p className="text-purple-500 text-xs mt-3">
+                      {payoutStatus.recipient.payoutMethod.type === 'zelle'
+                        ? `Open your Zelle app and send to: ${payoutStatus.recipient.payoutMethod.handle}`
+                        : `Send the payout manually using this ${getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)} account`
+                      }
+                    </p>
+                  );
+                })()}
               </div>
             )}
 
