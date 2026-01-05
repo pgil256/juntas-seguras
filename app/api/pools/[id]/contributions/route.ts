@@ -280,6 +280,22 @@ export async function POST(
         updatedAt: new Date()
       });
 
+      // Add transaction record for payment history
+      const transactionId = Math.max(
+        ...pool.transactions.map((t: any) => t.id || 0),
+        0
+      ) + 1;
+      pool.transactions.push({
+        id: transactionId,
+        type: TransactionType.CONTRIBUTION,
+        amount: pool.contributionAmount,
+        date: new Date().toISOString(),
+        member: userMember.name,
+        status: TransactionStatus.COMPLETED,
+        round: currentRound,
+        paymentMethod: paymentMethod
+      });
+
       // Add a system message
       const messageId = Math.max(
         ...pool.messages.map((m: any) => m.id || 0),

@@ -138,51 +138,58 @@ export default function SupportPage() {
     }
     
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>ID</TableHead>
-            <TableHead>Subject</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ticketsList.map((ticket) => (
-            <TableRow key={ticket.id}>
-              <TableCell className="font-mono text-xs">{ticket.id}</TableCell>
-              <TableCell className="font-medium">
-                <div className="flex items-center">
-                  {ticket.responses && ticket.responses.length > 0 ? (
-                    <Badge variant="outline" className="mr-2 bg-blue-50">
-                      {ticket.responses.length}
+      <div className="overflow-x-auto -mx-4 sm:mx-0">
+        <div className="inline-block min-w-full align-middle">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="hidden sm:table-cell">ID</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden sm:table-cell">Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ticketsList.map((ticket) => (
+                <TableRow key={ticket.id}>
+                  <TableCell className="font-mono text-xs hidden sm:table-cell">{ticket.id}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                      <div className="flex items-center">
+                        {ticket.responses && ticket.responses.length > 0 ? (
+                          <Badge variant="outline" className="mr-2 bg-blue-50">
+                            {ticket.responses.length}
+                          </Badge>
+                        ) : null}
+                        <span className="line-clamp-2 sm:line-clamp-1">{ticket.subject}</span>
+                      </div>
+                      <span className="text-xs text-gray-500 sm:hidden">{formatDate(ticket.updatedAt)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={`${getStatusBadge(ticket.status)} text-xs`}>
+                      {formatStatus(ticket.status)}
                     </Badge>
-                  ) : null}
-                  {ticket.subject}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge className={getStatusBadge(ticket.status)}>
-                  {formatStatus(ticket.status)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-sm text-gray-500">
-                {formatDate(ticket.updatedAt)}
-              </TableCell>
-              <TableCell>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => viewTicket(ticket.id)}
-                >
-                  View
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-500 hidden sm:table-cell">
+                    {formatDate(ticket.updatedAt)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => viewTicket(ticket.id)}
+                    >
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     );
   };
   
@@ -231,34 +238,34 @@ export default function SupportPage() {
         return (
           <div className="container mx-auto p-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Support Tickets</CardTitle>
                   <CardDescription>
                     View and manage your support requests
                   </CardDescription>
                 </div>
-                <Button onClick={() => setView('create')}>
+                <Button onClick={() => setView('create')} className="w-full sm:w-auto">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   New Ticket
                 </Button>
               </CardHeader>
               
               <CardContent>
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center w-full max-w-sm space-x-2">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                  <div className="flex items-center w-full sm:max-w-sm space-x-2">
                     <Input
                       placeholder="Search tickets..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="max-w-xs"
+                      className="flex-1"
                     />
                     <Button type="submit" size="icon" variant="ghost">
                       <Search className="h-4 w-4" />
                     </Button>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
+
+                  <div className="hidden sm:flex items-center gap-2">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback>{userName.charAt(0) || '?'}</AvatarFallback>
                     </Avatar>

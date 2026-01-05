@@ -81,46 +81,68 @@ export default function HelpDocumentationLayout({
   return (
     <ClientOnly>
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Sidebar navigation */}
-      <div className="md:w-1/4 lg:w-1/5">
-        <div className="bg-white rounded-lg shadow overflow-hidden sticky top-20">
-          <div className="p-4 border-b">
-            <h3 className="font-medium text-gray-900">Documentation</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Complete guide to using Juntas Seguras
-            </p>
-          </div>
-          <nav className="p-2">
+        {/* Mobile horizontal navigation */}
+        <div className="md:hidden overflow-x-auto -mx-4 px-4">
+          <div className="flex gap-2 min-w-max pb-2">
             {docSections.map((section) => (
               <Link href={section.href} key={section.id}>
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start text-sm mb-1 ${
-                    isActive(section.href) 
+                  size="sm"
+                  className={`flex-shrink-0 whitespace-nowrap ${
+                    isActive(section.href)
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   {section.icon}
-                  {section.label}
+                  <span className="text-xs">{section.label}</span>
                 </Button>
               </Link>
             ))}
-          </nav>
-          <div className="p-4 bg-gray-50 border-t">
-            <Link href="/help/contact">
-              <Button variant="outline" className="w-full text-sm">
-                Need More Help?
-              </Button>
-            </Link>
           </div>
         </div>
-      </div>
-      
-      {/* Main content */}
-      <div className="md:w-3/4 lg:w-4/5">
-        {children}
-      </div>
+
+        {/* Desktop sidebar navigation */}
+        <div className="hidden md:block md:w-1/4 lg:w-1/5">
+          <div className="bg-white rounded-lg shadow overflow-hidden sticky top-20">
+            <div className="p-4 border-b">
+              <h3 className="font-medium text-gray-900">Documentation</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Complete guide to using Juntas Seguras
+              </p>
+            </div>
+            <nav className="p-2">
+              {docSections.map((section) => (
+                <Link href={section.href} key={section.id}>
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start text-sm mb-1 ${
+                      isActive(section.href)
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {section.icon}
+                    {section.label}
+                  </Button>
+                </Link>
+              ))}
+            </nav>
+            <div className="p-4 bg-gray-50 border-t">
+              <Link href="/help/contact">
+                <Button variant="outline" className="w-full text-sm">
+                  Need More Help?
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="w-full md:w-3/4 lg:w-4/5">
+          {children}
+        </div>
       </div>
     </ClientOnly>
   );
