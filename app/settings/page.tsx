@@ -8,7 +8,6 @@ import {
   Mail,
   Phone,
   Shield,
-  CreditCard,
   Bell,
   Settings,
   Lock,
@@ -22,13 +21,9 @@ import {
   AlertTriangle,
   Trash2,
   Check,
-  Plus,
-  Building,
   Wallet,
   Loader2,
 } from "lucide-react";
-import { PaymentMethodDialog } from "../../components/payments/PaymentMethodDialog";
-import { PaymentMethodFormValues } from "../../components/payments/PaymentMethodForm";
 import {
   Card,
   CardContent,
@@ -72,9 +67,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { useUserProfile } from "../../lib/hooks/useUserProfile";
 import { useUserSettings } from "../../lib/hooks/useUserSettings";
-import { usePaymentMethods } from "../../lib/hooks/usePaymentMethods";
 import { formatDate } from "../../lib/utils";
-import { PaymentMethod } from "../../types/payment";
 
 interface NotificationPreferences {
   email: {
@@ -104,8 +97,6 @@ export default function SettingsPage() {
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
 
   // Payout method state
   const [payoutMethod, setPayoutMethod] = useState<PayoutMethod | null>(null);
@@ -133,17 +124,7 @@ export default function SettingsPage() {
     error: settingsError,
     updateSettings
   } = useUserSettings();
-  
-  // Get payment methods
-  const {
-    paymentMethods,
-    isLoading: paymentMethodsLoading,
-    addPaymentMethod,
-    updatePaymentMethod,
-    removePaymentMethod: deletePaymentMethod,
-    setDefaultPaymentMethod: setDefaultMethod
-  } = usePaymentMethods();
-  
+
   // Local state for form data
   const [profile, setProfile] = useState({
     name: '',
@@ -296,67 +277,6 @@ export default function SettingsPage() {
     });
   };
   
-  // Handle adding or editing a payment method
-  const handlePaymentMethodSubmit = (values: PaymentMethodFormValues) => {
-    if (editingPaymentMethod) {
-      // Update existing payment method
-      updatePaymentMethod(editingPaymentMethod.id, {
-        type: values.type,
-        ...(values.type === 'card'
-          ? {
-              cardholderName: values.cardholderName,
-              cardNumber: values.cardNumber,
-              expiryMonth: values.expiryMonth,
-              expiryYear: values.expiryYear,
-              cvv: values.cvv
-            }
-          : values.type === 'bank'
-          ? {
-              accountHolderName: values.accountHolderName,
-              accountNumber: values.accountNumber,
-              routingNumber: values.routingNumber,
-              accountType: values.accountType
-            }
-          : {}
-        ),
-        isDefault: values.isDefault
-      });
-    } else {
-      // Add new payment method
-      addPaymentMethod({
-        type: values.type,
-        ...(values.type === 'card'
-          ? {
-              cardholderName: values.cardholderName,
-              cardNumber: values.cardNumber,
-              expiryMonth: values.expiryMonth,
-              expiryYear: values.expiryYear,
-              cvv: values.cvv
-            }
-          : values.type === 'bank'
-          ? {
-              accountHolderName: values.accountHolderName,
-              accountNumber: values.accountNumber,
-              routingNumber: values.routingNumber,
-              accountType: values.accountType
-            }
-          : {}
-        ),
-        isDefault: values.isDefault
-      });
-    }
-    
-    // Reset and close modal
-    setEditingPaymentMethod(null);
-    setShowPaymentMethodModal(false);
-  };
-  
-  // Edit a payment method
-  const editPaymentMethod = (method: PaymentMethod) => {
-    setEditingPaymentMethod(method);
-    setShowPaymentMethodModal(true);
-  };
-
   const saveProfile = async () => {
     // Save to API
     const result = await updateProfile({
@@ -1077,96 +997,14 @@ export default function SettingsPage() {
           <TabsContent value="payment">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Methods</CardTitle>
+                <CardTitle>Payout Method</CardTitle>
                 <CardDescription>
-                  Manage how you make contributions and receive payouts
+                  Set up how you receive your pool payouts
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex flex-col space-y-4">
-                  {paymentMethods && paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className={`border rounded-lg p-4 ${
-                        method.isDefault ? "bg-blue-50 border-blue-200" : ""
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                        <div className="flex items-center">
-                          {method.type === "bank" ? (
-                            <div className="bg-green-100 p-2 rounded-md mr-3 sm:mr-4 shrink-0">
-                              <CreditCard className="h-6 w-6 text-green-600" />
-                            </div>
-                          ) : (
-                            <div className="bg-blue-100 p-2 rounded-md mr-3 sm:mr-4 shrink-0">
-                              <CreditCard className="h-6 w-6 text-blue-600" />
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{method.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {method.type === "bank" ? "Account" : "Card"}{" "}
-                              ending in {method.last4}
-                              {method.isDefault && (
-                                <span className="ml-2 text-blue-600 text-xs font-medium">
-                                  Default
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {!method.isDefault && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="min-h-[44px] flex-1 sm:flex-none"
-                              onClick={() => setDefaultMethod(method.id)}
-                            >
-                              Set Default
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="min-h-[44px] flex-1 sm:flex-none"
-                            onClick={() => editPaymentMethod(method)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 min-h-[44px] flex-1 sm:flex-none"
-                            onClick={() => deletePaymentMethod(method.id)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  className="mt-4 min-h-[44px] w-full sm:w-auto"
-                  onClick={() => setShowPaymentMethodModal(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Payment Method
-                </Button>
-
                 {/* Payout Method Section */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                    <Wallet className="h-5 w-5" />
-                    Payout Method
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    How you&apos;ll receive your pool payouts (Venmo, PayPal, Zelle, or Cash App)
-                  </p>
-
-                  <div className="mt-4">
+                <div>
                     {payoutMethodLoading ? (
                       <div className="flex items-center gap-2 text-gray-500">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1301,41 +1139,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Auto-Pay Settings
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Configure automatic contributions to your pools
-                  </p>
-
-                  <div className="mt-4 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Enable Auto-Pay
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Automatically pay your contributions when they're due
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Payment Reminders
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Get notified 3 days before a payment is due
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+                              </CardContent>
             </Card>
           </TabsContent>
 
@@ -1454,22 +1258,6 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
-      
-      {/* Payment Method Dialog */}
-      <PaymentMethodDialog
-        isOpen={showPaymentMethodModal}
-        onClose={() => {
-          setShowPaymentMethodModal(false);
-          setEditingPaymentMethod(null);
-        }}
-        onSubmit={handlePaymentMethodSubmit}
-        initialValues={editingPaymentMethod ? {
-          type: editingPaymentMethod.type,
-          isDefault: editingPaymentMethod.isDefault,
-          // In a real app, you'd retrieve the full payment details from an API
-        } : undefined}
-        isEditing={!!editingPaymentMethod}
-      />
     </div>
   );
 }
