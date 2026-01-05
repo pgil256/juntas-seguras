@@ -172,9 +172,22 @@ export async function verifyEmailCode(userId: string, code: string): Promise<boo
       return false;
     }
 
-    // Check if the code matches
-    if (user.twoFactorAuth.temporaryCode !== code) {
-      // Email MFA code mismatch
+    // Check if the code matches (trim whitespace from both sides)
+    const storedCode = user.twoFactorAuth.temporaryCode?.trim();
+    const inputCode = code?.trim();
+
+    if (!storedCode) {
+      console.error('[MFA] No temporary code found for user:', userId);
+      return false;
+    }
+
+    if (storedCode !== inputCode) {
+      console.error('[MFA] Code mismatch for user:', userId, {
+        storedCodeLength: storedCode.length,
+        inputCodeLength: inputCode?.length,
+        storedCodePreview: storedCode.substring(0, 2) + '****',
+        inputCodePreview: inputCode ? inputCode.substring(0, 2) + '****' : 'empty'
+      });
       return false;
     }
 

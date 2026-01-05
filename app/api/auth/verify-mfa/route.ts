@@ -77,11 +77,17 @@ export async function POST(req: NextRequest) {
     let mfaValid = false;
     const mfaMethod = token.mfaMethod || user.twoFactorAuth.method || 'email';
 
-    console.log(`Verifying MFA for user ${user.email} using method: ${mfaMethod}`);
+    console.log(`[MFA-Verify] Verifying MFA for user ${user.email} using method: ${mfaMethod}`, {
+      userId: token.id,
+      codeLength: code?.length,
+      hasStoredCode: !!user.twoFactorAuth?.temporaryCode,
+      storedCodeLength: user.twoFactorAuth?.temporaryCode?.length,
+      codeGeneratedAt: user.twoFactorAuth?.codeGeneratedAt
+    });
 
     try {
       if (mfaMethod === 'email') {
-        mfaValid = await verifyEmailCode(token.id as string, code);
+        mfaValid = await verifyEmailCode(token.id as string, code.trim());
       } else if (mfaMethod === 'app') {
         mfaValid = await verifyTotpCode(token.id as string, code);
       } else {
