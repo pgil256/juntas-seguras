@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
 import { EarlyPayoutModal } from './EarlyPayoutModal';
-import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap } from 'lucide-react';
+import { DollarSign, Users, Calendar, Award, Clock, Check, X, AlertTriangle, Loader2, Lock, Zap, Wallet, Copy } from 'lucide-react';
 
 interface PoolPayoutsManagerProps {
   poolId: string;
@@ -35,6 +35,26 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
   const [processingPayout, setProcessingPayout] = useState(false);
   const [payoutResult, setPayoutResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [showEarlyPayoutModal, setShowEarlyPayoutModal] = useState(false);
+  const [copiedHandle, setCopiedHandle] = useState(false);
+
+  // Helper to get payout method label
+  const getPayoutMethodLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      venmo: 'Venmo',
+      paypal: 'PayPal',
+      zelle: 'Zelle',
+      cashapp: 'Cash App',
+      bank: 'Bank Transfer',
+    };
+    return labels[type] || type;
+  };
+
+  // Copy payout handle to clipboard
+  const copyPayoutHandle = (handle: string) => {
+    navigator.clipboard.writeText(handle);
+    setCopiedHandle(true);
+    setTimeout(() => setCopiedHandle(false), 2000);
+  };
 
   // Load status on mount
   useEffect(() => {
@@ -198,6 +218,59 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
               </div>
             </div>
 
+            {/* Recipient's payout method - visible to admins */}
+            {isAdmin && payoutStatus.recipient.payoutMethod && (
+              <div className="p-4 bg-purple-50 rounded-md border border-purple-100">
+                <div className="flex items-center mb-2">
+                  <Wallet className="h-5 w-5 text-purple-600 mr-2" />
+                  <h3 className="font-medium text-purple-800">Recipient&apos;s Payout Method</h3>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-700 font-medium">
+                      {getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)}
+                    </p>
+                    <p className="text-purple-600 text-lg font-mono">
+                      {payoutStatus.recipient.payoutMethod.handle}
+                    </p>
+                    {payoutStatus.recipient.payoutMethod.displayName && (
+                      <p className="text-purple-500 text-sm">
+                        {payoutStatus.recipient.payoutMethod.displayName}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyPayoutHandle(payoutStatus.recipient.payoutMethod!.handle)}
+                    className="text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                  >
+                    {copiedHandle ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-purple-500 text-xs mt-2">
+                  Send the payout manually using this {getPayoutMethodLabel(payoutStatus.recipient.payoutMethod.type)} account
+                </p>
+              </div>
+            )}
+
+            {/* Warning if recipient hasn't set up payout method */}
+            {isAdmin && !payoutStatus.recipient.payoutMethod && !payoutStatus.payoutProcessed && (
+              <Alert variant="destructive" className="border-amber-200 bg-amber-50 text-amber-800">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">Payout Method Not Set</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  {payoutStatus.recipient.name} has not set up their payout method yet.
+                  Please remind them to set up their Venmo, PayPal, Zelle, or Cash App
+                  in their account settings before processing the payout.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Contribution status */}
             {/* UNIVERSAL CONTRIBUTION MODEL: All members must contribute */}
             {payoutStatus.contributionStatus && payoutStatus.contributionStatus.length > 0 && (
@@ -270,10 +343,10 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
             {/* Explanation of how payouts work */}
             <Alert className="bg-gray-50 border-gray-200 text-gray-800">
               <Lock className="h-4 w-4" />
-              <AlertTitle>Secure Payout Process</AlertTitle>
+              <AlertTitle>How Payouts Work</AlertTitle>
               <AlertDescription className="text-gray-700">
                 <p className="mb-1">All members must contribute before payouts can be processed.</p>
-                <p>Funds are held in escrow until the designated payout date and can only be released by pool administrators.</p>
+                <p>The pool admin sends the payout manually using the recipient&apos;s preferred payment method (Venmo, PayPal, Zelle, or Cash App), then marks it as sent.</p>
               </AlertDescription>
             </Alert>
           </>
@@ -309,7 +382,7 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
             </Button>
           )}
 
-          {/* Regular Process Payout Button */}
+          {/* Mark Payout as Sent Button */}
           {isAdmin && payoutStatus && !payoutStatus.payoutProcessed && payoutStatus.allContributionsReceived && (
             <Button
               onClick={handleProcessPayout}
@@ -319,12 +392,12 @@ export function PoolPayoutsManager({ poolId, userId, isAdmin, poolName, onPayout
               {processingPayout ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  Marking as Sent...
                 </>
               ) : (
                 <>
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Process Payout
+                  <Check className="mr-2 h-4 w-4" />
+                  Mark Payout as Sent
                 </>
               )}
             </Button>

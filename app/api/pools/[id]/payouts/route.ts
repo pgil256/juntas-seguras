@@ -6,6 +6,7 @@ import { TransactionStatus, TransactionType } from '../../../../../types/payment
 import { PoolMemberStatus, PoolMemberRole, PoolMember } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
+import { User } from '../../../../../lib/db/models/user';
 import { createTransfer } from '../../../../../lib/stripe';
 import { getCurrentUser } from '../../../../../lib/auth';
 
@@ -212,89 +213,30 @@ export async function POST(
 
     const { pool, payoutRecipient, payoutAmount, transactionId, currentRound, recipientIndex } = result;
 
-    // Verify Stripe credentials are configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      // Update the transaction to failed status
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null
-          }
-        }
-      );
-
-      return NextResponse.json(
-        { error: 'Stripe credentials are not configured. Please contact support.' },
-        { status: 500 }
-      );
+    // Get recipient's payout method for reference (manual payout system)
+    let recipientPayoutMethod = null;
+    if (payoutRecipient.email) {
+      const recipientUser = await User.findOne({ email: payoutRecipient.email });
+      if (recipientUser?.payoutMethod?.type) {
+        recipientPayoutMethod = {
+          type: recipientUser.payoutMethod.type,
+          handle: recipientUser.payoutMethod.handle,
+          displayName: recipientUser.payoutMethod.displayName,
+        };
+      }
     }
 
-    // Check if recipient has a Stripe Connect account
-    const recipientStripeAccountId = payoutRecipient.stripeConnectAccountId;
+    // Manual payout system: Admin marks payout as complete after sending payment
+    // via the recipient's preferred method (Venmo, PayPal, Zelle, Cash App)
+    // The transaction is recorded as completed - admin is responsible for actual transfer
 
-    if (!recipientStripeAccountId) {
-      // Update the transaction to failed status
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null
-          }
-        }
-      );
-
-      return NextResponse.json(
-        { error: 'Recipient has not set up their Stripe Connect account for payouts. Please ask them to complete their payout setup in Settings.' },
-        { status: 400 }
-      );
-    }
-
-    let stripeTransferId: string | null = null;
-
-    // Process Stripe transfer
-    try {
-      const transfer = await createTransfer(
-        payoutAmount,
-        recipientStripeAccountId,
-        {
-          poolId: pool.id,
-          round: String(currentRound),
-          recipientId: String(payoutRecipient.id || payoutRecipient.email),
-          description: `Pool payout for ${pool.name} - Round ${currentRound}`,
-        }
-      );
-
-      stripeTransferId = transfer.id;
-    } catch (transferError: any) {
-      console.error('Stripe transfer error:', transferError);
-
-      // Update the transaction to failed status
-      await Pool.updateOne(
-        { id: pool.id, 'transactions.id': transactionId },
-        {
-          $set: {
-            'transactions.$.status': TransactionStatus.FAILED,
-            'transactions.$.stripeTransferId': null
-          }
-        }
-      );
-
-      return NextResponse.json(
-        { error: `Stripe transfer failed: ${transferError.message}` },
-        { status: 400 }
-      );
-    }
-
-    // Update the transaction with Stripe details and mark as completed
+    // Update the transaction and mark as completed
     const updateResult = await Pool.findOneAndUpdate(
       { id: pool.id },
       {
         $set: {
           [`transactions.${pool.transactions.length - 1}.status`]: TransactionStatus.COMPLETED,
-          [`transactions.${pool.transactions.length - 1}.stripeTransferId`]: stripeTransferId,
+          [`transactions.${pool.transactions.length - 1}.payoutMethod`]: recipientPayoutMethod?.type || 'manual',
           [`members.${recipientIndex}.payoutReceived`]: true,
           [`members.${recipientIndex}.status`]: PoolMemberStatus.COMPLETED,
           totalAmount: Math.max(0, (pool.totalAmount || 0) - payoutAmount)
@@ -358,6 +300,11 @@ export async function POST(
     const messageId =
       Math.max(...pool.messages.map((m: any) => m.id || 0), 0) + 1;
 
+    // Build payout method description for system message
+    const payoutMethodDesc = recipientPayoutMethod
+      ? ` via ${recipientPayoutMethod.type} (${recipientPayoutMethod.handle})`
+      : '';
+
     await Pool.updateOne(
       { id: pool.id },
       {
@@ -365,7 +312,7 @@ export async function POST(
           messages: {
             id: messageId,
             author: 'System',
-            content: `Payout of $${payoutAmount} has been processed for ${payoutRecipient.name} (Round ${currentRound}).`,
+            content: `Payout of $${payoutAmount} has been marked as sent to ${payoutRecipient.name}${payoutMethodDesc} (Round ${currentRound}).`,
             date: new Date().toISOString()
           }
         }
@@ -379,9 +326,12 @@ export async function POST(
         type: TransactionType.PAYOUT,
         amount: payoutAmount,
         date: new Date().toISOString(),
-        recipient: payoutRecipient.name
+        recipient: payoutRecipient.name,
+        payoutMethod: recipientPayoutMethod
       },
-      message: `Payout of $${payoutAmount} processed for round ${currentRound}`,
+      message: recipientPayoutMethod
+        ? `Payout of $${payoutAmount} marked as sent to ${payoutRecipient.name} via ${recipientPayoutMethod.type}`
+        : `Payout of $${payoutAmount} marked as sent to ${payoutRecipient.name}`,
       nextRound: currentRound < pool.totalRounds ? currentRound + 1 : currentRound,
       isComplete: currentRound >= pool.totalRounds
     });
@@ -498,6 +448,19 @@ export async function GET(
     // UNIVERSAL CONTRIBUTION MODEL: All members contribute, so payout = contribution × memberCount
     const payoutAmount = pool.contributionAmount * pool.members.length;
 
+    // Get recipient's payout method from their user profile
+    let recipientPayoutMethod = null;
+    if (payoutRecipient?.email) {
+      const recipientUser = await User.findOne({ email: payoutRecipient.email });
+      if (recipientUser?.payoutMethod?.type) {
+        recipientPayoutMethod = {
+          type: recipientUser.payoutMethod.type,
+          handle: recipientUser.payoutMethod.handle,
+          displayName: recipientUser.payoutMethod.displayName,
+        };
+      }
+    }
+
     // Check contributions status - all members must contribute including recipient
     const memberContributions = pool.members.map((member: any) => {
       const isRecipient = member.position === currentRound;
@@ -542,7 +505,8 @@ export async function GET(
             email: payoutRecipient.email,
             position: payoutRecipient.position,
             payoutReceived: payoutRecipient.payoutReceived,
-            hasStripeConnect: !!payoutRecipient.stripeConnectAccountId
+            hasStripeConnect: !!payoutRecipient.stripeConnectAccountId,
+            payoutMethod: recipientPayoutMethod,
           }
         : null,
       payoutAmount,

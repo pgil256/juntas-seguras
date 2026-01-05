@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { RulesAcknowledgmentDialog } from '../../../components/pools/RulesAcknowledgmentDialog';
-import { SavePaymentMethodModal } from '../../../components/payments/SavePaymentMethodModal';
+import { PoolOnboardingModal } from '../../../components/payments/PoolOnboardingModal';
 
 function JoinPoolContent() {
   const router = useRouter();
@@ -43,7 +43,7 @@ function JoinPoolContent() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showRulesDialog, setShowRulesDialog] = useState(false);
-  const [showPaymentSetupModal, setShowPaymentSetupModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [joinedPoolData, setJoinedPoolData] = useState<{ id: string; name: string; contributionAmount: number; frequency: string } | null>(null);
 
   useEffect(() => {
@@ -110,16 +110,16 @@ function JoinPoolContent() {
       if (!response.ok) {
         setError(data.error || 'Failed to accept invitation');
       } else {
-        // Store pool data for payment setup modal
+        // Store pool data for onboarding modal
         setJoinedPoolData({
           id: data.pool.id,
           name: validationResult.pool.name,
           contributionAmount: validationResult.pool.contributionAmount,
           frequency: validationResult.pool.frequency,
         });
-        // Show payment setup modal
+        // Show onboarding modal (payment + payout setup)
         setShowRulesDialog(false);
-        setShowPaymentSetupModal(true);
+        setShowOnboardingModal(true);
       }
     } catch (err) {
       setError('Failed to process invitation');
@@ -129,15 +129,15 @@ function JoinPoolContent() {
     }
   };
 
-  const handlePaymentSetupComplete = () => {
-    setShowPaymentSetupModal(false);
+  const handleOnboardingComplete = () => {
+    setShowOnboardingModal(false);
     if (joinedPoolData) {
       router.push(`/pools/${joinedPoolData.id}`);
     }
   };
 
-  const handleSkipPaymentSetup = () => {
-    setShowPaymentSetupModal(false);
+  const handleOnboardingClose = () => {
+    setShowOnboardingModal(false);
     if (joinedPoolData) {
       router.push(`/pools/${joinedPoolData.id}`);
     }
@@ -397,12 +397,12 @@ function JoinPoolContent() {
           />
         )}
 
-        {/* Payment Setup Modal - shown after successfully joining */}
+        {/* Onboarding Modal - payment method + payout account setup */}
         {joinedPoolData && (
-          <SavePaymentMethodModal
-            isOpen={showPaymentSetupModal}
-            onClose={handleSkipPaymentSetup}
-            onSuccess={handlePaymentSetupComplete}
+          <PoolOnboardingModal
+            isOpen={showOnboardingModal}
+            onClose={handleOnboardingClose}
+            onComplete={handleOnboardingComplete}
             poolId={joinedPoolData.id}
             poolName={joinedPoolData.name}
             contributionAmount={joinedPoolData.contributionAmount}

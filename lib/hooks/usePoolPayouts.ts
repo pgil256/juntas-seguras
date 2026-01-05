@@ -11,6 +11,12 @@ interface ContributionStatus {
   isRecipient: boolean;
 }
 
+interface PayoutMethod {
+  type: 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'bank';
+  handle: string;
+  displayName?: string;
+}
+
 interface PayoutStatus {
   round: number;
   totalRounds: number;
@@ -18,6 +24,7 @@ interface PayoutStatus {
     name: string;
     email: string;
     payoutReceived: boolean;
+    payoutMethod?: PayoutMethod | null;
   };
   payoutAmount: number;
   platformFee: number;
@@ -66,7 +73,7 @@ export function usePoolPayouts({ poolId, userId }: UsePoolPayoutsProps): UsePool
       setPayoutStatus({
         round: data.round,
         totalRounds: data.totalRounds,
-        recipient: data.recipient || { name: 'Unknown', email: '', payoutReceived: false },
+        recipient: data.recipient || { name: 'Unknown', email: '', payoutReceived: false, payoutMethod: null },
         payoutAmount: data.payoutAmount,
         platformFee: data.platformFee || 0,
         totalAmount: data.payoutAmount,
