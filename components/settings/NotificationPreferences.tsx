@@ -312,13 +312,13 @@ export function NotificationPreferences({
   const toggleCategoryAll = useCallback(
     (category: NotificationCategory, channel: keyof NotificationChannel, enabled: boolean) => {
       setPreferences((prev) => {
-        const updates: Partial<NotificationPreferencesData> = {};
+        const updates: Record<string, unknown> = {};
         for (const setting of category.settings) {
           if (setting.adminOnly && !showAdminOptions) continue;
           const current = prev[setting.key] as NotificationChannel;
-          updates[setting.key] = { ...current, [channel]: enabled } as unknown as NotificationPreferencesData[typeof setting.key];
+          updates[setting.key] = { ...current, [channel]: enabled };
         }
-        return { ...prev, ...updates };
+        return { ...prev, ...updates } as NotificationPreferencesData;
       });
       setHasChanges(true);
       setSaveSuccess(false);

@@ -303,7 +303,7 @@ export async function DELETE(request: NextRequest) {
 
     await connectToDatabase();
 
-    let updateQuery: Record<string, unknown>;
+    let updateQuery: { $unset: Record<string, number>; $set?: Record<string, unknown> };
 
     if (type === 'all') {
       // Remove both legacy and new format
@@ -329,7 +329,9 @@ export async function DELETE(request: NextRequest) {
       const user = await User.findOne({ email: session.user.email });
       if (user?.payoutMethods?.preferred === type) {
         updateQuery.$unset['payoutMethod'] = 1;
-        updateQuery.$set['payoutMethods.preferred'] = null;
+        if (updateQuery.$set) {
+          updateQuery.$set['payoutMethods.preferred'] = null;
+        }
       }
     }
 

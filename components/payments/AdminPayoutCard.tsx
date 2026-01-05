@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { PaymentLinkButton } from "./PaymentLinkButton";
+import { PaymentLinkButton, PaymentMethodType } from "./PaymentLinkButton";
 import { ZelleInstructionsCard } from "./ZelleCopyButton";
 import { cn } from "../../lib/utils";
 import {
@@ -131,6 +131,7 @@ export function AdminPayoutCard({
 
   // Generate links for each winner payment method
   const getPaymentLink = (type: PayoutMethodType): string | null => {
+    if (type === 'bank') return null; // Bank transfers don't have deep links
     const handle = winnerPayoutMethods?.[type];
     if (!handle) return null;
     try {
@@ -273,7 +274,7 @@ export function AdminPayoutCard({
                   {preferredMethod && winnerPayoutMethods?.[preferredMethod] && preferredMethod !== 'zelle' && (
                     <div>
                       <PaymentLinkButton
-                        type={preferredMethod as PayoutMethodType}
+                        type={preferredMethod as PaymentMethodType}
                         link={getPaymentLink(preferredMethod as PayoutMethodType)}
                         amount={potAmount}
                         className="w-full justify-center"

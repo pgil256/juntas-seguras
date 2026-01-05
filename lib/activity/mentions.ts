@@ -93,7 +93,7 @@ export async function resolveMentions(
     : null;
 
   // Get the pool with members
-  const pool = await Pool.findById(poolObjectId).lean();
+  const pool = await Pool.findById(poolObjectId).lean() as { members?: { userId?: unknown; name?: string; email?: string }[] } | null;
   if (!pool || !pool.members) {
     return [];
   }
@@ -119,8 +119,8 @@ export async function resolveMentions(
 
       resolvedMentions.push({
         userId: new mongoose.Types.ObjectId(memberUserId),
-        userName: member.name,
-        userEmail: member.email
+        userName: member.name || 'Unknown',
+        userEmail: member.email || ''
       });
     }
   } else {
@@ -139,8 +139,8 @@ export async function resolveMentions(
 
         resolvedMentions.push({
           userId: new mongoose.Types.ObjectId(memberUserId),
-          userName: matchedMember.name,
-          userEmail: matchedMember.email
+          userName: matchedMember.name || 'Unknown',
+          userEmail: matchedMember.email || ''
         });
       }
     }
@@ -300,7 +300,7 @@ export async function getMentionableMembers(
 
   const pool = await Pool.findById(poolObjectId)
     .select('members')
-    .lean();
+    .lean() as { members?: { userId?: unknown; name?: string; avatar?: string }[] } | null;
 
   if (!pool || !pool.members) {
     return [];

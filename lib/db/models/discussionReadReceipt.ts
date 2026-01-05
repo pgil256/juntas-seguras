@@ -29,6 +29,32 @@ export interface IDiscussionReadReceipt extends Document {
   updatedAt: Date;
 }
 
+// Interface for static methods
+export interface IDiscussionReadReceiptModel extends Model<IDiscussionReadReceipt> {
+  markAsRead(
+    userId: string | Types.ObjectId,
+    poolId: string | Types.ObjectId,
+    discussionId: string | Types.ObjectId
+  ): Promise<IDiscussionReadReceipt>;
+  markAllAsRead(
+    userId: string | Types.ObjectId,
+    poolId: string | Types.ObjectId
+  ): Promise<IDiscussionReadReceipt>;
+  hasRead(
+    userId: string | Types.ObjectId,
+    discussionId: string | Types.ObjectId,
+    discussionCreatedAt: Date
+  ): Promise<boolean>;
+  getUnreadCount(
+    userId: string | Types.ObjectId,
+    poolId: string | Types.ObjectId
+  ): Promise<number>;
+  getReadDiscussionIds(
+    userId: string | Types.ObjectId,
+    poolId: string | Types.ObjectId
+  ): Promise<Types.ObjectId[]>;
+}
+
 // DiscussionReadReceipt schema definition
 const DiscussionReadReceiptSchema = new Schema<IDiscussionReadReceipt>(
   {
@@ -231,9 +257,9 @@ DiscussionReadReceiptSchema.statics.getReadDiscussionIds = async function(
 };
 
 // Create and export the model
-export function getDiscussionReadReceiptModel(): Model<IDiscussionReadReceipt> {
+export function getDiscussionReadReceiptModel(): IDiscussionReadReceiptModel {
   const modelName = 'DiscussionReadReceipt';
-  return mongoose.models[modelName] || mongoose.model<IDiscussionReadReceipt>(modelName, DiscussionReadReceiptSchema);
+  return (mongoose.models[modelName] || mongoose.model<IDiscussionReadReceipt, IDiscussionReadReceiptModel>(modelName, DiscussionReadReceiptSchema)) as IDiscussionReadReceiptModel;
 }
 
 export const DiscussionReadReceipt = getDiscussionReadReceiptModel();
