@@ -23,6 +23,7 @@ import {
   Check,
   Wallet,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import {
   Card,
@@ -1137,7 +1138,6 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </div>
-                </div>
 
                 <div className="border-t pt-6">
                   <h3 className="text-lg font-medium text-gray-900">
