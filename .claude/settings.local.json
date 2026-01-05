@@ -107,7 +107,9 @@
       "Bash(git -C \"C:\\Users\\user\\Desktop\\JS\\my-juntas-app\" log --oneline -10)",
       "Bash(node ./node_modules/typescript/bin/tsc:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix email verification code not being sent when resending\n\nWhen a user requested a verification code within 2 minutes of a previous\nrequest, the function would return true immediately without actually\nsending the email, leaving users unable to receive their codes.\n\nNow the code is reused (preventing code invalidation) but the email is\nstill sent, ensuring users receive their verification codes on resend.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git rev-parse:*)"
+      "Bash(git rev-parse:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix MFA verification rejecting valid codes\n\n- Add whitespace trimming to both stored and input codes\n- Add detailed debug logging for code mismatches\n- Trim code before calling verifyEmailCode in API route\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix MFA session not updating after successful verification\n\n- Add useSession hook to call updateSession() after MFA verification\n- This triggers NextAuth JWT callback with trigger=''update''\n- JWT callback clears requiresMfa flag when pendingMfaVerification is false\n- Prevents redirect loop back to /mfa/verify after successful verification\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")"
     ]
   },
   "enableAllProjectMcpServers": false
