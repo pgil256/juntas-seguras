@@ -122,6 +122,9 @@ export function ContributionModal({
   };
 
   const handleConfirmPayment = async (paymentMethod: string) => {
+    // Prevent double-submission
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
     setResult(null);
 
@@ -142,7 +145,7 @@ export function ContributionModal({
       if (response.ok && data.success) {
         setResult({
           success: true,
-          message: 'Payment confirmation sent! The pool admin will verify your payment.',
+          message: 'Payment recorded successfully!',
         });
         if (onContributionSuccess) {
           onContributionSuccess();
@@ -150,10 +153,25 @@ export function ContributionModal({
         // Refresh contribution status
         await getContributionStatus();
       } else {
-        setResult({
-          success: false,
-          message: data.error || 'Failed to confirm payment',
-        });
+        // Handle "already contributed" errors more gracefully
+        const errorMessage = data.error || 'Failed to confirm payment';
+        const isAlreadyPaid = errorMessage.includes('already') ||
+                              errorMessage.includes('verified');
+
+        if (isAlreadyPaid) {
+          // Treat as success since payment is already recorded
+          setResult({
+            success: true,
+            message: 'Your payment is already recorded!',
+          });
+          // Refresh to update the UI
+          await getContributionStatus();
+        } else {
+          setResult({
+            success: false,
+            message: errorMessage,
+          });
+        }
       }
     } catch {
       setResult({

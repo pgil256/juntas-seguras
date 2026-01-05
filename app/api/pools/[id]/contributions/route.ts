@@ -49,9 +49,10 @@ export async function GET(
       );
     }
 
-    // Check if user is a member of this pool
+    // Check if user is a member of this pool (case-insensitive email comparison)
+    const userEmailLower = user.email?.toLowerCase();
     const userMember = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email === user.email
+      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!userMember) {
@@ -72,6 +73,7 @@ export async function GET(
     // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including the recipient
     const contributionStatus = pool.members.map((member: any) => {
       const isRecipient = member.position === currentRound;
+      const memberEmailLower = member.email?.toLowerCase();
 
       // Check if this member has contributed for the current round
       // Check both transactions and currentRoundPayments
@@ -82,9 +84,9 @@ export async function GET(
           t.round === currentRound
       );
 
-      // Also check currentRoundPayments for pending/confirmed payments
+      // Also check currentRoundPayments for pending/confirmed payments (case-insensitive email)
       const roundPayment = pool.currentRoundPayments?.find(
-        (p: any) => p.memberId === member.id || p.memberEmail === member.email
+        (p: any) => p.memberId === member.id || p.memberEmail?.toLowerCase() === memberEmailLower
       );
 
       const hasConfirmedPayment = roundPayment?.status === 'member_confirmed' ||
@@ -185,9 +187,10 @@ export async function POST(
       );
     }
 
-    // Check if user is a member of this pool
+    // Check if user is a member of this pool (case-insensitive email comparison)
+    const userEmailLower = user.email?.toLowerCase();
     const userMember = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email === user.email
+      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!userMember) {
@@ -198,6 +201,7 @@ export async function POST(
     }
 
     const currentRound = pool.currentRound;
+    const userMemberEmailLower = userMember.email?.toLowerCase();
 
     // Check if user has already contributed for this round
     const existingContribution = pool.transactions.find(
@@ -231,9 +235,9 @@ export async function POST(
         );
       }
 
-      // Check if there's already a pending payment for this member
+      // Check if there's already a pending payment for this member (case-insensitive email)
       const existingPayment = pool.currentRoundPayments?.find(
-        (p: any) => (p.memberId === userMember.id || p.memberEmail === userMember.email)
+        (p: any) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
       );
 
       if (existingPayment) {
@@ -256,9 +260,9 @@ export async function POST(
         pool.currentRoundPayments = [];
       }
 
-      // Remove any existing pending payment for this member
+      // Remove any existing pending payment for this member (case-insensitive email)
       pool.currentRoundPayments = pool.currentRoundPayments.filter(
-        (p: any) => p.memberId !== userMember.id && p.memberEmail !== userMember.email
+        (p: any) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
       );
 
       // Add the new payment - marked as complete immediately (no admin verification needed)
