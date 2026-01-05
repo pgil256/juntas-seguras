@@ -46,7 +46,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-base sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
+              <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
                 Juntas Seguras
               </Link>
             </div>
@@ -68,34 +68,22 @@ export default function Navbar() {
                 ))}
             </div>
           </div>
-          <div className="flex items-center space-x-1 sm:space-x-4">
-            {/* Only show search and notifications for authenticated users */}
+          {/* Desktop right side */}
+          <div className="hidden sm:flex items-center space-x-4">
             {isAuthenticated && (
               <>
                 {searchExpanded ? (
-                  <div className="fixed inset-0 bg-white z-50 p-4 flex flex-col sm:relative sm:inset-auto sm:p-0 sm:bg-transparent sm:z-auto sm:block">
-                    <div className="flex items-center gap-2 sm:hidden mb-4">
-                      <button
-                        onClick={() => setSearchExpanded(false)}
-                        className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-                        aria-label="Close search"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                      <span className="text-lg font-medium text-gray-900">Search</span>
-                    </div>
-                    <div className="relative w-full max-w-md mx-auto sm:w-64 lg:w-80 sm:max-w-none sm:mx-0">
-                      <SearchInput
-                        autoFocus
-                        onSearch={() => setSearchExpanded(false)}
-                        className="w-full"
-                      />
-                    </div>
+                  <div className="relative w-64 lg:w-80">
+                    <SearchInput
+                      autoFocus
+                      onSearch={() => setSearchExpanded(false)}
+                      className="w-full"
+                    />
                   </div>
                 ) : (
                   <button
                     onClick={toggleSearch}
-                    className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200 h-10 w-10 flex items-center justify-center"
+                    className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full transition-colors duration-200"
                     aria-label="Search"
                   >
                     <Search className="h-5 w-5" />
@@ -105,36 +93,35 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Show auth buttons or user profile */}
             {isAuthenticated ? (
               <UserProfileButton />
             ) : (
-              <div className="hidden sm:flex space-x-2">
+              <div className="flex space-x-2">
                 <Link href="/auth/signin">
-                  <Button variant="outline" size="sm" className="text-sm h-8 sm:h-9">Log in</Button>
+                  <Button variant="outline" size="sm">Log in</Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button size="sm" className="text-sm h-8 sm:h-9">Sign up</Button>
+                  <Button size="sm">Sign up</Button>
                 </Link>
               </div>
             )}
-
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
-              aria-controls="mobile-menu"
-              aria-expanded={mobileMenuOpen}
-              onClick={toggleMobileMenu}
-            >
-              <span className="sr-only">{mobileMenuOpen ? 'Close menu' : 'Open menu'}</span>
-              {mobileMenuOpen ? (
-                <X className="block h-6 w-6" aria-hidden="true" />
-              ) : (
-                <Menu className="block h-6 w-6" aria-hidden="true" />
-              )}
-            </button>
           </div>
+
+          {/* Mobile menu button - only item on right side for mobile */}
+          <button
+            type="button"
+            className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors duration-200"
+            aria-controls="mobile-menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={toggleMobileMenu}
+          >
+            <span className="sr-only">{mobileMenuOpen ? 'Close menu' : 'Open menu'}</span>
+            {mobileMenuOpen ? (
+              <X className="block h-6 w-6" aria-hidden="true" />
+            ) : (
+              <Menu className="block h-6 w-6" aria-hidden="true" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -145,35 +132,70 @@ export default function Navbar() {
         } overflow-hidden`}
         id="mobile-menu"
       >
-        <div className="py-2 space-y-0.5 shadow-lg bg-white border-t border-gray-100">
-          {/* Show auth buttons prominently at top for non-authenticated users */}
+        <div className="py-2 shadow-lg bg-white border-t border-gray-100">
+          {/* Search for authenticated users */}
+          {isAuthenticated && (
+            <div className="px-4 py-3 border-b border-gray-100">
+              <SearchInput
+                onSearch={() => setMobileMenuOpen(false)}
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {/* Auth buttons for non-authenticated users */}
           {!isAuthenticated && (
-            <div className="flex gap-3 px-4 py-3 mb-1 border-b border-gray-100">
+            <div className="flex gap-3 px-4 py-3 border-b border-gray-100">
               <Link href="/auth/signin" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full h-12 text-base font-medium">Log in</Button>
+                <Button variant="outline" className="w-full h-11 text-base font-medium">Log in</Button>
               </Link>
               <Link href="/auth/signup" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full h-12 text-base font-medium">Sign up</Button>
+                <Button className="w-full h-11 text-base font-medium">Sign up</Button>
               </Link>
             </div>
           )}
 
-          {navItems
-            .filter(item => !item.requiresAuth || isAuthenticated)
-            .map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${
-                  pathname === item.href
-                    ? "bg-blue-50 border-blue-500 text-blue-700 font-semibold"
-                    : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                } block pl-4 pr-4 py-3.5 border-l-4 text-base font-medium transition-colors duration-200 active:bg-gray-100`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
+          {/* Navigation links */}
+          <div className="py-1">
+            {navItems
+              .filter(item => !item.requiresAuth || isAuthenticated)
+              .map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${
+                    pathname === item.href
+                      ? "bg-blue-50 border-blue-500 text-blue-700 font-semibold"
+                      : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                  } block pl-4 pr-4 py-3 border-l-4 text-base font-medium transition-colors duration-200 active:bg-gray-100`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+          </div>
+
+          {/* Profile and notifications for authenticated users */}
+          {isAuthenticated && (
+            <div className="border-t border-gray-100 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
+                    {session?.user?.name?.charAt(0).toUpperCase() || session?.user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <p className="font-medium">{session?.user?.name || 'Profile'}</p>
+                    <p className="text-sm text-gray-500">View profile</p>
+                  </div>
+                </Link>
+                <NotificationBell />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </nav>
