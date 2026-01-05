@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { CreatorRulesAcknowledgmentDialog } from "./CreatorRulesAcknowledgmentDialog";
-import { SavePaymentMethodModal } from "../payments/SavePaymentMethodModal";
+import { PoolOnboardingModal } from "../payments/PoolOnboardingModal";
 
 interface CreatePoolModalProps {
   isOpen: boolean;
@@ -52,13 +52,13 @@ const CreatePoolModal = ({
   const [step, setStep] = useState(1);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [showRulesDialog, setShowRulesDialog] = useState(false);
-  const [showPaymentSetupModal, setShowPaymentSetupModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [createdPoolId, setCreatedPoolId] = useState<string | null>(null);
   const [createdPoolName, setCreatedPoolName] = useState<string>("");
 
   const { createPool, isLoading, error } = useCreatePool({
     onSuccess: (poolId) => {
-      // Save pool info for payment setup
+      // Save pool info for onboarding
       setCreatedPoolId(poolId);
       setCreatedPoolName(poolData.name);
 
@@ -67,8 +67,8 @@ const CreatePoolModal = ({
         onCreatePool({ id: poolId, ...poolData });
       }
 
-      // Show payment setup modal instead of redirecting immediately
-      setShowPaymentSetupModal(true);
+      // Show onboarding modal (payment + payout setup)
+      setShowOnboardingModal(true);
     }
   });
 
@@ -183,9 +183,9 @@ const CreatePoolModal = ({
     }
   };
 
-  // Handle payment setup completion
-  const handlePaymentSetupComplete = () => {
-    setShowPaymentSetupModal(false);
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboardingModal(false);
 
     // Reset form
     setStep(1);
@@ -208,9 +208,9 @@ const CreatePoolModal = ({
     }
   };
 
-  // Handle skipping payment setup
-  const handleSkipPaymentSetup = () => {
-    setShowPaymentSetupModal(false);
+  // Handle closing onboarding modal
+  const handleOnboardingClose = () => {
+    setShowOnboardingModal(false);
 
     // Reset form
     setStep(1);
@@ -591,16 +591,16 @@ const CreatePoolModal = ({
         isProcessing={isLoading}
       />
 
-      {/* Payment Method Setup Modal for Creator */}
+      {/* Onboarding Modal for Creator (payment + payout setup) */}
       {createdPoolId && (
-        <SavePaymentMethodModal
-          isOpen={showPaymentSetupModal}
-          onClose={handleSkipPaymentSetup}
+        <PoolOnboardingModal
+          isOpen={showOnboardingModal}
+          onClose={handleOnboardingClose}
+          onComplete={handleOnboardingComplete}
           poolId={createdPoolId}
           poolName={createdPoolName}
           contributionAmount={Number(poolData.contributionAmount) || 0}
           frequency={poolData.frequency}
-          onSuccess={handlePaymentSetupComplete}
         />
       )}
     </Dialog>

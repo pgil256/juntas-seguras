@@ -44,9 +44,9 @@ export default function Navbar() {
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center">
+          <div className="flex items-center min-w-0">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
+              <Link href="/" className="text-lg sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
                 Juntas Seguras
               </Link>
             </div>

@@ -91,8 +91,9 @@ export default function CreatePoolPage() {
     }
     
     const amount = Number(poolData.contributionAmount);
-    if (!poolData.contributionAmount || isNaN(amount) || !Number.isInteger(amount) || amount < 1 || amount > 20) {
-      errors.push('Contribution amount must be between $1 and $20');
+    const validAmounts = [1, 3, 5, 10, 15, 20];
+    if (!poolData.contributionAmount || isNaN(amount) || !validAmounts.includes(amount)) {
+      errors.push('Please select a valid contribution amount');
     }
     
     if (!poolData.startDate) {
@@ -198,7 +199,7 @@ export default function CreatePoolPage() {
                         <SelectValue placeholder="Select amount" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 20 }, (_, i) => i + 1).map((amount) => (
+                        {[1, 3, 5, 10, 15, 20].map((amount) => (
                           <SelectItem key={amount} value={amount.toString()}>
                             ${amount}
                           </SelectItem>
