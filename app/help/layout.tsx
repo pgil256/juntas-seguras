@@ -61,18 +61,19 @@ export default function HelpLayout({
             <h1 className="text-2xl font-bold text-gray-900">Help & Support</h1>
           </div>
           
-          <div className="mb-6">
-            <ul className="flex flex-row list-none space-x-2">
+          <div className="mb-6 overflow-x-auto">
+            <ul className="flex flex-row list-none gap-2 min-w-max sm:min-w-0 sm:flex-wrap">
               {helpNavItems.map((item) => (
-                <li key={item.href} className="inline-block">
+                <li key={item.href} className="flex-shrink-0">
                   <ClientOnly>
                     <Link href={item.href}>
                       <Button
                         variant={isActive(item.href) ? "default" : "ghost"}
-                        className={`flex items-center ${isActive(item.href) ? "" : "text-gray-700"}`}
+                        className={`flex items-center whitespace-nowrap ${isActive(item.href) ? "" : "text-gray-700"}`}
                       >
                         {item.icon}
-                        {item.label}
+                        <span className="hidden sm:inline">{item.label}</span>
+                        <span className="sm:hidden">{item.label.split(' ')[0]}</span>
                       </Button>
                     </Link>
                   </ClientOnly>
