@@ -8,6 +8,38 @@ interface SkeletonProps {
   rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
+/**
+ * SkeletonContainer - Wrapper that provides screen reader accessibility
+ *
+ * Wraps skeleton content and announces "Loading" to screen readers.
+ *
+ * @example
+ * <SkeletonContainer label="Loading user profile">
+ *   <Skeleton className="h-8 w-32" />
+ * </SkeletonContainer>
+ */
+export function SkeletonContainer({
+  children,
+  label = "Loading content",
+  className,
+}: {
+  children: React.ReactNode;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={label}
+      className={className}
+    >
+      {children}
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
+
 export function Skeleton({
   className,
   variant = 'shimmer',
