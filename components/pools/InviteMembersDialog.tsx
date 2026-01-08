@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Mail, X, Copy, Check, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { UserPlus, Mail, X, Copy, Check, AlertCircle, Loader2, RefreshCw, Share2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -176,6 +176,29 @@ export function InviteMembersDialog({
       }, 2000);
     }
   };
+
+  // Check if native share is supported
+  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+  // Native share functionality
+  const handleNativeShare = async () => {
+    if (!inviteLink || !canNativeShare) return;
+
+    try {
+      await navigator.share({
+        title: `Join ${poolName}`,
+        text: `You're invited to join the "${poolName}" savings pool!`,
+        url: inviteLink,
+      });
+    } catch (err) {
+      // User cancelled or share failed - silently handle
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Error sharing:', err);
+        // Fall back to copy
+        copyInviteLink();
+      }
+    }
+  };
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -275,6 +298,7 @@ export function InviteMembersDialog({
                       variant="outline"
                       size="sm"
                       onClick={copyInviteLink}
+                      title="Copy link"
                     >
                       {linkCopied ? (
                         <Check className="h-4 w-4 text-green-500" />
@@ -282,6 +306,18 @@ export function InviteMembersDialog({
                         <Copy className="h-4 w-4" />
                       )}
                     </Button>
+                    {canNativeShare && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNativeShare}
+                        title="Share"
+                        className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+                      >
+                        <Share2 className="h-4 w-4 text-blue-600" />
+                      </Button>
+                    )}
                   </div>
 
                   <div className="text-sm text-gray-500">

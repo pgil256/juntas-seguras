@@ -28,6 +28,7 @@ import { QuickActions } from "../../components/dashboard/QuickActions";
 import { PoolCard, PoolCardSkeleton } from "../../components/pools/PoolCard";
 import CreatePoolModal from "../../components/pools/CreatePoolModal";
 import { DashboardAlerts } from "../../components/dashboard/DashboardAlerts";
+import { ErrorEmptyState, FirstTimeEmptyState } from "../../components/ui/empty-state";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -157,6 +158,16 @@ export default function Dashboard() {
               <PoolCardSkeleton />
               <PoolCardSkeleton variant="compact" />
             </div>
+          ) : poolsError ? (
+            <Card>
+              <CardContent className="py-8">
+                <ErrorEmptyState
+                  title="Unable to load pools"
+                  description="We couldn't load your pools. Please try again."
+                  onRetry={refreshPools}
+                />
+              </CardContent>
+            </Card>
           ) : !hasAnyPools ? (
             <Card className="border-2 border-dashed border-gray-200">
               <CardContent className="p-8">

@@ -17,6 +17,7 @@ import {
   Send,
   MessageSquare,
   Loader,
+  BellRing,
 } from "lucide-react";
 import {
   Card,
@@ -63,7 +64,10 @@ import { usePoolInvitations } from "../../../lib/hooks/usePoolInvitations";
 import { PoolMember, PoolMemberRole, PoolMemberStatus, InvitationStatus } from "../../../types/pool";
 import { MemberMessageDialog } from "../../../components/pools/MemberMessageDialog";
 import { InviteMembersDialog } from "../../../components/pools/InviteMembersDialog";
+import { PayoutOrderManager } from "../../../components/pools/PayoutOrderManager";
 import { useSession } from "next-auth/react";
+import { MemberCard, MemberListHeader } from "../../../components/pools/MemberCard";
+import { SwipeableRow } from "../../../components/ui/swipeable-row";
 
 export default function MemberManagementPage() {
   const { data: session } = useSession();
@@ -79,6 +83,9 @@ export default function MemberManagementPage() {
   const [selectedMember, setSelectedMember] = useState<PoolMember | null>(null);
   const [reminderMessage, setReminderMessage] = useState("");
   const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [isSendingBulkReminder, setIsSendingBulkReminder] = useState(false);
+  const [showBulkReminderDialog, setShowBulkReminderDialog] = useState(false);
+  const [bulkReminderMessage, setBulkReminderMessage] = useState("");
   const [messageText, setMessageText] = useState("");
   const [positionsChanged, setPositionsChanged] = useState(false);
   const [originalPositions, setOriginalPositions] = useState<PoolMember[]>([]);
@@ -354,6 +361,54 @@ export default function MemberManagementPage() {
     }
   };
 
+  // Bulk reminder - send to all members who haven't contributed this round
+  const handleSendBulkReminder = async () => {
+    setIsSendingBulkReminder(true);
+
+    try {
+      // Filter members who haven't contributed (status is not 'completed')
+      const membersToRemind = members.filter(
+        (m) => m.status !== PoolMemberStatus.COMPLETED && m.name !== "You"
+      );
+
+      if (membersToRemind.length === 0) {
+        alert('All members have already contributed!');
+        setShowBulkReminderDialog(false);
+        return;
+      }
+
+      // Send reminders in parallel
+      const results = await Promise.allSettled(
+        membersToRemind.map((member) =>
+          fetch(`/api/pools/${id}/members/${member.id}/reminder`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: bulkReminderMessage }),
+          })
+        )
+      );
+
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failCount = results.filter((r) => r.status === 'rejected').length;
+
+      if (failCount === 0) {
+        alert(`Successfully sent ${successCount} reminder${successCount !== 1 ? 's' : ''}!`);
+      } else {
+        alert(`Sent ${successCount} reminder${successCount !== 1 ? 's' : ''}, ${failCount} failed.`);
+      }
+
+      setShowBulkReminderDialog(false);
+      setBulkReminderMessage("");
+    } catch (error) {
+      console.error('Error sending bulk reminders:', error);
+      alert('An unexpected error occurred while sending reminders');
+    } finally {
+      setIsSendingBulkReminder(false);
+    }
+  };
+
   const handleResendInvitation = async (invitationId: number) => {
     try {
       const result = await resendInvitation(invitationId);
@@ -504,7 +559,85 @@ export default function MemberManagementPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                {/* Bulk Reminder Button */}
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkReminderDialog(true)}
+                    className="min-h-[44px]"
+                  >
+                    <BellRing className="h-4 w-4 mr-2" />
+                    Remind All
+                  </Button>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="block md:hidden space-y-3">
+                  <MemberListHeader
+                    totalMembers={members.length}
+                    contributedCount={members.filter(m => m.status === PoolMemberStatus.COMPLETED).length}
+                    onInvite={() => setShowInviteDialog(true)}
+                  />
+                  {members.map((member) => (
+                    <SwipeableRow
+                      key={member.id}
+                      rightActions={[
+                        {
+                          key: 'message',
+                          label: 'Message',
+                          color: 'blue',
+                          icon: <MessageSquare className="h-4 w-4" />,
+                          onClick: () => {
+                            setSelectedMember(member);
+                            setShowMessageDialog(true);
+                          },
+                        },
+                        {
+                          key: 'remind',
+                          label: 'Remind',
+                          color: 'orange',
+                          icon: <Mail className="h-4 w-4" />,
+                          onClick: () => {
+                            setSelectedMember(member);
+                            setShowReminderDialog(true);
+                          },
+                        },
+                      ]}
+                    >
+                      <MemberCard
+                        member={{
+                          id: String(member.id),
+                          name: member.name,
+                          email: member.email,
+                          avatar: member.avatar,
+                          position: member.position,
+                          hasContributed: member.status === PoolMemberStatus.COMPLETED,
+                          isRecipient: member.status === PoolMemberStatus.CURRENT,
+                          contributionAmount: pool?.contributionAmount,
+                          role: member.role === PoolMemberRole.ADMIN ? 'admin' : 'member',
+                        }}
+                        onMessage={(m) => {
+                          setSelectedMember(member);
+                          setShowMessageDialog(true);
+                        }}
+                        onRemind={(m) => {
+                          setSelectedMember(member);
+                          setShowReminderDialog(true);
+                        }}
+                        onRemove={member.name !== "You" ? (m) => {
+                          setSelectedMember(member);
+                          setShowRemoveDialog(true);
+                        } : undefined}
+                        isAdmin={true}
+                        showActions={true}
+                      />
+                    </SwipeableRow>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -733,116 +866,24 @@ export default function MemberManagementPage() {
               <CardHeader>
                 <CardTitle>Manage Positions</CardTitle>
                 <CardDescription>
-                  Adjust the payout order for members in this pool
+                  Drag and drop members to adjust the payout order
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 flex items-start">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-yellow-800">
-                        Changing positions
-                      </h4>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        Changing positions will affect the payout schedule. Make
-                        sure all members are informed about any changes.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto -mx-4 sm:mx-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="px-3 sm:px-4">Position</TableHead>
-                          <TableHead className="px-3 sm:px-4">Member</TableHead>
-                          <TableHead className="px-3 sm:px-4">Status</TableHead>
-                          <TableHead className="hidden sm:table-cell px-3 sm:px-4">Payout Date</TableHead>
-                          <TableHead className="px-3 sm:px-4">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[...localMembers]
-                          .sort((a, b) => a.position - b.position)
-                          .map((member) => (
-                            <TableRow
-                              key={member.id}
-                              className={
-                                member.name === "You" ? "bg-blue-50" : ""
-                              }
-                            >
-                              <TableCell className="font-medium px-3 sm:px-4">
-                                {member.position}
-                              </TableCell>
-                              <TableCell className="px-3 sm:px-4">
-                                <div className="flex items-center space-x-2 sm:space-x-3">
-                                  <Avatar className="h-8 w-8 shrink-0">
-                                    <AvatarImage
-                                      src={member.avatar}
-                                      alt={member.name}
-                                    />
-                                    <AvatarFallback className="bg-blue-200 text-blue-800">
-                                      {getInitials(member.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="truncate max-w-[120px] sm:max-w-none">{member.name}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-3 sm:px-4">
-                                <Badge className={getStatusColor(member.status)}>
-                                  {member.status.charAt(0).toUpperCase() +
-                                    member.status.slice(1)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="hidden sm:table-cell px-3 sm:px-4">
-                                {formatDate(member.payoutDate)}
-                              </TableCell>
-                              <TableCell className="px-3 sm:px-4">
-                                <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="min-h-[44px] text-xs sm:text-sm"
-                                    disabled={member.position === 1}
-                                    onClick={() => moveMemberUp(member.id)}
-                                  >
-                                    Up
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="min-h-[44px] text-xs sm:text-sm"
-                                    disabled={member.position === localMembers.length}
-                                    onClick={() => moveMemberDown(member.id)}
-                                  >
-                                    Down
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+                <PayoutOrderManager
+                  members={members}
+                  onSave={async (positions) => {
+                    const result = await updatePositions({ positions });
+                    if (result.success) {
+                      await refreshMembers();
+                    }
+                    return result;
+                  }}
+                  onReset={() => {
+                    refreshMembers();
+                  }}
+                />
               </CardContent>
-              <CardFooter className="justify-end">
-                <Button 
-                  variant="outline" 
-                  className="mr-2"
-                  onClick={resetPositions}
-                  disabled={!positionsChanged}
-                >
-                  Reset to Original
-                </Button>
-                <Button 
-                  onClick={savePositionChanges}
-                  disabled={!positionsChanged}
-                >
-                  Save Changes
-                </Button>
-              </CardFooter>
             </Card>
           </TabsContent>
         </Tabs>
@@ -1185,6 +1226,81 @@ export default function MemberManagementPage() {
                 <>
                   <Send className="h-4 w-4 mr-2" />
                   Send Reminder
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Reminder Dialog */}
+      <Dialog open={showBulkReminderDialog} onOpenChange={setShowBulkReminderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Reminder to All</DialogTitle>
+            <DialogDescription>
+              Send a payment reminder to all members who haven't contributed yet
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mr-2 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-amber-800 font-medium">
+                    {members.filter(m => m.status !== PoolMemberStatus.COMPLETED && m.name !== "You").length} member(s) will receive this reminder
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Members who have already contributed will not receive a reminder.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="bulkReminderMessage">Personal Message (optional)</Label>
+                <textarea
+                  id="bulkReminderMessage"
+                  value={bulkReminderMessage}
+                  onChange={(e) => setBulkReminderMessage(e.target.value)}
+                  placeholder="Add a personal message to include in the reminder emails..."
+                  className="w-full mt-1 p-3 border rounded-md min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <p className="text-sm text-blue-700">
+                  Each member will receive an email reminding them about their upcoming payment of{" "}
+                  <strong>${pool?.contributionAmount}</strong> for the pool "{pool?.name}".
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBulkReminderDialog(false);
+                setBulkReminderMessage("");
+              }}
+              disabled={isSendingBulkReminder}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendBulkReminder}
+              disabled={isSendingBulkReminder || members.filter(m => m.status !== PoolMemberStatus.COMPLETED && m.name !== "You").length === 0}
+            >
+              {isSendingBulkReminder ? (
+                <>
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <BellRing className="h-4 w-4 mr-2" />
+                  Send Reminders
                 </>
               )}
             </Button>

@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
+import { StepIndicator } from '@/components/ui/step-indicator';
 import {
   CheckCircle2,
   Wallet,
@@ -73,14 +73,14 @@ export function PoolOnboardingModal({
     onClose();
   };
 
-  const getProgress = () => {
+  const getCurrentStepNumber = () => {
     switch (step) {
       case 'payout':
-        return 50;
+        return 1;
       case 'complete':
-        return 100;
+        return 2;
       default:
-        return 0;
+        return 1;
     }
   };
 
@@ -118,7 +118,15 @@ export function PoolOnboardingModal({
           <DialogDescription>{getStepDescription()}</DialogDescription>
         </DialogHeader>
 
-        <Progress value={getProgress()} className="h-2" />
+        <StepIndicator
+          currentStep={getCurrentStepNumber()}
+          totalSteps={2}
+          showStepText
+          steps={[
+            { label: "Payout Setup" },
+            { label: "Complete" },
+          ]}
+        />
 
         <div className="py-2">
           {step === 'complete' ? (

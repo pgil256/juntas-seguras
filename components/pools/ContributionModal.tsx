@@ -22,7 +22,9 @@ import {
   Copy,
   Check,
   Undo2,
+  Sparkles,
 } from 'lucide-react';
+import { PaymentSuccessAnimation } from '../payments/PaymentSuccessAnimation';
 import {
   generatePayoutLink,
   getPayoutMethodLabel,
@@ -61,6 +63,7 @@ export function ContributionModal({
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedMethod, setCopiedMethod] = useState<string | null>(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     message?: string;
@@ -144,6 +147,8 @@ export function ContributionModal({
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // Show success animation
+        setShowSuccessAnimation(true);
         setResult({
           success: true,
           message: 'Payment recorded successfully!',
@@ -232,6 +237,7 @@ export function ContributionModal({
 
   const handleClose = () => {
     setResult(null);
+    setShowSuccessAnimation(false);
     onClose();
   };
 
@@ -250,9 +256,19 @@ export function ContributionModal({
   const preferredMethod = adminPaymentMethods?.preferred;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+    <>
+      {/* Success Animation Overlay */}
+      <PaymentSuccessAnimation
+        show={showSuccessAnimation}
+        amount={contributionStatus?.contributionAmount}
+        message="Payment Recorded!"
+        variant="confetti"
+        onComplete={() => setShowSuccessAnimation(false)}
+      />
+
+      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
           <DialogTitle className="flex items-center">
             <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
             Make Contribution
@@ -582,5 +598,6 @@ export function ContributionModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

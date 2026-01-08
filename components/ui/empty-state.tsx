@@ -12,12 +12,15 @@ import {
   MessageCircle,
   FileText,
   PlusCircle,
+  AlertTriangle,
+  RefreshCw,
+  Sparkles,
   type LucideIcon
 } from 'lucide-react';
 
 interface EmptyStateProps {
   icon?: LucideIcon;
-  iconColor?: 'blue' | 'gray' | 'green' | 'orange' | 'purple';
+  iconColor?: 'blue' | 'gray' | 'green' | 'orange' | 'purple' | 'red';
   title: string;
   description?: string;
   action?: {
@@ -39,6 +42,7 @@ const iconColorClasses = {
   green: 'bg-green-50 text-green-500',
   orange: 'bg-orange-50 text-orange-500',
   purple: 'bg-purple-50 text-purple-500',
+  red: 'bg-red-50 text-red-500',
 };
 
 export function EmptyState({
@@ -196,6 +200,83 @@ export function NoDataEmptyState({ title, description }: { title?: string; descr
       iconColor="gray"
       title={title || "No data available"}
       description={description || "Data will appear here once available."}
+      compact
+    />
+  );
+}
+
+// Error state for failed data loading
+export function ErrorEmptyState({
+  title,
+  description,
+  onRetry,
+}: {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <EmptyState
+      icon={AlertTriangle}
+      iconColor="red"
+      title={title || "Something went wrong"}
+      description={description || "We couldn't load the data. Please try again."}
+      action={
+        onRetry
+          ? {
+              label: 'Try Again',
+              onClick: onRetry,
+              variant: 'outline',
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+// First-time user empty state
+export function FirstTimeEmptyState({
+  title,
+  description,
+  onGetStarted,
+  actionLabel,
+}: {
+  title: string;
+  description: string;
+  onGetStarted: () => void;
+  actionLabel?: string;
+}) {
+  return (
+    <EmptyState
+      icon={Sparkles}
+      iconColor="blue"
+      title={title}
+      description={description}
+      action={{
+        label: actionLabel || 'Get Started',
+        onClick: onGetStarted,
+      }}
+    />
+  );
+}
+
+// Loading failed state with refresh option
+export function LoadingFailedEmptyState({
+  onRefresh,
+}: {
+  onRefresh: () => void;
+}) {
+  return (
+    <EmptyState
+      icon={RefreshCw}
+      iconColor="orange"
+      title="Failed to load"
+      description="There was an issue loading this content."
+      action={{
+        label: 'Refresh',
+        onClick: onRefresh,
+        variant: 'outline',
+      }}
       compact
     />
   );
