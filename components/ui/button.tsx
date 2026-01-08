@@ -1,6 +1,7 @@
 // components/ui/button.tsx
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
@@ -15,6 +16,9 @@ const buttonVariants = cva(
         secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
         ghost: "hover:bg-slate-100 hover:text-slate-900 shadow-none hover:shadow-none",
         link: "text-blue-600 underline-offset-4 hover:underline shadow-none hover:shadow-none",
+        // Semantic variants
+        success: "bg-green-600 text-white hover:bg-green-700",
+        warning: "bg-amber-500 text-white hover:bg-amber-600",
       },
       size: {
         default: "h-11 min-h-[44px] px-4 py-2",
@@ -33,16 +37,53 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /** Show loading spinner and disable interaction */
+  loading?: boolean;
+  /** Text to show while loading (optional, defaults to hiding children) */
+  loadingText?: string;
 }
 
+/**
+ * Button Component
+ *
+ * Enhanced button with loading state support.
+ *
+ * @example
+ * // Basic usage
+ * <Button>Click me</Button>
+ *
+ * @example
+ * // Loading state
+ * <Button loading>Submit</Button>
+ *
+ * @example
+ * // Loading with custom text
+ * <Button loading loadingText="Saving...">Save</Button>
+ *
+ * @example
+ * // Semantic variants
+ * <Button variant="success">Confirm</Button>
+ * <Button variant="warning">Proceed with caution</Button>
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, loading = false, loadingText, children, disabled, ...props }, ref) => {
     return (
       <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={disabled || loading}
+        aria-busy={loading}
         {...props}
-      />
+      >
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {loadingText || children}
+          </>
+        ) : (
+          children
+        )}
+      </button>
     );
   }
 );
