@@ -38,6 +38,9 @@ import { useRouter } from 'next/navigation';
 import { cn } from '../../lib/utils';
 import { Skeleton, StatCardSkeleton, ListItemSkeleton, TableRowSkeleton } from '../../components/ui/skeleton';
 import { EmptyState } from '../../components/ui/empty-state';
+import { ResponsiveTable } from '../../components/ui/responsive-table';
+import { TransactionCard, TransactionCardSkeleton } from '../../components/payments/TransactionCard';
+import { SwipeableRow } from '../../components/ui/swipeable-row';
 
 // Types for API responses
 interface UpcomingPayment {
@@ -791,24 +794,33 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               {isLoadingHistory ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b text-left">
-                        <th className="pb-3 font-medium text-gray-500 text-sm">Date</th>
-                        <th className="pb-3 font-medium text-gray-500 text-sm">Pool</th>
-                        <th className="pb-3 font-medium text-gray-500 text-sm">Type</th>
-                        <th className="pb-3 font-medium text-gray-500 text-sm">Amount</th>
-                        <th className="pb-3 font-medium text-gray-500 text-sm">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <TableRowSkeleton key={i} columns={5} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* Mobile skeleton */}
+                  <div className="block md:hidden space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <TransactionCardSkeleton key={i} />
+                    ))}
+                  </div>
+                  {/* Desktop skeleton */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="pb-3 font-medium text-gray-500 text-sm">Date</th>
+                          <th className="pb-3 font-medium text-gray-500 text-sm">Pool</th>
+                          <th className="pb-3 font-medium text-gray-500 text-sm">Type</th>
+                          <th className="pb-3 font-medium text-gray-500 text-sm">Amount</th>
+                          <th className="pb-3 font-medium text-gray-500 text-sm">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <TableRowSkeleton key={i} columns={5} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               ) : historyError ? (
                 <EmptyState
                   icon={AlertCircle}
@@ -842,68 +854,84 @@ export default function PaymentsPage() {
                 />
               ) : (
                 <>
-                  {/* Transactions Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b text-left">
-                          <th className="pb-3 font-medium text-gray-500 text-sm">Date</th>
-                          <th className="pb-3 font-medium text-gray-500 text-sm">Pool</th>
-                          <th className="pb-3 font-medium text-gray-500 text-sm">Type</th>
-                          <th className="pb-3 font-medium text-gray-500 text-sm">Amount</th>
-                          <th className="pb-3 font-medium text-gray-500 text-sm">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {transactions.map((tx) => (
-                          <tr key={tx.id} className="hover:bg-gray-50">
-                            <td className="py-3 text-sm text-gray-600">
-                              {new Date(tx.createdAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </td>
-                            <td className="py-3">
-                              <div className="text-sm font-medium text-gray-900">
-                                {tx.poolName}
-                              </div>
-                              {tx.round && (
-                                <div className="text-xs text-gray-500">
-                                  Round {tx.round}
-                                </div>
-                              )}
-                            </td>
-                            <td className="py-3">
-                              <div className="flex items-center space-x-2">
-                                {getTypeIcon(tx.type)}
-                                <span className="text-sm capitalize">{tx.type}</span>
-                              </div>
-                            </td>
-                            <td className="py-3">
-                              <span className={cn(
-                                "font-medium",
-                                tx.type === 'payout' || tx.type === 'withdrawal'
-                                  ? "text-green-600"
-                                  : "text-gray-900"
-                              )}>
-                                {tx.type === 'payout' || tx.type === 'withdrawal' ? '+' : '-'}
-                                ${tx.amount.toFixed(2)}
-                              </span>
-                            </td>
-                            <td className="py-3">
-                              <span className={cn(
-                                "inline-flex px-2 py-1 rounded-full text-xs font-medium capitalize",
-                                getStatusBadge(tx.status)
-                              )}>
-                                {tx.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {/* Responsive Transactions - Cards on mobile, Table on desktop */}
+                  <ResponsiveTable
+                    data={transactions}
+                    keyExtractor={(tx) => tx.id}
+                    columns={[
+                      {
+                        key: 'createdAt',
+                        header: 'Date',
+                        render: (tx) => (
+                          <span className="text-sm text-gray-600">
+                            {new Date(tx.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        ),
+                      },
+                      {
+                        key: 'poolName',
+                        header: 'Pool',
+                        render: (tx) => (
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{tx.poolName}</div>
+                            {tx.round && <div className="text-xs text-gray-500">Round {tx.round}</div>}
+                          </div>
+                        ),
+                      },
+                      {
+                        key: 'type',
+                        header: 'Type',
+                        render: (tx) => (
+                          <div className="flex items-center space-x-2">
+                            {getTypeIcon(tx.type)}
+                            <span className="text-sm capitalize">{tx.type}</span>
+                          </div>
+                        ),
+                      },
+                      {
+                        key: 'amount',
+                        header: 'Amount',
+                        render: (tx) => (
+                          <span className={cn(
+                            "font-medium",
+                            tx.type === 'payout' || tx.type === 'withdrawal' ? "text-green-600" : "text-gray-900"
+                          )}>
+                            {tx.type === 'payout' || tx.type === 'withdrawal' ? '+' : '-'}${tx.amount.toFixed(2)}
+                          </span>
+                        ),
+                      },
+                      {
+                        key: 'status',
+                        header: 'Status',
+                        render: (tx) => (
+                          <span className={cn(
+                            "inline-flex px-2 py-1 rounded-full text-xs font-medium capitalize",
+                            getStatusBadge(tx.status)
+                          )}>
+                            {tx.status}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    renderCard={(tx) => (
+                      <TransactionCard
+                        transaction={{
+                          ...tx,
+                          type: tx.type as 'contribution' | 'payout' | 'refund',
+                          status: tx.status as 'completed' | 'pending' | 'failed' | 'processing',
+                        }}
+                        onView={(transaction) => {
+                          if (transaction.poolId) {
+                            router.push(`/pools/${transaction.poolId}`);
+                          }
+                        }}
+                      />
+                    )}
+                  />
 
                   {/* Pagination */}
                   {totalPages > 1 && (

@@ -7,6 +7,8 @@ interface PullToRefreshOptions {
   threshold?: number;
   resistance?: number;
   disabled?: boolean;
+  enableHaptics?: boolean;
+  showSuccessDuration?: number;
 }
 
 interface PullToRefreshState {
@@ -14,6 +16,7 @@ interface PullToRefreshState {
   pullDistance: number;
   isRefreshing: boolean;
   canRefresh: boolean;
+  showSuccess: boolean;
 }
 
 export function usePullToRefresh({
@@ -21,17 +24,28 @@ export function usePullToRefresh({
   threshold = 80,
   resistance = 2.5,
   disabled = false,
+  enableHaptics = true,
+  showSuccessDuration = 1000,
 }: PullToRefreshOptions) {
   const [state, setState] = useState<PullToRefreshState>({
     isPulling: false,
     pullDistance: 0,
     isRefreshing: false,
     canRefresh: false,
+    showSuccess: false,
   });
 
   const startY = useRef(0);
   const currentY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasTriggeredHaptic = useRef(false);
+
+  // Haptic feedback function
+  const triggerHaptic = useCallback(() => {
+    if (enableHaptics && 'vibrate' in navigator) {
+      navigator.vibrate(10);
+    }
+  }, [enableHaptics]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled || state.isRefreshing) return;
@@ -41,7 +55,8 @@ export function usePullToRefresh({
     if (scrollTop > 0) return;
 
     startY.current = e.touches[0].clientY;
-    setState(prev => ({ ...prev, isPulling: true }));
+    hasTriggeredHaptic.current = false;
+    setState(prev => ({ ...prev, isPulling: true, showSuccess: false }));
   }, [disabled, state.isRefreshing]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
@@ -53,12 +68,21 @@ export function usePullToRefresh({
     // Only allow pulling down
     if (diff < 0) {
       setState(prev => ({ ...prev, pullDistance: 0, canRefresh: false }));
+      hasTriggeredHaptic.current = false;
       return;
     }
 
     // Apply resistance to make it feel natural
     const distance = Math.min(diff / resistance, threshold * 1.5);
     const canRefresh = distance >= threshold;
+
+    // Trigger haptic feedback when threshold is reached
+    if (canRefresh && !hasTriggeredHaptic.current) {
+      triggerHaptic();
+      hasTriggeredHaptic.current = true;
+    } else if (!canRefresh) {
+      hasTriggeredHaptic.current = false;
+    }
 
     setState(prev => ({
       ...prev,
@@ -70,7 +94,7 @@ export function usePullToRefresh({
     if (distance > 0) {
       e.preventDefault();
     }
-  }, [state.isPulling, disabled, state.isRefreshing, resistance, threshold]);
+  }, [state.isPulling, disabled, state.isRefreshing, resistance, threshold, triggerHaptic]);
 
   const handleTouchEnd = useCallback(async () => {
     if (!state.isPulling || disabled) return;
@@ -80,14 +104,30 @@ export function usePullToRefresh({
 
       try {
         await onRefresh();
+        // Show success state
+        setState(prev => ({
+          ...prev,
+          isRefreshing: false,
+          showSuccess: true,
+        }));
+        // Hide success state after duration
+        setTimeout(() => {
+          setState({
+            isPulling: false,
+            pullDistance: 0,
+            isRefreshing: false,
+            canRefresh: false,
+            showSuccess: false,
+          });
+        }, showSuccessDuration);
       } catch (error) {
         console.error('Refresh failed:', error);
-      } finally {
         setState({
           isPulling: false,
           pullDistance: 0,
           isRefreshing: false,
           canRefresh: false,
+          showSuccess: false,
         });
       }
     } else {
@@ -96,12 +136,13 @@ export function usePullToRefresh({
         pullDistance: 0,
         isRefreshing: false,
         canRefresh: false,
+        showSuccess: false,
       });
     }
 
     startY.current = 0;
     currentY.current = 0;
-  }, [state.isPulling, state.canRefresh, state.isRefreshing, disabled, threshold, onRefresh]);
+  }, [state.isPulling, state.canRefresh, state.isRefreshing, disabled, threshold, onRefresh, showSuccessDuration]);
 
   useEffect(() => {
     const container = containerRef.current || document;

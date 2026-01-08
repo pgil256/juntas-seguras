@@ -1,7 +1,7 @@
 // components/pools/CreatePoolModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCreatePool } from "../../lib/hooks/useCreatePool";
 import { useSession } from "next-auth/react";
@@ -13,8 +13,10 @@ import {
   DollarSign,
   ChevronRight,
   ChevronLeft,
-  Check,
+  Zap,
 } from "lucide-react";
+import { StepIndicator } from "../../components/ui/step-indicator";
+import { FormField, FormError, FormLabel, FormHelper } from "../../components/ui/form-field";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,11 @@ const CreatePoolModal = ({
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [createdPoolId, setCreatedPoolId] = useState<string | null>(null);
   const [createdPoolName, setCreatedPoolName] = useState<string>("");
+  const [quickCreateMode, setQuickCreateMode] = useState(false);
+
+  // Field-level validation errors for inline feedback
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
 
   const { createPool, isLoading, error } = useCreatePool({
     onSuccess: (poolId) => {
@@ -83,7 +90,10 @@ const CreatePoolModal = ({
     }
   });
 
-  const [poolData, setPoolData] = useState({
+  const DRAFT_STORAGE_KEY = 'juntas-pool-draft';
+
+  // Default form data
+  const defaultPoolData = {
     name: "",
     contributionAmount: "",
     frequency: "weekly",
@@ -94,15 +104,160 @@ const CreatePoolModal = ({
     inviteMethod: "email",
     emails: "",
     allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
-  });
+  };
+
+  const [poolData, setPoolData] = useState(defaultPoolData);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          // Validate the draft has some data
+          if (parsed.name || parsed.contributionAmount) {
+            setPoolData(parsed);
+            setHasDraft(true);
+          }
+        } catch {
+          // Invalid draft, ignore
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+      }
+    }
+  }, []);
+
+  // Save draft to localStorage when form data changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isOpen) {
+      // Only save if there's meaningful data
+      if (poolData.name || poolData.contributionAmount || poolData.startDate) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(poolData));
+        setHasDraft(true);
+      }
+    }
+  }, [poolData, isOpen]);
+
+  // Clear draft from localStorage
+  const clearDraft = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      setHasDraft(false);
+    }
+  }, []);
+
+  // Discard draft and reset form
+  const discardDraft = useCallback(() => {
+    clearDraft();
+    setPoolData(defaultPoolData);
+    setStep(1);
+    setFieldErrors({});
+    setTouchedFields({});
+  }, [clearDraft]);
+
+  // Calculate estimated payout dates
+  const calculatePayoutDates = useCallback(() => {
+    if (!poolData.startDate || !poolData.totalMembers || !poolData.frequency) {
+      return [];
+    }
+
+    const startDate = new Date(poolData.startDate);
+    const totalMembers = parseInt(poolData.totalMembers);
+    const dates: Date[] = [];
+
+    // Calculate interval based on frequency
+    const getNextDate = (currentDate: Date, frequency: string): Date => {
+      const next = new Date(currentDate);
+      switch (frequency) {
+        case 'weekly':
+          next.setDate(next.getDate() + 7);
+          break;
+        case 'biweekly':
+          next.setDate(next.getDate() + 14);
+          break;
+        case 'monthly':
+          next.setMonth(next.getMonth() + 1);
+          break;
+        default:
+          next.setMonth(next.getMonth() + 1);
+      }
+      return next;
+    };
+
+    // First payout is after first contribution round
+    let currentDate = new Date(startDate);
+    for (let i = 0; i < totalMembers; i++) {
+      dates.push(new Date(currentDate));
+      currentDate = getNextDate(currentDate, poolData.frequency);
+    }
+
+    return dates;
+  }, [poolData.startDate, poolData.totalMembers, poolData.frequency]);
+
+  // Field-level validation
+  const validateField = useCallback((name: string, value: string): string => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Pool name is required';
+        if (value.trim().length < 3) return 'Pool name must be at least 3 characters';
+        if (value.trim().length > 50) return 'Pool name must be less than 50 characters';
+        return '';
+      case 'contributionAmount':
+        if (!value) return 'Contribution amount is required';
+        const amount = Number(value);
+        if (isNaN(amount) || !Number.isInteger(amount) || amount < 1 || amount > 20) {
+          return 'Amount must be between $1 and $20';
+        }
+        return '';
+      case 'startDate':
+        if (!value) return 'Start date is required';
+        const selectedDate = new Date(value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) return 'Start date cannot be in the past';
+        return '';
+      case 'emails':
+        if (poolData.inviteMethod === 'email' && value) {
+          const emails = value.split(',').map(e => e.trim()).filter(e => e);
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          const invalidEmails = emails.filter(e => !emailRegex.test(e));
+          if (invalidEmails.length > 0) {
+            return `Invalid email${invalidEmails.length > 1 ? 's' : ''}: ${invalidEmails.join(', ')}`;
+          }
+        }
+        return '';
+      default:
+        return '';
+    }
+  }, [poolData.inviteMethod]);
+
+  // Handle field blur for validation
+  const handleFieldBlur = (name: string, value: string) => {
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
+    const error = validateField(name, value);
+    setFieldErrors(prev => ({ ...prev, [name]: error }));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPoolData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear error when user starts typing (if field was touched)
+    if (touchedFields[name] && fieldErrors[name]) {
+      const error = validateField(name, value);
+      setFieldErrors(prev => ({ ...prev, [name]: error }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setPoolData((prev) => ({ ...prev, [name]: value }));
+
+    // Validate and mark as touched
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
+    const error = validateField(name, value);
+    setFieldErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const handlePaymentMethodToggle = (method: PaymentMethodType, checked: boolean) => {
@@ -222,20 +377,12 @@ const CreatePoolModal = ({
   const handleOnboardingComplete = () => {
     setShowOnboardingModal(false);
 
-    // Reset form
+    // Reset form and clear draft
     setStep(1);
-    setPoolData({
-      name: "",
-      contributionAmount: "",
-      frequency: "weekly",
-      totalMembers: "4",
-      duration: "3",
-      startDate: "",
-      description: "",
-      inviteMethod: "email",
-      emails: "",
-      allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
-    });
+    setPoolData(defaultPoolData);
+    setFieldErrors({});
+    setTouchedFields({});
+    clearDraft();
 
     // Close modal and redirect to member management
     onClose();
@@ -248,20 +395,12 @@ const CreatePoolModal = ({
   const handleOnboardingClose = () => {
     setShowOnboardingModal(false);
 
-    // Reset form
+    // Reset form and clear draft
     setStep(1);
-    setPoolData({
-      name: "",
-      contributionAmount: "",
-      frequency: "weekly",
-      totalMembers: "4",
-      duration: "3",
-      startDate: "",
-      description: "",
-      inviteMethod: "email",
-      emails: "",
-      allowedPaymentMethods: ['venmo', 'cashapp', 'paypal', 'zelle'] as PaymentMethodType[]
-    });
+    setPoolData(defaultPoolData);
+    setFieldErrors({});
+    setTouchedFields({});
+    clearDraft();
 
     // Close modal and redirect to member management
     onClose();
@@ -289,71 +428,222 @@ const CreatePoolModal = ({
         </DialogHeader>
 
         <div className="mt-4 pt-2">
-          {/* Step indicator */}
-          <div className="flex justify-center items-center mb-8 px-2 sm:px-0">
-            <div className="flex items-center">
-              <div
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
-                  step >= 1
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-500"
+          {/* Draft restoration indicator */}
+          {hasDraft && step === 1 && !quickCreateMode && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
+              <p className="text-sm text-amber-800">
+                Draft restored from your last session
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={discardDraft}
+                className="text-amber-700 hover:text-amber-900 hover:bg-amber-100 h-7 px-2"
+              >
+                Start Fresh
+              </Button>
+            </div>
+          )}
+
+          {/* Quick Create Toggle - only on step 1 */}
+          {step === 1 && !hasDraft && (
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickCreateMode(!quickCreateMode);
+                  if (!quickCreateMode) {
+                    // Set smart defaults for quick create
+                    const nextMonth = new Date();
+                    nextMonth.setMonth(nextMonth.getMonth() + 1);
+                    nextMonth.setDate(1);
+                    setPoolData(prev => ({
+                      ...prev,
+                      frequency: "monthly",
+                      contributionAmount: "10",
+                      totalMembers: "4",
+                      startDate: nextMonth.toISOString().split('T')[0],
+                      inviteMethod: "later",
+                    }));
+                  }
+                }}
+                className={`w-full p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                  quickCreateMode
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-dashed border-gray-300 text-gray-600 hover:border-blue-300 hover:bg-gray-50'
                 }`}
               >
-                {step > 1 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "1"}
-              </div>
-              <div
-                className={`h-1 w-10 sm:w-14 transition-colors duration-300 ${
-                  step > 1 ? "bg-blue-600" : "bg-gray-200"
-                }`}
-              ></div>
+                <Zap className={`h-4 w-4 ${quickCreateMode ? 'text-blue-500' : 'text-gray-400'}`} />
+                <span className="text-sm font-medium">
+                  {quickCreateMode ? 'Quick Create Mode' : 'Quick Create (Skip Steps)'}
+                </span>
+              </button>
             </div>
-            <div className="flex items-center">
-              <div
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
-                  step >= 2
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                {step > 2 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "2"}
-              </div>
-              <div
-                className={`h-1 w-10 sm:w-14 transition-colors duration-300 ${
-                  step > 2 ? "bg-blue-600" : "bg-gray-200"
-                }`}
-              ></div>
+          )}
+
+          {/* Step indicator - hide in quick create mode */}
+          {!quickCreateMode && (
+            <div className="mb-8 px-2 sm:px-0">
+              <StepIndicator
+                currentStep={step}
+                totalSteps={3}
+                showStepText
+                steps={[
+                  { label: "Basic Info" },
+                  { label: "Schedule" },
+                  { label: "Invite Members" },
+                ]}
+              />
             </div>
-            <div className="flex items-center">
-              <div
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-300 ${
-                  step >= 3
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                {step > 3 ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : "3"}
-              </div>
-            </div>
-          </div>
+          )}
 
           <form onSubmit={handleShowRulesDialog}>
-            {/* Step 1: Basic Pool Information */}
-            {step === 1 && (
+            {/* Quick Create Mode */}
+            {quickCreateMode && step === 1 && (
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Pool Name</Label>
+                <FormField>
+                  <FormLabel htmlFor="qc-name" required>Pool Name</FormLabel>
+                  <Input
+                    id="qc-name"
+                    name="name"
+                    value={poolData.name}
+                    onChange={handleInputChange}
+                    onBlur={(e) => handleFieldBlur('name', e.target.value)}
+                    placeholder="e.g. Family Savings Pool"
+                    className={touchedFields.name && fieldErrors.name ? 'border-destructive' : ''}
+                  />
+                  {touchedFields.name && <FormError>{fieldErrors.name}</FormError>}
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField>
+                    <FormLabel htmlFor="qc-amount" required>Amount</FormLabel>
+                    <Select
+                      value={poolData.contributionAmount}
+                      onValueChange={(value) => handleSelectChange("contributionAmount", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="$" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 3, 5, 10, 15, 20].map((amount) => (
+                          <SelectItem key={amount} value={amount.toString()}>
+                            ${amount}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+
+                  <FormField>
+                    <FormLabel htmlFor="qc-members" required>Members</FormLabel>
+                    <Select
+                      value={poolData.totalMembers}
+                      onValueChange={(value) => handleSelectChange("totalMembers", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="#" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField>
+                    <FormLabel htmlFor="qc-frequency" required>Frequency</FormLabel>
+                    <Select
+                      value={poolData.frequency}
+                      onValueChange={(value) => handleSelectChange("frequency", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+
+                  <FormField>
+                    <FormLabel htmlFor="qc-start" required>Start</FormLabel>
+                    <Input
+                      id="qc-start"
+                      name="startDate"
+                      value={poolData.startDate}
+                      onChange={handleInputChange}
+                      type="date"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </FormField>
+                </div>
+
+                {/* Quick Create Summary */}
+                <div className="p-3 bg-gray-50 rounded-lg border">
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total pool value:</span>
+                      <span className="font-medium text-gray-900">
+                        ${parseInt(poolData.contributionAmount || "0") * parseInt(poolData.totalMembers)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Each member contributes:</span>
+                      <span className="font-medium text-gray-900">
+                        ${poolData.contributionAmount}/{poolData.frequency}
+                      </span>
+                    </div>
+                    {poolData.startDate && (
+                      <div className="flex justify-between">
+                        <span>First payout:</span>
+                        <span className="font-medium text-gray-900">
+                          {new Date(poolData.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setQuickCreateMode(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  Switch to detailed setup
+                </button>
+              </div>
+            )}
+
+            {/* Step 1: Basic Pool Information */}
+            {step === 1 && !quickCreateMode && (
+              <div className="space-y-4">
+                <FormField>
+                  <FormLabel htmlFor="name" required>Pool Name</FormLabel>
                   <Input
                     id="name"
                     name="name"
                     value={poolData.name}
                     onChange={handleInputChange}
+                    onBlur={(e) => handleFieldBlur('name', e.target.value)}
                     placeholder="e.g. Family Savings Pool"
-                    required
+                    className={touchedFields.name && fieldErrors.name ? 'border-destructive' : ''}
+                    aria-invalid={!!fieldErrors.name}
+                    aria-describedby={fieldErrors.name ? 'name-error' : undefined}
                   />
-                </div>
+                  {touchedFields.name && <FormError id="name-error">{fieldErrors.name}</FormError>}
+                </FormField>
 
-                <div>
-                  <Label htmlFor="description">Description (Optional)</Label>
+                <FormField>
+                  <FormLabel htmlFor="description" optional>Description</FormLabel>
                   <Input
                     id="description"
                     name="description"
@@ -361,21 +651,24 @@ const CreatePoolModal = ({
                     onChange={handleInputChange}
                     placeholder="What is this pool for?"
                   />
-                </div>
+                  <FormHelper>Help members understand the purpose of this pool</FormHelper>
+                </FormField>
 
-                <div>
-                  <Label htmlFor="contributionAmount">
+                <FormField>
+                  <FormLabel htmlFor="contributionAmount" required>
                     Contribution Amount ($)
-                  </Label>
+                  </FormLabel>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
                     <Select
                       value={poolData.contributionAmount}
                       onValueChange={(value) =>
                         handleSelectChange("contributionAmount", value)
                       }
                     >
-                      <SelectTrigger className="pl-10">
+                      <SelectTrigger
+                        className={`pl-10 ${touchedFields.contributionAmount && fieldErrors.contributionAmount ? 'border-destructive' : ''}`}
+                      >
                         <SelectValue placeholder="Select amount" />
                       </SelectTrigger>
                       <SelectContent>
@@ -387,7 +680,8 @@ const CreatePoolModal = ({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                  {touchedFields.contributionAmount && <FormError>{fieldErrors.contributionAmount}</FormError>}
+                </FormField>
               </div>
             )}
 
@@ -466,17 +760,22 @@ const CreatePoolModal = ({
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="startDate">Start Date</Label>
+                <FormField>
+                  <FormLabel htmlFor="startDate" required>Start Date</FormLabel>
                   <Input
                     id="startDate"
                     name="startDate"
                     value={poolData.startDate}
                     onChange={handleInputChange}
+                    onBlur={(e) => handleFieldBlur('startDate', e.target.value)}
                     type="date"
-                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    className={touchedFields.startDate && fieldErrors.startDate ? 'border-destructive' : ''}
+                    aria-invalid={!!fieldErrors.startDate}
                   />
-                </div>
+                  {touchedFields.startDate && <FormError>{fieldErrors.startDate}</FormError>}
+                  <FormHelper>When should the first contribution be due?</FormHelper>
+                </FormField>
 
                 <div>
                   <Label className="mb-2 block">Allowed Payment Methods</Label>
@@ -543,21 +842,23 @@ const CreatePoolModal = ({
                 </div>
 
                 {poolData.inviteMethod === "email" && (
-                  <div>
-                    <Label htmlFor="emails">
-                      Enter email addresses (separated by commas)
-                    </Label>
+                  <FormField>
+                    <FormLabel htmlFor="emails" optional>
+                      Email Addresses (separated by commas)
+                    </FormLabel>
                     <Input
                       id="emails"
                       name="emails"
                       value={poolData.emails}
                       onChange={handleInputChange}
+                      onBlur={(e) => handleFieldBlur('emails', e.target.value)}
                       placeholder="e.g. friend@example.com, family@example.com"
+                      className={touchedFields.emails && fieldErrors.emails ? 'border-destructive' : ''}
+                      aria-invalid={!!fieldErrors.emails}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      We'll send an invitation to join your pool
-                    </p>
-                  </div>
+                    {touchedFields.emails && <FormError>{fieldErrors.emails}</FormError>}
+                    <FormHelper>We'll send an invitation to join your pool</FormHelper>
+                  </FormField>
                 )}
 
                 {poolData.inviteMethod === "link" && (
@@ -596,6 +897,31 @@ const CreatePoolModal = ({
                         .join(", ")}
                     </li>
                   </ul>
+
+                  {/* Estimated Payout Schedule */}
+                  {poolData.startDate && (
+                    <div className="mt-4 pt-3 border-t border-blue-200">
+                      <h5 className="font-medium text-blue-800 text-sm mb-2">
+                        Estimated Payout Schedule
+                      </h5>
+                      <div className="grid grid-cols-2 gap-1 text-xs text-blue-600">
+                        {calculatePayoutDates().slice(0, 6).map((date, index) => (
+                          <div key={index} className="flex justify-between">
+                            <span>Round {index + 1}:</span>
+                            <span>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                        ))}
+                        {calculatePayoutDates().length > 6 && (
+                          <div className="col-span-2 text-blue-500 text-xs mt-1">
+                            ... and {calculatePayoutDates().length - 6} more rounds
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-blue-500 mt-2">
+                        * Each member receives the pool on their assigned round
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -625,37 +951,61 @@ const CreatePoolModal = ({
             )}
 
             <DialogFooter className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
-              {step > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Back
-                </Button>
+              {/* Quick Create Mode Footer */}
+              {quickCreateMode ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setQuickCreateMode(false)}
+                    className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
+                  >
+                    Customize
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 min-h-[44px] w-full sm:w-auto flex items-center justify-center gap-2"
+                    disabled={isLoading || !poolData.name || !poolData.contributionAmount || !poolData.startDate}
+                  >
+                    <Zap className="h-4 w-4" />
+                    {isLoading ? 'Creating...' : 'Quick Create'}
+                  </Button>
+                </>
               ) : (
-                <div className="hidden sm:block"></div>
-              )}
+                <>
+                  {step > 1 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={prevStep}
+                      className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Back
+                    </Button>
+                  ) : (
+                    <div className="hidden sm:block"></div>
+                  )}
 
-              {step < 3 ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 min-h-[44px] w-full sm:w-auto"
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Creating...' : 'Create Pool'}
-                </Button>
+                  {step < 3 ? (
+                    <Button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex items-center justify-center min-h-[44px] w-full sm:w-auto"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 min-h-[44px] w-full sm:w-auto"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Creating...' : 'Create Pool'}
+                    </Button>
+                  )}
+                </>
               )}
             </DialogFooter>
           </form>

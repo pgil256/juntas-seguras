@@ -36,6 +36,7 @@ import { useNotifications } from "../../contexts/NotificationContext";
 import { NotificationIcon } from "../../components/notifications/NotificationIcon";
 import { NotificationType } from "../../types/notification";
 import { useCreateNotification } from "../../lib/hooks/useCreateNotification";
+import { NoNotificationsEmptyState, NoSearchResultsEmptyState } from "../../components/ui/empty-state";
 
 // Notification categories for filtering
 const categories = [
@@ -230,17 +231,14 @@ export default function NotificationsPage() {
               </CardHeader>
               <CardContent>
                 {filteredNotifications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <BellIcon className="h-12 w-12 text-gray-300 mx-auto" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      No notifications
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {selectedCategory === "all"
-                        ? "You don't have any notifications yet"
-                        : `You don't have any ${selectedCategory} notifications`}
-                    </p>
-                  </div>
+                  selectedCategory === "all" ? (
+                    <NoNotificationsEmptyState />
+                  ) : (
+                    <NoSearchResultsEmptyState
+                      query={selectedCategory}
+                      onClear={() => setSelectedCategory("all")}
+                    />
+                  )
                 ) : (
                   <div className="divide-y divide-gray-200">
                     {filteredNotifications.map((notification) => (
