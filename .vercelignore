@@ -3,3 +3,14 @@ claude-env
 *.env.local
 .git
 node_modules
+
+# Test files - not needed for production build
+__tests__
+e2e
+performance
+jest.config.js
+jest.setup.js
+jest.setup.node.js
+playwright.config.ts
+TESTING_PHASES.md
+TESTING_PLAN.md
