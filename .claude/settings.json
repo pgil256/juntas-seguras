@@ -10,17 +10,24 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "type": "shell",
-        "command": "bash .claude/hooks/skill-activation-prompt.sh",
-        "description": "Analyze prompts and suggest relevant skills"
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/skill-activation-prompt.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "type": "shell",
-        "command": "bash .claude/hooks/post-tool-use-tracker.sh",
-        "tools": ["Edit", "MultiEdit", "Write"],
-        "description": "Track edited files for build/type checking"
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-tool-use-tracker.sh"
+          }
+        ]
       }
     ]
   },
