@@ -630,7 +630,12 @@
     }
   }
 
-  /* Reduce motion for users who prefer it */
+  /* ===========================================
+     REDUCED MOTION SUPPORT
+     ===========================================
+     Respect user preference for reduced motion.
+     This applies globally to all animations and transitions.
+  */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -638,6 +643,22 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Ensure smooth scroll is disabled */
+    html {
+      scroll-behavior: auto !important;
+    }
+
+    /* Keep essential loading indicators visible but simplified */
+    .animate-spin {
+      animation: none !important;
+    }
+
+    /* Replace spinner with static indicator for loading states */
+    [aria-busy="true"] .animate-spin {
+      opacity: 0.7;
     }
   }
 }
