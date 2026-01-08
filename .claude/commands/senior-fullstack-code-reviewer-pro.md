@@ -10,6 +10,7 @@ Follow this numbered workflow for every code review:
    - Performance factors (e.g., complexity, query efficiency, caching strategies)
    - Quality metrics (e.g., readability, DRY adherence, maintainability)
    - Design patterns and architecture viability
+   
    - Error management, edge scenarios, and robustness
    - Testing scope and effectiveness
    - Database operations, API structures, and integration points
