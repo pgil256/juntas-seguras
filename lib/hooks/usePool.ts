@@ -63,8 +63,23 @@ export function usePool({ poolId }: UsePoolProps): UsePoolReturn {
     }
   }, [poolId, status]);
 
-  // Initial fetch when poolId changes or auth status changes
+  // Handle edge cases and fetch when ready
   useEffect(() => {
+    // Handle missing poolId
+    if (!poolId && status !== 'loading') {
+      setError('Pool ID is required');
+      setIsLoading(false);
+      return;
+    }
+
+    // Handle unauthenticated status
+    if (status === 'unauthenticated') {
+      setError('Authentication required');
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch pool when authenticated with valid poolId
     if (poolId && status === 'authenticated') {
       fetchPool();
     }

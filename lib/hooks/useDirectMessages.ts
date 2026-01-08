@@ -100,11 +100,24 @@ export function useDirectMessages({ poolId, userId, memberId }: UseDirectMessage
     }
   };
 
-  // Initial fetch
+  // Handle edge cases and fetch when ready
   useEffect(() => {
-    if (poolId && memberId) {
-      fetchMessages();
+    // Handle missing poolId
+    if (!poolId) {
+      setError('Pool ID is required');
+      setIsLoading(false);
+      return;
     }
+
+    // Handle missing memberId
+    if (!memberId) {
+      setError('Member ID is required');
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch messages when both IDs are available
+    fetchMessages();
   }, [poolId, memberId, fetchMessages]);
 
   return {
