@@ -39,7 +39,42 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
 
-    --radius: 0.5rem
+    --radius: 0.5rem;
+
+    /* ===========================================
+       SEMANTIC COLOR SYSTEM
+       ===========================================
+       Color semantics guide:
+       - Success (Green):  Completed payments, verified status, positive changes
+       - Warning (Amber):  Due soon, attention needed, pending actions
+       - Error (Red):      Overdue, failed, blocked, destructive actions
+       - Info (Blue):      Informational, in-progress, neutral highlights
+       - Neutral (Gray):   Disabled, secondary content, borders
+       =========================================== */
+
+    /* Success colors (Green) - Completed, verified, positive */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 95%;
+    --success-border: 142 76% 80%;
+
+    /* Warning colors (Amber) - Due soon, attention needed */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 95%;
+    --warning-border: 38 92% 80%;
+
+    /* Error colors (Red) - Overdue, failed, blocked */
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+    --error-light: 0 84% 97%;
+    --error-border: 0 84% 85%;
+
+    /* Info colors (Blue) - Informational, in-progress */
+    --info: 215 85% 50%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 215 85% 97%;
+    --info-border: 215 85% 85%
   }
   
   .dark {
@@ -75,7 +110,28 @@
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
+
+    /* Semantic colors (dark mode) */
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 70% 15%;
+    --success-border: 142 70% 25%;
+
+    --warning: 38 85% 55%;
+    --warning-foreground: 0 0% 0%;
+    --warning-light: 38 85% 15%;
+    --warning-border: 38 85% 25%;
+
+    --error: 0 75% 55%;
+    --error-foreground: 0 0% 100%;
+    --error-light: 0 75% 15%;
+    --error-border: 0 75% 25%;
+
+    --info: 215 80% 55%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 215 80% 15%;
+    --info-border: 215 80% 25%
   }
 }
 
@@ -647,5 +703,232 @@
 
   .animate-count-up {
     animation: count-up 0.3s ease-out;
+  }
+}
+
+/* ===========================================
+   TYPOGRAPHY SYSTEM
+   ===========================================
+   Consistent typography scale for the app.
+   Use these utilities instead of ad-hoc text sizing.
+   =========================================== */
+@layer utilities {
+  /* Display - Large page titles, hero text */
+  .text-display {
+    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+  }
+
+  /* Heading 1 - Page titles, major sections */
+  .text-h1 {
+    @apply text-2xl sm:text-3xl font-semibold tracking-tight;
+  }
+
+  /* Heading 2 - Card titles, subsection headers */
+  .text-h2 {
+    @apply text-xl sm:text-2xl font-semibold;
+  }
+
+  /* Heading 3 - Minor section headers, list headers */
+  .text-h3 {
+    @apply text-lg font-medium;
+  }
+
+  /* Heading 4 - Small headers, label-like text */
+  .text-h4 {
+    @apply text-base font-medium;
+  }
+
+  /* Body - Default paragraph text */
+  .text-body {
+    @apply text-base leading-relaxed;
+  }
+
+  /* Body Small - Secondary content, descriptions */
+  .text-body-sm {
+    @apply text-sm leading-relaxed text-muted-foreground;
+  }
+
+  /* Caption - Metadata, timestamps, hints */
+  .text-caption {
+    @apply text-xs text-muted-foreground;
+  }
+
+  /* Label - Form labels, field names */
+  .text-label {
+    @apply text-sm font-medium;
+  }
+
+  /* Overline - Category labels, section identifiers */
+  .text-overline {
+    @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+
+  /* Currency/Number - Monetary values, statistics */
+  .text-currency {
+    @apply font-semibold tabular-nums;
+  }
+
+  .text-currency-lg {
+    @apply text-2xl sm:text-3xl font-bold tabular-nums;
+  }
+
+  .text-currency-sm {
+    @apply text-sm font-medium tabular-nums;
+  }
+}
+
+/* ===========================================
+   SPACING TOKEN SYSTEM
+   ===========================================
+   Standard spacing scale:
+   xs:  4px  (0.25rem) - Tight inline spacing
+   sm:  8px  (0.5rem)  - Compact elements
+   md:  16px (1rem)    - Default spacing
+   lg:  24px (1.5rem)  - Section spacing
+   xl:  32px (2rem)    - Major sections
+   2xl: 48px (3rem)    - Page sections
+   =========================================== */
+@layer utilities {
+  /* Page container spacing */
+  .page-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .page-padding-y {
+    @apply py-4 sm:py-6 lg:py-8;
+  }
+
+  /* Section spacing (vertical rhythm) */
+  .section-spacing {
+    @apply mb-6 sm:mb-8;
+  }
+
+  .section-spacing-lg {
+    @apply mb-8 sm:mb-12;
+  }
+
+  /* Card internal spacing */
+  .card-spacing {
+    @apply p-4 sm:p-6;
+  }
+
+  .card-spacing-sm {
+    @apply p-3 sm:p-4;
+  }
+
+  /* List item spacing */
+  .list-spacing {
+    @apply space-y-2;
+  }
+
+  .list-spacing-lg {
+    @apply space-y-4;
+  }
+
+  /* Form field spacing */
+  .form-spacing {
+    @apply space-y-4;
+  }
+
+  .form-spacing-sm {
+    @apply space-y-3;
+  }
+
+  /* Inline element spacing (horizontal) */
+  .inline-spacing {
+    @apply space-x-2;
+  }
+
+  .inline-spacing-sm {
+    @apply space-x-1;
+  }
+
+  .inline-spacing-lg {
+    @apply space-x-4;
+  }
+
+  /* Grid gaps */
+  .grid-gap {
+    @apply gap-4 sm:gap-6;
+  }
+
+  .grid-gap-sm {
+    @apply gap-2 sm:gap-4;
+  }
+
+  /* Stack spacing (flex column) */
+  .stack {
+    @apply flex flex-col gap-4;
+  }
+
+  .stack-sm {
+    @apply flex flex-col gap-2;
+  }
+
+  .stack-lg {
+    @apply flex flex-col gap-6;
+  }
+
+  /* Row spacing (flex row) */
+  .row {
+    @apply flex flex-row items-center gap-3;
+  }
+
+  .row-sm {
+    @apply flex flex-row items-center gap-2;
+  }
+
+  .row-lg {
+    @apply flex flex-row items-center gap-4;
+  }
+}
+
+/* ===========================================
+   ICON SIZE STANDARDS
+   ===========================================
+   Consistent icon sizing across the app.
+   xs:  h-3 w-3  (inline with small text)
+   sm:  h-4 w-4  (inline with body text, buttons)
+   md:  h-5 w-5  (navigation, default)
+   lg:  h-6 w-6  (card headers)
+   xl:  h-8 w-8  (empty states, features)
+   2xl: h-12 w-12 (hero sections)
+   =========================================== */
+@layer utilities {
+  .icon-xs {
+    @apply h-3 w-3;
+  }
+
+  .icon-sm {
+    @apply h-4 w-4;
+  }
+
+  .icon-md {
+    @apply h-5 w-5;
+  }
+
+  .icon-lg {
+    @apply h-6 w-6;
+  }
+
+  .icon-xl {
+    @apply h-8 w-8;
+  }
+
+  .icon-2xl {
+    @apply h-12 w-12;
+  }
+
+  /* Icon + text alignment helpers */
+  .icon-text {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .icon-text-sm {
+    @apply inline-flex items-center gap-1;
+  }
+
+  .icon-text-lg {
+    @apply inline-flex items-center gap-2;
   }
 }
