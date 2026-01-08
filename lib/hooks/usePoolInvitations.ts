@@ -183,11 +183,16 @@ export function usePoolInvitations({ poolId, userId }: UsePoolInvitationsProps) 
     }
   };
 
-  // Initial fetch of invitations
+  // Handle poolId validation and fetch invitations
   useEffect(() => {
-    if (poolId) {
-      fetchInvitations();
+    // Handle missing poolId
+    if (!poolId) {
+      setError('Pool ID is required');
+      setIsLoading(false);
+      return;
     }
+
+    fetchInvitations();
   }, [poolId, fetchInvitations]);
 
   return {

@@ -87,8 +87,16 @@ export function usePools(): UsePoolsReturn {
     }
   }, [status]);
 
-  // Initial fetch when auth status changes
+  // Handle authentication status and fetch pools
   useEffect(() => {
+    // Handle unauthenticated status
+    if (status === 'unauthenticated') {
+      setError('Authentication required');
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch pools when authenticated
     if (status === 'authenticated') {
       fetchPools();
     }
