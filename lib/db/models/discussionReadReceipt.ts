@@ -98,8 +98,7 @@ DiscussionReadReceiptSchema.index({ userId: 1, discussionId: 1 }, { unique: true
 // Compound index for checking if user has read a discussion
 DiscussionReadReceiptSchema.index({ userId: 1, poolId: 1, discussionId: 1 });
 
-// Cleanup: find all receipts for a discussion (when deleting)
-DiscussionReadReceiptSchema.index({ discussionId: 1 });
+// Note: discussionId field already has an index from index: true in schema definition
 
 /**
  * Static method to mark a discussion as read

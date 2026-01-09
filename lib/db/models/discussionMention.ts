@@ -114,8 +114,7 @@ DiscussionMentionSchema.index({ mentionedUserId: 1, isRead: 1, createdAt: -1 });
 // Get mentions in a specific pool for a user
 DiscussionMentionSchema.index({ mentionedUserId: 1, poolId: 1, createdAt: -1 });
 
-// Get all mentions for a discussion (for cleanup on delete)
-DiscussionMentionSchema.index({ discussionId: 1 });
+// Note: discussionId field already has an index from index: true in schema definition
 
 // Compound index for finding if a mention already exists
 DiscussionMentionSchema.index({ discussionId: 1, mentionedUserId: 1 }, { unique: true });

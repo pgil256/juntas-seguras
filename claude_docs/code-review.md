@@ -85,7 +85,7 @@ const member = pool.members.find((m: any) => m.role === 'admin');
 
 **Recommendation:** Define proper TypeScript interfaces for all data structures. The `Pool` and `Member` types exist but aren't consistently used.
 
-**Status:** 🟡 Open
+**Status:** 🟡 Partially Fixed (2026-01-09) - Added `ObjectIdLike` type for proper MongoDB ObjectId handling. Updated `round-payout/route.ts` as example. Pattern established for other routes.
 
 ---
 
@@ -167,7 +167,7 @@ Request body is cast directly without validation. While some validation exists l
 
 **Recommendation:** Use a schema validation library (Zod, Yup, or Joi) to validate all inputs at the API boundary.
 
-**Status:** 🟡 Open
+**Status:** ✅ Fixed (2026-01-09) - Added Zod validation library via `lib/validation/schemas.ts` with schemas for pools, payments, MFA, users, and discussions. Applied to POST /api/pools route.
 
 ---
 
@@ -313,8 +313,8 @@ export function isValidObjectId(id: string): boolean { ... }
 4. ☑ Standardize authorization checks using `userId` ✅
 5. ☐ Replace `any` types with proper interfaces
 6. ☑ Remove sensitive data from logs ✅ (done as part of immediate fixes)
-7. ☐ Add input validation library (Zod recommended)
-8. ☐ Add missing database indexes
+7. ☑ Add input validation library (Zod recommended) ✅
+8. ☑ Add missing database indexes ✅
 
 ### Medium-term (1 Month)
 9. ☐ Standardize error response format

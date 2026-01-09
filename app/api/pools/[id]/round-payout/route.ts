@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { Pool } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
-import { PoolMemberRole, TransactionType } from '../../../../../types/pool';
+import { PoolMemberRole, TransactionType, PoolMember, RoundPayment } from '../../../../../types/pool';
 import { getCurrentUser } from '../../../../../lib/auth';
 
 interface Params {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     // SECURITY: Check membership using userId (primary) with email fallback
     const userEmailLower = user.email?.toLowerCase();
     const member = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
+      (m: PoolMember) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!member) {
@@ -48,17 +48,17 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const currentRound = pool.currentRound || 1;
-    const winner = pool.members.find((m: any) => m.position === currentRound);
+    const winner = pool.members.find((m: PoolMember) => m.position === currentRound);
 
     // Check if all payments are verified
-    const payments = pool.currentRoundPayments || [];
+    const payments: RoundPayment[] = pool.currentRoundPayments || [];
     const allVerified = payments.length > 0 && payments.every(
-      (p: any) => p.status === 'admin_verified' || p.status === 'excused'
+      (p: RoundPayment) => p.status === 'admin_verified' || p.status === 'excused'
     );
 
     const verifiedAmount = payments
-      .filter((p: any) => p.status === 'admin_verified')
-      .reduce((sum: number, p: any) => sum + p.amount, 0);
+      .filter((p: RoundPayment) => p.status === 'admin_verified')
+      .reduce((sum: number, p: RoundPayment) => sum + p.amount, 0);
 
     return NextResponse.json({
       currentRound,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     // SECURITY: Check membership using userId (primary) with email fallback
     const userEmailLower = user.email?.toLowerCase();
     const member = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
+      (m: PoolMember) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!member) {
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const currentRound = pool.currentRound || 1;
-    const winner = pool.members.find((m: any) => m.position === currentRound);
+    const winner = pool.members.find((m: PoolMember) => m.position === currentRound);
 
     if (!winner) {
       return NextResponse.json(
@@ -187,6 +187,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       wasEarlyPayout: false,
     };
 
+    // Find winner index for update
+    const winnerIndex = pool.members.findIndex((m: PoolMember) => m.id === winner.id);
+
     // Update pool
     const updatedPool = await Pool.findOneAndUpdate(
       { $or: [{ id }, { _id: id }] },
@@ -198,9 +201,9 @@ export async function POST(request: NextRequest, { params }: Params) {
           currentRoundPayoutNotes: notes,
           currentRoundPayoutConfirmedBy: user._id,
           // Update winner's status
-          [`members.${pool.members.findIndex((m: any) => m.id === winner.id)}.payoutReceived`]: true,
-          [`members.${pool.members.findIndex((m: any) => m.id === winner.id)}.hasReceivedPayout`]: true,
-          [`members.${pool.members.findIndex((m: any) => m.id === winner.id)}.payoutDate`]: now.toISOString(),
+          [`members.${winnerIndex}.payoutReceived`]: true,
+          [`members.${winnerIndex}.hasReceivedPayout`]: true,
+          [`members.${winnerIndex}.payoutDate`]: now.toISOString(),
         },
         $push: {
           transactions: transaction,
@@ -257,7 +260,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     // SECURITY: Check membership using userId (primary) with email fallback
     const userEmailLower = user.email?.toLowerCase();
     const member = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
+      (m: PoolMember) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!member) {

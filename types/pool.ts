@@ -52,9 +52,12 @@ export interface MemberPayoutMethods {
   preferred?: 'venmo' | 'cashapp' | 'paypal' | 'zelle' | null;
 }
 
+// Type for MongoDB ObjectId - can be the ObjectId object or string
+export type ObjectIdLike = string | { toString(): string };
+
 export interface PoolMember {
   id: number;
-  userId?: any; // MongoDB ObjectId reference to User
+  userId?: ObjectIdLike; // MongoDB ObjectId reference to User
   name: string;
   email: string;
   phone?: string;
