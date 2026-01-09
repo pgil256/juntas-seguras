@@ -203,23 +203,22 @@ export async function POST(
     const currentRound = pool.currentRound;
     const userMemberEmailLower = userMember.email?.toLowerCase();
 
-    // Check if user has already contributed for this round
-    const existingContribution = pool.transactions.find(
-      (t: any) =>
-        t.member === userMember.name &&
-        t.type === TransactionType.CONTRIBUTION &&
-        t.round === currentRound
-    );
-
-    if (existingContribution) {
-      return NextResponse.json(
-        { error: 'You have already contributed for this round' },
-        { status: 400 }
-      );
-    }
-
     // Handle confirm_manual action - member confirms they've paid via manual method
     if (action === 'confirm_manual') {
+      // Check if user has already contributed for this round
+      const existingContribution = pool.transactions.find(
+        (t: any) =>
+          t.member === userMember.name &&
+          t.type === TransactionType.CONTRIBUTION &&
+          t.round === currentRound
+      );
+
+      if (existingContribution) {
+        return NextResponse.json(
+          { error: 'You have already contributed for this round' },
+          { status: 400 }
+        );
+      }
       if (!paymentMethod) {
         return NextResponse.json(
           { error: 'Payment method is required' },
