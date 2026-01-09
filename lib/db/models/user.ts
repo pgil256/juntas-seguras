@@ -159,6 +159,11 @@ const UserSchema = new Schema({
   versionKey: false // Disable the __v field
 });
 
+// Indexes
+// Note: email already has unique: true which creates an index
+UserSchema.index({ pools: 1 }); // For pool membership lookups
+UserSchema.index({ provider: 1, providerId: 1 }); // For OAuth user lookups
+
 // Define the User document type
 export interface UserDocument extends Document {
   // id is inherited from Document (_id.toString())

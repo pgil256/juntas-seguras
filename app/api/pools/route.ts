@@ -6,6 +6,7 @@ import getPoolModel from '../../../lib/db/models/pool';
 import { User } from '../../../lib/db/models/user';
 import { handleApiRequest, ApiError, findUserById } from '../../../lib/api';
 import { createDefaultReminderSchedules } from '../../../lib/reminders/scheduler';
+import { CreatePoolSchema, validateRequestBody } from '../../../lib/validation/schemas';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {
@@ -51,22 +52,13 @@ export async function GET(request: NextRequest) {
 // POST /api/pools - Create a new pool
 export async function POST(request: NextRequest) {
   return handleApiRequest(request, async ({ userId }) => {
-    const body = await request.json() as CreatePoolRequest;
-    
-    // Validate required fields
-    if (!body.name) {
-      throw new ApiError('Pool name is required', 400);
+    // Validate request body using Zod schema
+    const validationResult = await validateRequestBody(request, CreatePoolSchema);
+    if (!validationResult.success) {
+      throw new ApiError(validationResult.error, 400);
     }
-    
-    const contributionAmount = Number(body.contributionAmount);
-    if (!body.contributionAmount || isNaN(contributionAmount) || !Number.isInteger(contributionAmount) || contributionAmount < 1 || contributionAmount > 20) {
-      throw new ApiError('Contribution amount must be a whole number between $1 and $20', 400);
-    }
+    const body = validationResult.data;
 
-    if (!body.totalRounds || isNaN(Number(body.totalRounds)) || Number(body.totalRounds) <= 0) {
-      throw new ApiError('Valid number of rounds is required', 400);
-    }
-    
     await connectToDatabase();
     const PoolModel = getPoolModel();
 

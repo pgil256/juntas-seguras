@@ -197,6 +197,11 @@ const PoolSchema = new Schema({
 // Indexes
 PoolSchema.index({ creatorId: 1, status: 1 });
 PoolSchema.index({ 'members.email': 1 });
+// Index for userId-based authorization (hybrid pattern)
+PoolSchema.index({ 'members.userId': 1 });
+// Index for status-only queries
+PoolSchema.index({ status: 1 });
+// Note: 'id' field already has an index from unique: true constraint
 
 // Virtual for active member count
 PoolSchema.virtual('activeMemberCount').get(function() {
