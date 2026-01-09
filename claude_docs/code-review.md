@@ -257,7 +257,7 @@ Very large component file that handles too many responsibilities.
 - `CreatePoolInvite.tsx`
 - `CreatePoolSummary.tsx`
 
-**Status:** 🟢 Open
+**Status:** ✅ Fixed (2026-01-09) - Refactored into `components/pools/create-pool/` with separate step components: `BasicInfoStep.tsx`, `ScheduleStep.tsx`, `InviteMembersStep.tsx`, `QuickCreateStep.tsx`, and shared `types.ts`. Main component reduced from 1044 to 619 lines.
 
 ---
 
@@ -320,7 +320,7 @@ export function isValidObjectId(id: string): boolean { ... }
 9. ☑ Standardize error response format ✅
 10. ☑ Replace internal HTTP calls with direct service calls ✅
 11. ☑ Implement SWR/TanStack Query for data fetching ✅
-12. ☐ Break up large components
+12. ☑ Break up large components ✅
 
 ### Long-term (Backlog)
 13. ☐ Add E2E tests for critical user flows
