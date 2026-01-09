@@ -42,7 +42,7 @@ export async function GET(
       throw new ApiError('You are not a member of this pool', 403);
     }
     
-    return { pool };
+    return { success: true, pool };
   }, {
     requireAuth: true,
     methods: ['GET']
