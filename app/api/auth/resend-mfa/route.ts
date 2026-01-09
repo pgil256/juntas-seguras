@@ -3,15 +3,36 @@ import { getToken } from 'next-auth/jwt';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
 import { sendEmailVerificationCode } from '../../../../lib/services/mfa';
+import { RateLimiters, getClientIp } from '../../../../lib/utils/rate-limiter';
 
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Apply IP-based rate limiting to prevent resend abuse
+    const clientIp = getClientIp(req);
+    const rateLimitResult = RateLimiters.mfaResend(clientIp);
+
+    if (!rateLimitResult.allowed) {
+      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs / 1000);
+      return NextResponse.json(
+        {
+          error: `Too many resend requests. Please try again in ${retryAfterSeconds} seconds.`,
+          waitTime: retryAfterSeconds
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfterSeconds.toString()
+          }
+        }
+      );
+    }
+
     // Get the token to check authentication
-    const token = await getToken({ 
-      req, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET
     });
-    
+
     if (!token?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -117,8 +138,8 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Log the resend action
-    console.log(`MFA code resent for user ${user.email}, method: ${mfaMethod}, count today: ${resendCount + 1}`);
+    // Log the resend action (without sensitive data)
+    console.log(`[Auth] MFA code resent, method: ${mfaMethod}, daily count: ${resendCount + 1}`);
 
     return NextResponse.json({
       success: true,

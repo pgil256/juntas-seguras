@@ -121,29 +121,31 @@ async function findOrCreateOAuthUser(
 
 // Authenticate user with secure password comparison
 async function authenticateUser(email: string, password: string, mfaCode?: string) {
-  console.log(`authenticateUser called. email: ${email}, mfaCode provided: ${!!mfaCode}`);
+  // SECURITY: Only log non-sensitive authentication attempt info
+  console.log(`[Auth] Login attempt for user, mfaCode provided: ${!!mfaCode}`);
 
   await connectToDatabase();
   const UserModel = getUserModel();
   let user = await UserModel.findOne({ email });
 
   if (!user) {
-    console.log('User not found:', email);
+    console.log('[Auth] User not found');
     return null;
   }
 
   // If MFA code is provided, skip password check and verify MFA directly
   if (mfaCode && mfaCode !== 'undefined') {
-    console.log(`Proceeding directly to MFA verification for ${email} with code: ${mfaCode}`);
+    // SECURITY: Never log MFA codes
+    console.log(`[Auth] MFA verification attempt for user`);
     const userObjectIdString = user._id.toString();
     const mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
 
     if (!mfaValid) {
-      console.log('MFA validation failed for code:', mfaCode);
+      console.log('[Auth] MFA validation failed');
       return null; // Indicate MFA failure
     }
 
-    console.log('MFA validation successful');
+    console.log('[Auth] MFA validation successful');
     // Update last login time
     await UserModel.findByIdAndUpdate(userObjectIdString, { $set: { lastLogin: new Date().toISOString() } });
     
@@ -157,20 +159,20 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
   }
 
   // --- Original Flow: No MFA code provided, check password first ---
-  console.log(`Checking password for ${email}`);
+  console.log('[Auth] Checking password');
   const hashedPassword = user.hashedPassword;
   if (!hashedPassword) {
-    console.log('User has no password set:', email);
+    console.log('[Auth] User has no password set');
     return null;
   }
 
   const passwordIsValid = await bcrypt.compare(password, hashedPassword);
   if (!passwordIsValid) {
-    console.log('Password validation failed for:', email);
+    console.log('[Auth] Password validation failed');
     return null;
   }
 
-  console.log('Password validation successful, proceeding to initiate MFA');
+  console.log('[Auth] Password validation successful, checking MFA');
 
   // --- Check if MFA is actually enabled for this user ---
   // Only require MFA if the user has explicitly enabled it AND it's configured
@@ -178,7 +180,7 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
   
   if (!mfaEnabled) {
     // No MFA required, complete login
-    console.log('MFA not enabled for user, completing login');
+    console.log('[Auth] MFA not enabled, completing login');
     await UserModel.findByIdAndUpdate(user._id, { $set: { lastLogin: new Date().toISOString() } });
     
     return {
@@ -190,16 +192,16 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
   }
 
   // --- Initiate MFA Flow (Send Code) ---
-  console.log(`MFA is enabled. Sending MFA code for ${email}, user ID: ${user._id}`);
+  console.log('[Auth] MFA is enabled, sending code');
   const userObjectIdString = user._id.toString();
   const codeSent = await sendEmailVerificationCode(userObjectIdString);
   if (!codeSent) {
-    console.error('Failed to send email verification code for:', email);
+    console.error('[Auth] Failed to send email verification code');
     return null; // Indicate code sending failure
   }
 
   // Return user details WITH requiresMfa flag
-  console.log('MFA code sent. Returning requiresMfa=true for:', email);
+  console.log('[Auth] MFA code sent, requiring verification');
   return {
   id: userObjectIdString,
   name: user.name,
@@ -245,21 +247,12 @@ async function validateMfaCode(userId: string, code: string): Promise<boolean> {
     return true;
   }
   
-  // For TOTP app authentication
-  // In a real app, use a proper TOTP library here
+  // For TOTP app authentication, use the verifyTotpCode service
+  // which properly validates TOTP codes using speakeasy
   if (user.twoFactorAuth.method === 'app') {
-    // For development only, accept '123456' as a valid code
-    if (process.env.NODE_ENV === 'development' && code === '123456') {
-      return true;
-    }
-    
-    // In production, use something like:
-    // return speakeasy.totp.verify({ 
-    //   secret: user.twoFactorAuth.secret,
-    //   encoding: 'base32',
-    //   token: code,
-    //   window: 1 // Allow 1 step before/after for clock drift
-    // });
+    // SECURITY: Never bypass MFA verification - use proper TOTP validation
+    // The actual TOTP verification is handled by verifyTotpCode() in lib/services/mfa.ts
+    return false; // Return false here - TOTP should use the dedicated verification endpoint
   }
   
   return false;
