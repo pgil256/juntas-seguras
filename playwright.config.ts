@@ -1,9 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 /**
  * Playwright configuration for E2E testing
  * See https://playwright.dev/docs/test-configuration
  */
+
+// Auth state storage paths
+const AUTH_DIR = path.join(__dirname, 'e2e', '.auth');
+const USER_AUTH_FILE = path.join(AUTH_DIR, 'user.json');
+
 export default defineConfig({
   testDir: './e2e',
   /* Run tests in files in parallel */
@@ -31,28 +37,58 @@ export default defineConfig({
     video: 'on-first-retry',
   },
 
+  /* Global setup runs once before all tests to set up auth state */
+  globalSetup: require.resolve('./e2e/global.setup.ts'),
+
   /* Configure projects for major browsers */
   projects: [
+    /* Setup project runs first to authenticate test users */
+    {
+      name: 'setup',
+      testMatch: /global\.setup\.ts/,
+    },
+
+    /* Unauthenticated tests (auth flows, public pages) */
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /.*authenticated.*\.spec\.ts/,
     },
+
+    /* Authenticated tests run after setup */
+    {
+      name: 'chromium-authenticated',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: USER_AUTH_FILE,
+      },
+      dependencies: ['setup'],
+      testMatch: /.*authenticated.*\.spec\.ts/,
+    },
+
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: /.*authenticated.*\.spec\.ts/,
     },
+
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      testIgnore: /.*authenticated.*\.spec\.ts/,
     },
+
     /* Test against mobile viewports */
     {
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
+      testIgnore: /.*authenticated.*\.spec\.ts/,
     },
+
     {
       name: 'mobile-safari',
       use: { ...devices['iPhone 12'] },
+      testIgnore: /.*authenticated.*\.spec\.ts/,
     },
   ],
 

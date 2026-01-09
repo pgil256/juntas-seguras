@@ -1,0 +1,811 @@
+openapi: 3.1.0
+info:
+  title: Juntas Seguras API
+  description: |
+    API documentation for the Juntas Seguras community savings pool application.
+
+    ## Authentication
+    All API endpoints (except auth) require authentication via NextAuth.js JWT sessions.
+    Include the session cookie in all requests.
+
+    ## MFA Requirement
+    Multi-factor authentication is mandatory. After initial login, users must verify
+    via email code or TOTP authenticator before accessing protected endpoints.
+  version: 1.0.0
+  contact:
+    name: Juntas Seguras Support
+    url: https://github.com/juntas-seguras
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://your-production-url.vercel.app
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and MFA operations
+  - name: Pools
+    description: Pool management operations
+  - name: Members
+    description: Pool member management
+  - name: Payments
+    description: Payment and contribution operations
+  - name: Users
+    description: User profile and settings
+  - name: Notifications
+    description: Notification management
+  - name: Discussions
+    description: Pool discussions and messaging
+
+paths:
+  # Authentication Endpoints
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid input or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/verify-mfa:
+    post:
+      tags: [Authentication]
+      summary: Verify MFA code
+      description: Verify the MFA code sent via email or entered from authenticator app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFAVerifyRequest'
+      responses:
+        '200':
+          description: MFA verified successfully
+        '400':
+          description: Invalid or expired code
+        '429':
+          description: Too many attempts - rate limited
+
+  /api/auth/resend-mfa:
+    post:
+      tags: [Authentication]
+      summary: Resend MFA code
+      description: Request a new MFA verification code via email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+      responses:
+        '200':
+          description: Code sent successfully
+        '429':
+          description: Too many requests - rate limited
+
+  /api/auth/totp-setup:
+    post:
+      tags: [Authentication]
+      summary: Set up TOTP authenticator
+      description: Generate TOTP secret for authenticator app setup
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: TOTP setup data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: Base32-encoded secret
+                  qrCode:
+                    type: string
+                    description: Data URL for QR code image
+
+  # Pool Endpoints
+  /api/pools:
+    get:
+      tags: [Pools]
+      summary: List user's pools
+      description: Get all pools the authenticated user is a member of
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of pools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pools:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pool'
+        '401':
+          description: Unauthorized
+
+    post:
+      tags: [Pools]
+      summary: Create a new pool
+      description: Create a new savings pool. Creator becomes admin with position 1.
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePoolRequest'
+      responses:
+        '201':
+          description: Pool created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '400':
+          description: Invalid input
+
+  /api/pools/{poolId}:
+    get:
+      tags: [Pools]
+      summary: Get pool details
+      description: Get detailed information about a specific pool
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: Pool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '404':
+          description: Pool not found
+
+    put:
+      tags: [Pools]
+      summary: Update pool settings
+      description: Update pool configuration (admin only)
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePoolRequest'
+      responses:
+        '200':
+          description: Pool updated
+        '403':
+          description: Not pool admin
+
+    delete:
+      tags: [Pools]
+      summary: Delete pool
+      description: Delete a pool (admin only, pool must have no active rounds)
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: Pool deleted
+        '403':
+          description: Not authorized
+
+  /api/pools/{poolId}/members:
+    get:
+      tags: [Members]
+      summary: List pool members
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+
+  /api/pools/{poolId}/round-payments:
+    get:
+      tags: [Payments]
+      summary: Get current round payment status
+      description: Get payment status for all members in the current round
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: Round payment status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  round:
+                    type: integer
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoundPayment'
+
+    post:
+      tags: [Payments]
+      summary: Confirm payment for current round
+      description: Confirm that a payment was made for the current round
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPaymentRequest'
+      responses:
+        '200':
+          description: Payment confirmed
+        '400':
+          description: Invalid payment method or already confirmed
+
+  /api/pools/{poolId}/round-payout:
+    post:
+      tags: [Payments]
+      summary: Process round payout
+      description: Mark the round payout as complete (admin only)
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: Payout processed
+
+  /api/pools/{poolId}/invitations:
+    post:
+      tags: [Members]
+      summary: Send pool invitations
+      description: Send email invitations to join the pool
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+              required: [emails]
+      responses:
+        '200':
+          description: Invitations sent
+
+  /api/pools/{poolId}/discussions:
+    get:
+      tags: [Discussions]
+      summary: Get pool discussions
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      responses:
+        '200':
+          description: List of discussions
+
+    post:
+      tags: [Discussions]
+      summary: Create discussion post
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoolId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  maxLength: 2000
+              required: [content]
+      responses:
+        '201':
+          description: Discussion created
+
+  # Payment Endpoints
+  /api/payments/history:
+    get:
+      tags: [Payments]
+      summary: Get payment history
+      description: Get user's payment history across all pools
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Payment history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  total:
+                    type: integer
+
+  /api/payments/upcoming:
+    get:
+      tags: [Payments]
+      summary: Get upcoming payments
+      description: Get user's upcoming payment obligations
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Upcoming payments
+
+  /api/payments/methods:
+    get:
+      tags: [Payments]
+      summary: Get payment methods
+      description: Get user's configured payment methods
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Payment methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paymentMethods:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentMethod'
+
+    post:
+      tags: [Payments]
+      summary: Add payment method
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPaymentMethodRequest'
+      responses:
+        '201':
+          description: Payment method added
+
+  # User Endpoints
+  /api/users/profile:
+    get:
+      tags: [Users]
+      summary: Get user profile
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+    put:
+      tags: [Users]
+      summary: Update user profile
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+
+  /api/users/settings:
+    get:
+      tags: [Users]
+      summary: Get user settings
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User settings
+
+    put:
+      tags: [Users]
+      summary: Update user settings
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated
+
+  # Notification Endpoints
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of notifications
+
+    post:
+      tags: [Notifications]
+      summary: Mark notifications as read
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificationIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Notifications marked as read
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: NextAuth.js session cookie
+
+  parameters:
+    PoolId:
+      name: poolId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Pool ID
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+      required: [email, password, name]
+
+    MFAVerifyRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          pattern: '^\d{6}$'
+      required: [email, code]
+
+    Pool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        contributionAmount:
+          type: number
+        frequency:
+          type: string
+          enum: [weekly, biweekly, monthly]
+        totalMembers:
+          type: integer
+        currentRound:
+          type: integer
+        status:
+          type: string
+          enum: [pending, active, completed]
+        allowedPaymentMethods:
+          type: array
+          items:
+            type: string
+            enum: [venmo, paypal, zelle, cashapp]
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 500
+        contributionAmount:
+          type: number
+          minimum: 1
+          maximum: 20
+        frequency:
+          type: string
+          enum: [weekly, biweekly, monthly]
+        totalMembers:
+          type: integer
+          minimum: 2
+          maximum: 12
+        allowedPaymentMethods:
+          type: array
+          items:
+            type: string
+            enum: [venmo, paypal, zelle, cashapp]
+          minItems: 1
+        startDate:
+          type: string
+          format: date
+        inviteeEmails:
+          type: array
+          items:
+            type: string
+            format: email
+      required: [name, contributionAmount, frequency, totalMembers, allowedPaymentMethods]
+
+    UpdatePoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        allowedPaymentMethods:
+          type: array
+          items:
+            type: string
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        position:
+          type: integer
+        role:
+          type: string
+          enum: [admin, member]
+        paymentStatus:
+          type: string
+          enum: [pending, confirmed, received]
+        joinedAt:
+          type: string
+          format: date-time
+
+    RoundPayment:
+      type: object
+      properties:
+        memberId:
+          type: string
+        memberName:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, received]
+        paymentMethod:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+
+    ConfirmPaymentRequest:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+          enum: [venmo, paypal, zelle, cashapp]
+        notes:
+          type: string
+      required: [paymentMethod]
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        poolId:
+          type: string
+        poolName:
+          type: string
+        round:
+          type: integer
+        amount:
+          type: number
+        paymentMethod:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [venmo, paypal, zelle, cashapp]
+        identifier:
+          type: string
+          description: Username, email, or phone for the payment method
+        isDefault:
+          type: boolean
+
+    AddPaymentMethodRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [venmo, paypal, zelle, cashapp]
+        identifier:
+          type: string
+        isDefault:
+          type: boolean
+      required: [type, identifier]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        mfaEnabled:
+          type: boolean
+        totpEnabled:
+          type: boolean
+        identityVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        emailNotifications:
+          type: boolean
+        smsNotifications:
+          type: boolean
+        paymentReminders:
+          type: boolean
+        weeklyDigest:
+          type: boolean

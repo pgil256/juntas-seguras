@@ -210,7 +210,7 @@ maxPoolSize: 10,
 minPoolSize: 2,
 ```
 
-**Status:** 🟢 Open
+**Status:** ✅ Fixed (2026-01-09) - Added environment-aware connection pooling (serverless: 5 max / 1 min, standard: 10 max / 2 min), write concerns for production, health check and pool stats monitoring functions.
 
 ---
 
@@ -323,10 +323,10 @@ export function isValidObjectId(id: string): boolean { ... }
 12. ☑ Break up large components ✅
 
 ### Long-term (Backlog)
-13. ☐ Add E2E tests for critical user flows
-14. ☐ Implement proper database connection pooling
-15. ☐ Add API documentation (OpenAPI/Swagger)
-16. ☐ Consider adding request logging/tracing
+13. ☑ Add E2E tests for critical user flows ✅ (Infrastructure complete - global setup, fixtures, authenticated test files)
+14. ☑ Implement proper database connection pooling ✅ (Environment-aware pool sizes, health checks, monitoring)
+15. ☑ Add API documentation (OpenAPI/Swagger) ✅ (OpenAPI 3.1 spec at /docs/openapi.yaml, Swagger UI at /api-docs)
+16. ☑ Consider adding request logging/tracing ✅ (Structured logging utility in lib/utils/request-logger.ts with correlation IDs, timing, and sensitive data sanitization)
 
 ---
 
