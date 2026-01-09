@@ -4,6 +4,7 @@ import { Pool } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
 import { PoolMemberRole, TransactionType, PoolMember, RoundPayment } from '../../../../../types/pool';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { ApiErrors, successResponse, errorResponse } from '../../../../../lib/api';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -18,10 +19,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     // Get current user with proper validation
     const userResult = await getCurrentUser();
     if (userResult.error) {
-      return NextResponse.json(
-        { error: userResult.error.message },
-        { status: userResult.error.status }
-      );
+      return errorResponse(userResult.error.message, { status: userResult.error.status });
     }
     const user = userResult.user;
 
@@ -34,7 +32,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
 
     if (!pool) {
-      return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
+      return ApiErrors.notFound('Pool');
     }
 
     // SECURITY: Check membership using userId (primary) with email fallback
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     );
 
     if (!member) {
-      return NextResponse.json({ error: 'Not a member of this pool' }, { status: 403 });
+      return ApiErrors.notMember();
     }
 
     const currentRound = pool.currentRound || 1;
@@ -60,7 +58,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       .filter((p: RoundPayment) => p.status === 'admin_verified')
       .reduce((sum: number, p: RoundPayment) => sum + p.amount, 0);
 
-    return NextResponse.json({
+    return successResponse({
       currentRound,
       potAmount: pool.contributionAmount * pool.members.length,
       verifiedAmount,
@@ -78,10 +76,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
   } catch (error) {
     console.error('Error fetching payout info:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payout info' },
-      { status: 500 }
-    );
+    return ApiErrors.internalError('Failed to fetch payout info');
   }
 }
 
@@ -95,10 +90,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     // Get current user with proper validation
     const userResult = await getCurrentUser();
     if (userResult.error) {
-      return NextResponse.json(
-        { error: userResult.error.message },
-        { status: userResult.error.status }
-      );
+      return errorResponse(userResult.error.message, { status: userResult.error.status });
     }
     const user = userResult.user;
 
@@ -107,12 +99,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { method, notes } = body;
 
     if (!method) {
-      return NextResponse.json({ error: 'Payment method is required' }, { status: 400 });
+      return ApiErrors.badRequest('Payment method is required');
     }
 
     const validMethods = ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other'];
     if (!validMethods.includes(method)) {
-      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
+      return ApiErrors.badRequest('Invalid payment method');
     }
 
     await connectToDatabase();
@@ -122,7 +114,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
 
     if (!pool) {
-      return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
+      return ApiErrors.notFound('Pool');
     }
 
     // SECURITY: Check membership using userId (primary) with email fallback
@@ -132,7 +124,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
 
     if (!member) {
-      return NextResponse.json({ error: 'Not a member of this pool' }, { status: 403 });
+      return ApiErrors.notMember();
     }
 
     const isAdmin =
@@ -140,35 +132,23 @@ export async function POST(request: NextRequest, { params }: Params) {
       member.role === PoolMemberRole.CREATOR;
 
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Only pool admin can confirm payout' },
-        { status: 403 }
-      );
+      return ApiErrors.notAdmin();
     }
 
     // Check if payout is ready
     const payoutStatus = pool.currentRoundPayoutStatus;
     if (payoutStatus !== 'ready_to_pay') {
       if (payoutStatus === 'paid' || payoutStatus === 'completed') {
-        return NextResponse.json(
-          { error: 'Payout has already been completed' },
-          { status: 400 }
-        );
+        return ApiErrors.badRequest('Payout has already been completed');
       }
-      return NextResponse.json(
-        { error: 'All payments must be verified before payout' },
-        { status: 400 }
-      );
+      return ApiErrors.badRequest('All payments must be verified before payout');
     }
 
     const currentRound = pool.currentRound || 1;
     const winner = pool.members.find((m: PoolMember) => m.position === currentRound);
 
     if (!winner) {
-      return NextResponse.json(
-        { error: 'Could not find winner for current round' },
-        { status: 400 }
-      );
+      return ApiErrors.badRequest('Could not find winner for current round');
     }
 
     const potAmount = pool.contributionAmount * pool.members.length;
@@ -212,8 +192,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       { new: true }
     );
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       payoutStatus: 'paid',
       payoutCompletedAt: now,
       payoutMethod: method,
@@ -221,10 +200,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
   } catch (error) {
     console.error('Error confirming payout:', error);
-    return NextResponse.json(
-      { error: 'Failed to confirm payout' },
-      { status: 500 }
-    );
+    return ApiErrors.internalError('Failed to confirm payout');
   }
 }
 
@@ -238,10 +214,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     // Get current user with proper validation
     const userResult = await getCurrentUser();
     if (userResult.error) {
-      return NextResponse.json(
-        { error: userResult.error.message },
-        { status: userResult.error.status }
-      );
+      return errorResponse(userResult.error.message, { status: userResult.error.status });
     }
     const user = userResult.user;
 
@@ -254,7 +227,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     });
 
     if (!pool) {
-      return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
+      return ApiErrors.notFound('Pool');
     }
 
     // SECURITY: Check membership using userId (primary) with email fallback
@@ -264,7 +237,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     );
 
     if (!member) {
-      return NextResponse.json({ error: 'Not a member of this pool' }, { status: 403 });
+      return ApiErrors.notMember();
     }
 
     const isAdmin =
@@ -272,18 +245,12 @@ export async function PUT(request: NextRequest, { params }: Params) {
       member.role === PoolMemberRole.CREATOR;
 
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Only pool admin can advance round' },
-        { status: 403 }
-      );
+      return ApiErrors.notAdmin();
     }
 
     // Check if payout is complete
     if (pool.currentRoundPayoutStatus !== 'paid') {
-      return NextResponse.json(
-        { error: 'Payout must be completed before advancing' },
-        { status: 400 }
-      );
+      return ApiErrors.badRequest('Payout must be completed before advancing');
     }
 
     const currentRound = pool.currentRound || 1;
@@ -335,17 +302,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
       { new: true }
     );
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       currentRound: nextRound,
       isComplete: nextRound > totalRounds,
       nextPayoutDate: updatedPool.nextPayoutDate,
     });
   } catch (error) {
     console.error('Error advancing round:', error);
-    return NextResponse.json(
-      { error: 'Failed to advance round' },
-      { status: 500 }
-    );
+    return ApiErrors.internalError('Failed to advance round');
   }
 }

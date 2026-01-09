@@ -3,6 +3,10 @@ import { verifyAuth, getSession } from './auth';
 import connectToDatabase from './db/connect';
 import { User, UserDocument } from './db/models/user';
 import { isValidObjectId } from './utils/objectId';
+import { ApiErrors, errorResponse, successResponse } from './api/responses';
+
+// Re-export response utilities for convenience
+export * from './api/responses';
 
 /**
  * Helper function to handle API requests with proper authentication and database connection
@@ -20,10 +24,7 @@ export async function handleApiRequest<T>(
     // Check HTTP method
     const method = request.method;
     if (options.methods && !options.methods.includes(method)) {
-      return NextResponse.json(
-        { error: `Method ${method} Not Allowed` },
-        { status: 405 }
-      );
+      return ApiErrors.methodNotAllowed(method);
     }
 
     // Connect to the database
@@ -33,36 +34,33 @@ export async function handleApiRequest<T>(
     let userId = '';
     if (options.requireAuth !== false) {
       const authResult = await verifyAuth();
-      
+
       if ('error' in authResult) {
-        return NextResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
+        return ApiErrors.unauthorized();
       }
-      
+
       userId = authResult.userId;
     }
 
     // Call the handler function
     const result = await handler({ userId });
-    
-    return NextResponse.json(result);
-  } catch (error: any) {
-    console.error('API error:', error);
-    
-    // Return appropriate error response
-    if (error.status && error.message) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status }
-      );
+
+    // If result already has success property, return as-is for backwards compatibility
+    if (result && typeof result === 'object' && 'success' in result) {
+      return NextResponse.json(result);
     }
-    
-    return NextResponse.json(
-      { error: 'An error occurred while processing your request' },
-      { status: 500 }
-    );
+
+    // Wrap result in standardized format
+    return successResponse(result);
+  } catch (error: unknown) {
+    console.error('API error:', error);
+
+    // Return appropriate error response
+    if (error instanceof ApiError) {
+      return errorResponse(error.message, { status: error.status });
+    }
+
+    return ApiErrors.internalError();
   }
 }
 

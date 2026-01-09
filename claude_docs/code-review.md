@@ -185,7 +185,7 @@ const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:30
 
 **Recommendation:** Extract invitation logic into a shared service function and call it directly.
 
-**Status:** 🟡 Open
+**Status:** ✅ Fixed (2026-01-09) - Created `lib/services/invitations.ts` with `createPoolInvitation` and `createBatchInvitations` functions. Pool creation now calls the service directly.
 
 ---
 
@@ -317,8 +317,8 @@ export function isValidObjectId(id: string): boolean { ... }
 8. ☑ Add missing database indexes ✅
 
 ### Medium-term (1 Month)
-9. ☐ Standardize error response format
-10. ☐ Replace internal HTTP calls with direct service calls
+9. ☑ Standardize error response format ✅
+10. ☑ Replace internal HTTP calls with direct service calls ✅
 11. ☐ Implement SWR/TanStack Query for data fetching
 12. ☐ Break up large components
 
