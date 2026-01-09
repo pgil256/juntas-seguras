@@ -1,111 +1,78 @@
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * usePools Hook
+ *
+ * Fetches all pools for the current authenticated user using SWR
+ * for automatic caching, deduplication, and background revalidation.
+ */
+
+import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { Pool } from '../../types/pool';
+import { fetcher, conditionalKey, defaultSWRConfig } from '../swr/config';
+
+interface PoolsResponse {
+  success: boolean;
+  pools: Pool[];
+}
 
 interface UsePoolsReturn {
   pools: Pool[];
   isLoading: boolean;
   error: string | null;
   refreshPools: () => Promise<void>;
+  isValidating: boolean;
 }
 
 export function usePools(): UsePoolsReturn {
-  const { data: session, status } = useSession();
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
 
-  const fetchPools = useCallback(async () => {
-    // Don't try to fetch if not authenticated
-    if (status === 'unauthenticated') {
-      setError('Authentication required');
-      setIsLoading(false);
-      return;
+  // Use conditional key to prevent fetching when not authenticated
+  const { data, error, isLoading, isValidating, mutate } = useSWR<PoolsResponse>(
+    conditionalKey(isAuthenticated, '/api/pools'),
+    fetcher,
+    {
+      ...defaultSWRConfig,
+      // For new users, don't show error for empty pools
+      onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+        // Don't retry on 401 (unauthorized)
+        if (error.status === 401) return;
+        // Don't retry on 404 (no pools yet)
+        if (error.status === 404) return;
+        // Only retry once for other errors
+        if (retryCount >= 1) return;
+      },
     }
+  );
 
-    // Wait for session check to complete
-    if (status === 'loading') {
-      return;
-    }
+  // Handle authentication states
+  if (status === 'loading') {
+    return {
+      pools: [],
+      isLoading: true,
+      error: null,
+      refreshPools: async () => {},
+      isValidating: false,
+    };
+  }
 
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch('/api/pools', {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      // Get the data first so we can use it for error messages if needed
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.warn('Invalid response format from server');
-        // For new users, just set empty pools and continue
-        setPools([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // For new users or when no pools exist, just set empty array
-      // instead of throwing errors. This covers all status codes.
-      if (!response.ok) {
-        console.warn(`Non-success response from /api/pools: ${response.status}`);
-        setPools([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Type guard to ensure data.pools is handled properly
-      if (!data || typeof data !== 'object') {
-        console.warn('Unexpected response format, expected object');
-        setPools([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Check if data has the pools property
-      if (!('pools' in data)) {
-        console.warn('Response does not contain pools property');
-        setPools([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Initialize with empty array if no pools are found or if data.pools is not an array
-      setPools(Array.isArray(data.pools) ? data.pools : []);
-    } catch (err: any) {
-      console.error('Error fetching pools:', err);
-      // Don't set error for new users - just use empty array
-      setError(null);
-      setPools([]); // Reset to empty array on error to avoid null checks
-    } finally {
-      setIsLoading(false);
-    }
-  }, [status]);
-
-  // Handle authentication status and fetch pools
-  useEffect(() => {
-    // Handle unauthenticated status
-    if (status === 'unauthenticated') {
-      setError('Authentication required');
-      setIsLoading(false);
-      return;
-    }
-
-    // Fetch pools when authenticated
-    if (status === 'authenticated') {
-      fetchPools();
-    }
-  }, [status, fetchPools]);
+  if (status === 'unauthenticated') {
+    return {
+      pools: [],
+      isLoading: false,
+      error: 'Authentication required',
+      refreshPools: async () => {},
+      isValidating: false,
+    };
+  }
 
   return {
-    pools,
+    pools: data?.pools ?? [],
     isLoading,
-    error,
-    refreshPools: fetchPools,
+    error: error?.message ?? null,
+    refreshPools: async () => {
+      await mutate();
+    },
+    isValidating,
   };
 }

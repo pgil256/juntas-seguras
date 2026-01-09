@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
+/**
+ * useUserSettings Hook
+ *
+ * Fetches and manages the current user's settings using SWR
+ * for automatic caching, deduplication, and background revalidation.
+ */
+
+import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import { fetcher, conditionalKey, stableDataConfig } from '../swr/config';
 
 interface NotificationPreferences {
   email: {
@@ -38,102 +46,105 @@ interface UseUserSettingsReturn {
   settings: UserSettings | null;
   isLoading: boolean;
   error: string | null;
-  updateSettings: (settingsData: Partial<UserSettings>) => Promise<{ success: boolean, error?: string }>;
-  refreshSettings: () => void;
+  updateSettings: (settingsData: Partial<UserSettings>) => Promise<{ success: boolean; error?: string }>;
+  refreshSettings: () => Promise<void>;
+  isValidating: boolean;
 }
 
 export function useUserSettings({ onSuccess, onError }: UseUserSettingsProps = {}): UseUserSettingsReturn {
-  const { data: session, status } = useSession();
-  const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
 
-  // Fetch settings data
-  useEffect(() => {
-    // Don't fetch if not authenticated
-    if (status === 'unauthenticated') {
-      setIsLoading(false);
-      return;
-    }
-
-    // Don't fetch if still loading auth
-    if (status === 'loading') {
-      return;
-    }
-
-    const fetchSettings = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch('/api/users/settings');
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch settings');
-        }
-
-        const settingsData = await response.json();
-        setSettings(settingsData);
-        
+  const { data, error, isLoading, isValidating, mutate } = useSWR<UserSettings>(
+    conditionalKey(isAuthenticated, '/api/users/settings'),
+    fetcher,
+    {
+      ...stableDataConfig,
+      onSuccess: (data) => {
         if (onSuccess) {
-          onSuccess(settingsData);
+          onSuccess(data);
         }
-      } catch (err: any) {
-        console.error('Error fetching user settings:', err);
-        setError(err.message || 'Failed to fetch user settings');
-        
+      },
+      onError: (error) => {
         if (onError) {
-          onError(err.message || 'Failed to fetch user settings');
+          onError(error.message || 'Failed to fetch user settings');
         }
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      },
+    }
+  );
 
-    fetchSettings();
-  }, [status, refreshTrigger, onSuccess, onError]);
-
-  // Update settings
-  const updateSettings = async (settingsData: Partial<UserSettings>) => {
+  // Update settings with optimistic update
+  const updateSettings = async (settingsData: Partial<UserSettings>): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch('/api/users/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
+      // Optimistic update
+      const optimisticData = data ? { ...data, ...settingsData } : null;
+
+      await mutate(
+        async () => {
+          const response = await fetch('/api/users/settings', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(settingsData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update settings');
+          }
+
+          return response.json();
         },
-        body: JSON.stringify(settingsData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update settings');
-      }
-
-      const updatedSettings = await response.json();
-      setSettings(updatedSettings);
+        {
+          optimisticData: optimisticData as UserSettings,
+          rollbackOnError: true,
+          revalidate: true,
+        }
+      );
 
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update user settings';
       console.error('Error updating user settings:', err);
-      return { 
-        success: false, 
-        error: err.message || 'Failed to update user settings'
+      return {
+        success: false,
+        error: errorMessage,
       };
     }
   };
 
-  // Refresh settings data
-  const refreshSettings = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
+  // Handle authentication states
+  if (status === 'loading') {
+    return {
+      settings: null,
+      isLoading: true,
+      error: null,
+      updateSettings,
+      refreshSettings: async () => {},
+      isValidating: false,
+    };
+  }
+
+  if (status === 'unauthenticated') {
+    return {
+      settings: null,
+      isLoading: false,
+      error: null,
+      updateSettings,
+      refreshSettings: async () => {},
+      isValidating: false,
+    };
+  }
 
   return {
-    settings,
+    settings: data ?? null,
     isLoading,
-    error,
+    error: error?.message ?? null,
     updateSettings,
-    refreshSettings
+    refreshSettings: async () => {
+      await mutate();
+    },
+    isValidating,
   };
 }

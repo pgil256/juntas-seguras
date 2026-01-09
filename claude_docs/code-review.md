@@ -225,7 +225,7 @@ Custom hooks use basic `useState`/`useEffect` patterns rather than a caching sol
 - Optimistic updates
 - Background revalidation
 
-**Status:** 🟢 Open
+**Status:** ✅ Fixed (2026-01-09) - Installed SWR and updated core hooks (usePools, usePool, useUserProfile, useUserSettings) with request deduplication, caching, and optimistic updates. Created `lib/swr/config.ts` with reusable configuration.
 
 ---
 
@@ -319,7 +319,7 @@ export function isValidObjectId(id: string): boolean { ... }
 ### Medium-term (1 Month)
 9. ☑ Standardize error response format ✅
 10. ☑ Replace internal HTTP calls with direct service calls ✅
-11. ☐ Implement SWR/TanStack Query for data fetching
+11. ☑ Implement SWR/TanStack Query for data fetching ✅
 12. ☐ Break up large components
 
 ### Long-term (Backlog)

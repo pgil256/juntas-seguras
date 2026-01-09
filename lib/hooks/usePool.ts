@@ -1,9 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * usePool Hook
+ *
+ * Fetches a single pool by ID for the current authenticated user using SWR
+ * for automatic caching, deduplication, and background revalidation.
+ */
+
+import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { Pool } from '../../types/pool';
+import { fetcher, conditionalKey, defaultSWRConfig } from '../swr/config';
 
 interface UsePoolProps {
   poolId: string;
+}
+
+interface PoolResponse {
+  success: boolean;
+  pool: Pool;
 }
 
 interface UsePoolReturn {
@@ -11,84 +24,63 @@ interface UsePoolReturn {
   isLoading: boolean;
   error: string | null;
   refreshPool: () => Promise<void>;
+  isValidating: boolean;
 }
 
 export function usePool({ poolId }: UsePoolProps): UsePoolReturn {
-  const { data: session, status } = useSession();
-  const [pool, setPool] = useState<Pool | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+  const hasValidPoolId = Boolean(poolId);
 
-  const fetchPool = useCallback(async () => {
-    if (!poolId) {
-      setError('Pool ID is required');
-      setIsLoading(false);
-      return;
-    }
+  // Use conditional key to prevent fetching when not authenticated or no poolId
+  const shouldFetch = isAuthenticated && hasValidPoolId;
+  const key = shouldFetch ? `/api/pools/${poolId}` : null;
 
-    // Don't try to fetch if not authenticated
-    if (status === 'unauthenticated') {
-      setError('Authentication required');
-      setIsLoading(false);
-      return;
-    }
+  const { data, error, isLoading, isValidating, mutate } = useSWR<PoolResponse>(
+    key,
+    fetcher,
+    defaultSWRConfig
+  );
 
-    // Wait for session check to complete
-    if (status === 'loading') {
-      return;
-    }
+  // Handle missing poolId
+  if (!hasValidPoolId && status !== 'loading') {
+    return {
+      pool: null,
+      isLoading: false,
+      error: 'Pool ID is required',
+      refreshPool: async () => {},
+      isValidating: false,
+    };
+  }
 
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/pools/${poolId}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch pool');
-      }
-      
-      const data = await response.json();
-      setPool(data.pool || null);
-    } catch (err: any) {
-      console.error('Error fetching pool:', err);
-      setError(err.message || 'Failed to fetch pool');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [poolId, status]);
+  // Handle authentication states
+  if (status === 'loading') {
+    return {
+      pool: null,
+      isLoading: true,
+      error: null,
+      refreshPool: async () => {},
+      isValidating: false,
+    };
+  }
 
-  // Handle edge cases and fetch when ready
-  useEffect(() => {
-    // Handle missing poolId
-    if (!poolId && status !== 'loading') {
-      setError('Pool ID is required');
-      setIsLoading(false);
-      return;
-    }
-
-    // Handle unauthenticated status
-    if (status === 'unauthenticated') {
-      setError('Authentication required');
-      setIsLoading(false);
-      return;
-    }
-
-    // Fetch pool when authenticated with valid poolId
-    if (poolId && status === 'authenticated') {
-      fetchPool();
-    }
-  }, [poolId, status, fetchPool]);
+  if (status === 'unauthenticated') {
+    return {
+      pool: null,
+      isLoading: false,
+      error: 'Authentication required',
+      refreshPool: async () => {},
+      isValidating: false,
+    };
+  }
 
   return {
-    pool,
+    pool: data?.pool ?? null,
     isLoading,
-    error,
-    refreshPool: fetchPool,
+    error: error?.message ?? null,
+    refreshPool: async () => {
+      await mutate();
+    },
+    isValidating,
   };
 }

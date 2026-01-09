@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
+/**
+ * useUserProfile Hook
+ *
+ * Fetches and manages the current user's profile using SWR
+ * for automatic caching, deduplication, and background revalidation.
+ */
+
+import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import { fetcher, conditionalKey, stableDataConfig } from '../swr/config';
 
 interface UserProfile {
   id: string;
@@ -20,102 +28,105 @@ interface UseUserProfileReturn {
   profile: UserProfile | null;
   isLoading: boolean;
   error: string | null;
-  updateProfile: (profileData: Partial<UserProfile>) => Promise<{ success: boolean, error?: string }>;
-  refreshProfile: () => void;
+  updateProfile: (profileData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
+  refreshProfile: () => Promise<void>;
+  isValidating: boolean;
 }
 
 export function useUserProfile({ onSuccess, onError }: UseUserProfileProps = {}): UseUserProfileReturn {
-  const { data: session, status } = useSession();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
 
-  // Fetch profile data
-  useEffect(() => {
-    // Don't fetch if not authenticated
-    if (status === 'unauthenticated') {
-      setIsLoading(false);
-      return;
-    }
-
-    // Don't fetch if still loading auth
-    if (status === 'loading') {
-      return;
-    }
-
-    const fetchProfile = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch('/api/users/profile');
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch profile');
-        }
-
-        const profileData = await response.json();
-        setProfile(profileData);
-        
+  const { data, error, isLoading, isValidating, mutate } = useSWR<UserProfile>(
+    conditionalKey(isAuthenticated, '/api/users/profile'),
+    fetcher,
+    {
+      ...stableDataConfig,
+      onSuccess: (data) => {
         if (onSuccess) {
-          onSuccess(profileData);
+          onSuccess(data);
         }
-      } catch (err: any) {
-        console.error('Error fetching user profile:', err);
-        setError(err.message || 'Failed to fetch user profile');
-        
+      },
+      onError: (error) => {
         if (onError) {
-          onError(err.message || 'Failed to fetch user profile');
+          onError(error.message || 'Failed to fetch user profile');
         }
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      },
+    }
+  );
 
-    fetchProfile();
-  }, [status, refreshTrigger, onSuccess, onError]);
-
-  // Update profile
-  const updateProfile = async (profileData: Partial<UserProfile>) => {
+  // Update profile with optimistic update
+  const updateProfile = async (profileData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
+      // Optimistic update
+      const optimisticData = data ? { ...data, ...profileData } : null;
+
+      await mutate(
+        async () => {
+          const response = await fetch('/api/users/profile', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(profileData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update profile');
+          }
+
+          return response.json();
         },
-        body: JSON.stringify(profileData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
-      }
-
-      const updatedProfile = await response.json();
-      setProfile(updatedProfile);
+        {
+          optimisticData: optimisticData as UserProfile,
+          rollbackOnError: true,
+          revalidate: true,
+        }
+      );
 
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update user profile';
       console.error('Error updating user profile:', err);
-      return { 
-        success: false, 
-        error: err.message || 'Failed to update user profile'
+      return {
+        success: false,
+        error: errorMessage,
       };
     }
   };
 
-  // Refresh profile data
-  const refreshProfile = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
+  // Handle authentication states
+  if (status === 'loading') {
+    return {
+      profile: null,
+      isLoading: true,
+      error: null,
+      updateProfile,
+      refreshProfile: async () => {},
+      isValidating: false,
+    };
+  }
+
+  if (status === 'unauthenticated') {
+    return {
+      profile: null,
+      isLoading: false,
+      error: null,
+      updateProfile,
+      refreshProfile: async () => {},
+      isValidating: false,
+    };
+  }
 
   return {
-    profile,
+    profile: data ?? null,
     isLoading,
-    error,
+    error: error?.message ?? null,
     updateProfile,
-    refreshProfile
+    refreshProfile: async () => {
+      await mutate();
+    },
+    isValidating,
   };
 }
