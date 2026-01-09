@@ -68,7 +68,7 @@ const member = pool.members.find(
 
 **Recommendation:** Cross-reference with `userId` from the validated session to ensure identity consistency.
 
-**Status:** 🟡 Open
+**Status:** ✅ Fixed (2026-01-09) - Updated 6 API route files to use hybrid userId/email authorization pattern via getCurrentUser()
 
 ---
 
@@ -310,7 +310,7 @@ export function isValidObjectId(id: string): boolean { ... }
 3. ☑ Add rate limiting to MFA endpoints ✅
 
 ### Short-term (1-2 Weeks)
-4. ☐ Standardize authorization checks using `userId`
+4. ☑ Standardize authorization checks using `userId` ✅
 5. ☐ Replace `any` types with proper interfaces
 6. ☑ Remove sensitive data from logs ✅ (done as part of immediate fixes)
 7. ☐ Add input validation library (Zod recommended)
