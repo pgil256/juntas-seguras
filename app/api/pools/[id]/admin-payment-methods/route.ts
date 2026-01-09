@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { Pool } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
@@ -9,6 +7,7 @@ import {
   validatePayoutHandle,
   PayoutMethodType,
 } from '../../../../../lib/payments/deep-links';
+import { getCurrentUser } from '../../../../../lib/auth';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -20,10 +19,15 @@ interface Params {
  */
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Get current user with proper validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
+    const user = userResult.user;
 
     const { id } = await params;
 
@@ -44,9 +48,10 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
     }
 
-    // Check if user is a member of this pool
+    // SECURITY: Check membership using userId (primary) with email fallback
+    const userEmailLower = user.email?.toLowerCase();
     const member = pool.members.find(
-      (m: any) => m.email.toLowerCase() === session.user?.email?.toLowerCase()
+      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!member) {
@@ -118,10 +123,15 @@ export async function GET(request: NextRequest, { params }: Params) {
  */
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Get current user with proper validation
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
+    const user = userResult.user;
 
     const { id } = await params;
     const body = await request.json();
@@ -144,9 +154,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Pool not found' }, { status: 404 });
     }
 
-    // Check if user is admin of this pool
+    // SECURITY: Check membership using userId (primary) with email fallback
+    const userEmailLower = user.email?.toLowerCase();
     const member = pool.members.find(
-      (m: any) => m.email.toLowerCase() === session.user?.email?.toLowerCase()
+      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!member) {
