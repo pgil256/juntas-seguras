@@ -61,6 +61,7 @@ export async function GET(
     }
     
     return {
+      success: true,
       members: pool.members || []
     };
   }, {
