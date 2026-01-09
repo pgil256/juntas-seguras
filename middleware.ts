@@ -97,9 +97,17 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    // In case of error, allow the request to proceed
-    // The page itself should handle authentication
-    return NextResponse.next();
+    // SECURITY: Never fail-open - redirect to signin or return 401
+    if (pathname.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Authentication error' }),
+        { status: 401, headers: { 'content-type': 'application/json' } }
+      );
+    }
+    // For page routes, redirect to signin
+    const signInUrl = new URL('/auth/signin', request.url);
+    signInUrl.searchParams.set('error', 'SessionError');
+    return NextResponse.redirect(signInUrl);
   }
 }
 

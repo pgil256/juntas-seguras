@@ -3,15 +3,39 @@ import { getToken } from 'next-auth/jwt';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
 import { verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
+import { RateLimiters, getClientIp, resetRateLimit } from '../../../../lib/utils/rate-limiter';
 
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Apply IP-based rate limiting to prevent brute force attacks
+    const clientIp = getClientIp(req);
+    const rateLimitResult = RateLimiters.mfaVerification(clientIp);
+
+    if (!rateLimitResult.allowed) {
+      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs / 1000);
+      return NextResponse.json(
+        {
+          error: `Too many verification attempts. Please try again in ${retryAfterSeconds} seconds.`,
+          retryAfter: retryAfterSeconds,
+          tooManyAttempts: true
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfterSeconds.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': Math.ceil(rateLimitResult.resetTime / 1000).toString()
+          }
+        }
+      );
+    }
+
     // Get the token to check MFA status
-    const token = await getToken({ 
-      req, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET
     });
-    
+
     if (!token?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -53,7 +77,7 @@ export async function POST(req: NextRequest) {
     
     // Check if MFA is actually enabled for this user
     if (!user.twoFactorAuth?.enabled) {
-      console.log(`MFA not enabled for user ${user.email}, clearing session MFA requirement`);
+      console.log('[Auth] MFA not enabled for user, clearing session MFA requirement');
       
       // Clear any pending MFA flags
       await UserModel.findByIdAndUpdate(
@@ -77,12 +101,10 @@ export async function POST(req: NextRequest) {
     let mfaValid = false;
     const mfaMethod = token.mfaMethod || user.twoFactorAuth.method || 'email';
 
-    console.log(`[MFA-Verify] Verifying MFA for user ${user.email} using method: ${mfaMethod}`, {
-      userId: token.id,
+    // SECURITY: Only log non-sensitive verification metadata
+    console.log(`[Auth] Verifying MFA using method: ${mfaMethod}`, {
       codeLength: code?.length,
-      hasStoredCode: !!user.twoFactorAuth?.temporaryCode,
-      storedCodeLength: user.twoFactorAuth?.temporaryCode?.length,
-      codeGeneratedAt: user.twoFactorAuth?.codeGeneratedAt
+      hasStoredCode: !!user.twoFactorAuth?.temporaryCode
     });
 
     try {
@@ -106,8 +128,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!mfaValid) {
-      // Log failed attempt
-      console.log(`Invalid MFA code attempt for user ${user.email}`);
+      // Log failed attempt (without sensitive data)
+      console.log('[Auth] Invalid MFA code attempt');
       
       // Track failed attempts (optional - for rate limiting)
       const failedAttempts = (user.metadata?.get('mfaFailedAttempts') || '0');
@@ -144,8 +166,11 @@ export async function POST(req: NextRequest) {
     }
 
     // MFA verification successful
-    console.log(`MFA verification successful for user ${user.email}`);
-    
+    console.log('[Auth] MFA verification successful');
+
+    // Reset IP-based rate limit on successful verification
+    resetRateLimit(clientIp, 'mfa');
+
     // Clear MFA pending flags and reset failed attempts
     await UserModel.findByIdAndUpdate(
       user._id,
