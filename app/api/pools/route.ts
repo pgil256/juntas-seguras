@@ -7,6 +7,7 @@ import { User } from '../../../lib/db/models/user';
 import { handleApiRequest, ApiError, findUserById } from '../../../lib/api';
 import { createDefaultReminderSchedules } from '../../../lib/reminders/scheduler';
 import { CreatePoolSchema, validateRequestBody } from '../../../lib/validation/schemas';
+import { createBatchInvitations } from '../../../lib/services/invitations';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {
@@ -191,40 +192,32 @@ export async function POST(request: NextRequest) {
     // Process invitations if provided (after pool is created)
     if (body.invitations && body.invitations.length > 0) {
       console.log(`Sending ${body.invitations.length} invitations for pool ${poolId}`);
-      
-      // Send invitations using the invitations API
-      for (const email of body.invitations) {
-        try {
-          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pools/${poolId}/invitations`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'user-id': userId
-            },
-            body: JSON.stringify({
-              email: email.trim(),
-              poolId
-            })
-          });
-          
-          if (!response.ok) {
-            console.error(`Failed to send invitation to ${email}`);
-          } else {
-            console.log(`Successfully sent invitation to ${email}`);
-          }
-        } catch (error) {
-          console.error(`Error sending invitation to ${email}:`, error);
-        }
+
+      // Send invitations using the invitation service (direct call, no HTTP)
+      const invitationResults = await createBatchInvitations(
+        poolId,
+        body.invitations,
+        user._id.toString(),
+        user.name,
+        user.email
+      );
+
+      const successCount = invitationResults.successful.length;
+      const failCount = invitationResults.failed.length;
+
+      if (failCount > 0) {
+        console.warn(`Some invitations failed:`, invitationResults.failed);
       }
-      
+      console.log(`Successfully sent ${successCount} invitations for pool ${poolId}`);
+
       // Generate welcome message
       newPool.messages.push({
         id: 2,
         author: user.name,
-        content: `I've sent invitations to ${body.invitations.length} members to join our pool.`,
+        content: `I've sent invitations to ${successCount} members to join our pool.`,
         date: new Date().toISOString()
       });
-      
+
       // Update the pool with the new message
       await PoolModel.updateOne({ id: poolId }, { $set: { messages: newPool.messages } });
     }
