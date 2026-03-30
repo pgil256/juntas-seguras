@@ -701,4 +701,709 @@ describe('MFA Service', () => {
       expect(codeAgeInMinutes).toBeLessThan(2);
     });
   });
+
+  describe('TOTP Disable and Re-enable Flow', () => {
+    let enableTOTP: typeof import('@/lib/services/mfa').enableTOTP;
+    let disableTOTP: typeof import('@/lib/services/mfa').disableTOTP;
+    let sendEmailVerificationCode: typeof import('@/lib/services/mfa').sendEmailVerificationCode;
+    let verifyEmailCode: typeof import('@/lib/services/mfa').verifyEmailCode;
+    let getUserModel: () => any;
+
+    beforeEach(async () => {
+      const mfaModule = await import('@/lib/services/mfa');
+      enableTOTP = mfaModule.enableTOTP;
+      disableTOTP = mfaModule.disableTOTP;
+      sendEmailVerificationCode = mfaModule.sendEmailVerificationCode;
+      verifyEmailCode = mfaModule.verifyEmailCode;
+
+      const userModule = await import('@/lib/db/models/user');
+      getUserModel = userModule.getUserModel;
+    });
+
+    it('should switch method to email but keep MFA enabled after disableTOTP', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      await disableTOTP(user._id.toString());
+
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.method).toBe('email');
+      expect(updatedUser.twoFactorAuth.enabled).toBe(true);
+    });
+
+    it('should remove totpSecret after disableTOTP', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      await disableTOTP(user._id.toString());
+
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.totpSecret).toBeUndefined();
+    });
+
+    it('should allow re-enabling TOTP with enableTOTP after disabling', async () => {
+      const UserModel = getUserModel();
+      const originalSecret = 'JBSWY3DPEHPK3PXP';
+      const newSecret = 'NBSWY3DPEHPK3PXQ';
+
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: originalSecret,
+        },
+      });
+
+      await disableTOTP(user._id.toString());
+      const afterDisable = await UserModel.findById(user._id);
+      expect(afterDisable.twoFactorAuth.method).toBe('email');
+      expect(afterDisable.twoFactorAuth.totpSecret).toBeUndefined();
+
+      await enableTOTP(user._id.toString(), newSecret);
+      const afterReEnable = await UserModel.findById(user._id);
+      expect(afterReEnable.twoFactorAuth.method).toBe('totp');
+      expect(afterReEnable.twoFactorAuth.totpSecret).toBe(newSecret);
+      expect(afterReEnable.twoFactorAuth.enabled).toBe(true);
+    });
+
+    it('should replace old secret with new secret after re-enable', async () => {
+      const UserModel = getUserModel();
+      const oldSecret = 'OLDSECRET1234567';
+      const newSecret = 'NEWSECRET7654321';
+
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: oldSecret,
+        },
+      });
+
+      await disableTOTP(user._id.toString());
+      await enableTOTP(user._id.toString(), newSecret);
+
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.totpSecret).toBe(newSecret);
+      expect(updatedUser.twoFactorAuth.totpSecret).not.toBe(oldSecret);
+    });
+
+    it('should allow email verification between disable and re-enable', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      // Disable TOTP, switching to email
+      await disableTOTP(user._id.toString());
+
+      // Send email verification code (now method is 'email')
+      const sendResult = await sendEmailVerificationCode(user._id.toString());
+      expect(sendResult).toBe(true);
+
+      // Retrieve the stored code
+      const userWithCode = await UserModel.findById(user._id);
+      const code = userWithCode.twoFactorAuth.temporaryCode;
+      expect(code).toMatch(/^\d{6}$/);
+
+      // Verify the email code
+      const verifyResult = await verifyEmailCode(user._id.toString(), code);
+      expect(verifyResult).toBe(true);
+    });
+  });
+
+  describe('Method Switching', () => {
+    let enableTOTP: typeof import('@/lib/services/mfa').enableTOTP;
+    let disableTOTP: typeof import('@/lib/services/mfa').disableTOTP;
+    let sendEmailVerificationCode: typeof import('@/lib/services/mfa').sendEmailVerificationCode;
+    let verifyEmailCode: typeof import('@/lib/services/mfa').verifyEmailCode;
+    let verifyTotpCode: typeof import('@/lib/services/mfa').verifyTotpCode;
+    let getUserModel: () => any;
+
+    beforeEach(async () => {
+      const mfaModule = await import('@/lib/services/mfa');
+      enableTOTP = mfaModule.enableTOTP;
+      disableTOTP = mfaModule.disableTOTP;
+      sendEmailVerificationCode = mfaModule.sendEmailVerificationCode;
+      verifyEmailCode = mfaModule.verifyEmailCode;
+      verifyTotpCode = mfaModule.verifyTotpCode;
+
+      const userModule = await import('@/lib/db/models/user');
+      getUserModel = userModule.getUserModel;
+    });
+
+    it('should switch from email to TOTP via enableTOTP', async () => {
+      const UserModel = getUserModel();
+      const totpSecret = 'JBSWY3DPEHPK3PXP';
+
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+        },
+      });
+
+      await enableTOTP(user._id.toString(), totpSecret);
+
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.method).toBe('totp');
+      expect(updatedUser.twoFactorAuth.totpSecret).toBe(totpSecret);
+      expect(updatedUser.twoFactorAuth.enabled).toBe(true);
+    });
+
+    it('should switch from TOTP to email via disableTOTP', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      await disableTOTP(user._id.toString());
+
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.method).toBe('email');
+      expect(updatedUser.twoFactorAuth.totpSecret).toBeUndefined();
+      expect(updatedUser.twoFactorAuth.enabled).toBe(true);
+    });
+
+    it('should allow email codes to work after TOTP is disabled', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      // Disable TOTP
+      await disableTOTP(user._id.toString());
+
+      // Generate email code
+      const sendResult = await sendEmailVerificationCode(user._id.toString());
+      expect(sendResult).toBe(true);
+
+      // Get the stored code and verify it
+      const userWithCode = await UserModel.findById(user._id);
+      const code = userWithCode.twoFactorAuth.temporaryCode;
+
+      const verifyResult = await verifyEmailCode(user._id.toString(), code);
+      expect(verifyResult).toBe(true);
+    });
+
+    it('should not verify TOTP codes after disableTOTP (secret removed)', async () => {
+      const UserModel = getUserModel();
+      const testSecret = 'JBSWY3DPEHPK3PXP';
+
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'totp',
+          totpSecret: testSecret,
+        },
+      });
+
+      // Generate a valid TOTP token before disabling
+      const validToken = speakeasy.totp({
+        secret: testSecret,
+        encoding: 'base32',
+      });
+
+      // Disable TOTP
+      await disableTOTP(user._id.toString());
+
+      // Attempt to verify TOTP code should fail (secret removed)
+      const result = await verifyTotpCode(user._id.toString(), validToken);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Code Reuse Within 2 Minutes', () => {
+    let sendEmailVerificationCode: typeof import('@/lib/services/mfa').sendEmailVerificationCode;
+    let verifyEmailCode: typeof import('@/lib/services/mfa').verifyEmailCode;
+    let getUserModel: () => any;
+
+    beforeEach(async () => {
+      const mfaModule = await import('@/lib/services/mfa');
+      sendEmailVerificationCode = mfaModule.sendEmailVerificationCode;
+      verifyEmailCode = mfaModule.verifyEmailCode;
+
+      const userModule = await import('@/lib/db/models/user');
+      getUserModel = userModule.getUserModel;
+    });
+
+    it('should return the same code when called twice within 2 minutes', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+        },
+      });
+
+      // First call generates a code
+      await sendEmailVerificationCode(user._id.toString());
+      const userAfterFirst = await UserModel.findById(user._id);
+      const firstCode = userAfterFirst.twoFactorAuth.temporaryCode;
+
+      // Second call within 2 minutes should reuse the code
+      await sendEmailVerificationCode(user._id.toString());
+      const userAfterSecond = await UserModel.findById(user._id);
+      const secondCode = userAfterSecond.twoFactorAuth.temporaryCode;
+
+      expect(firstCode).toBe(secondCode);
+    });
+
+    it('should generate a new code after 2 minutes have elapsed', async () => {
+      const UserModel = getUserModel();
+      const oldCode = '111222';
+      const oldTime = new Date(Date.now() - 3 * 60 * 1000).toISOString(); // 3 minutes ago
+
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          temporaryCode: oldCode,
+          codeGeneratedAt: oldTime,
+        },
+      });
+
+      await sendEmailVerificationCode(user._id.toString());
+      const updatedUser = await UserModel.findById(user._id);
+      const newCode = updatedUser.twoFactorAuth.temporaryCode;
+
+      expect(newCode).not.toBe(oldCode);
+      expect(newCode).toMatch(/^\d{6}$/);
+    });
+
+    it('should still verify a reused code successfully', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+        },
+      });
+
+      // Generate code
+      await sendEmailVerificationCode(user._id.toString());
+      const userAfterFirst = await UserModel.findById(user._id);
+      const code = userAfterFirst.twoFactorAuth.temporaryCode;
+
+      // Call again (reuses the code)
+      await sendEmailVerificationCode(user._id.toString());
+
+      // Verify the reused code
+      const result = await verifyEmailCode(user._id.toString(), code);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('Concurrent Code Generation', () => {
+    let sendEmailVerificationCode: typeof import('@/lib/services/mfa').sendEmailVerificationCode;
+    let verifyEmailCode: typeof import('@/lib/services/mfa').verifyEmailCode;
+    let getUserModel: () => any;
+
+    beforeEach(async () => {
+      const mfaModule = await import('@/lib/services/mfa');
+      sendEmailVerificationCode = mfaModule.sendEmailVerificationCode;
+      verifyEmailCode = mfaModule.verifyEmailCode;
+
+      const userModule = await import('@/lib/db/models/user');
+      getUserModel = userModule.getUserModel;
+    });
+
+    it('should handle multiple rapid sendEmailVerificationCode calls', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+        },
+      });
+
+      const userId = user._id.toString();
+
+      // Fire multiple calls concurrently
+      const results = await Promise.all([
+        sendEmailVerificationCode(userId),
+        sendEmailVerificationCode(userId),
+        sendEmailVerificationCode(userId),
+      ]);
+
+      // All calls should succeed
+      results.forEach((result) => {
+        expect(result).toBe(true);
+      });
+
+      // Only one code should be stored in the database
+      const updatedUser = await UserModel.findById(user._id);
+      expect(updatedUser.twoFactorAuth.temporaryCode).toMatch(/^\d{6}$/);
+    });
+
+    it('should have only one valid code after concurrent generation', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+        },
+      });
+
+      const userId = user._id.toString();
+
+      // Fire concurrent calls
+      await Promise.all([
+        sendEmailVerificationCode(userId),
+        sendEmailVerificationCode(userId),
+      ]);
+
+      // Get the final stored code
+      const updatedUser = await UserModel.findById(user._id);
+      const storedCode = updatedUser.twoFactorAuth.temporaryCode;
+
+      // The stored code should be verifiable
+      const result = await verifyEmailCode(userId, storedCode);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    let sendEmailVerificationCode: typeof import('@/lib/services/mfa').sendEmailVerificationCode;
+    let verifyEmailCode: typeof import('@/lib/services/mfa').verifyEmailCode;
+    let verifyTotpCode: typeof import('@/lib/services/mfa').verifyTotpCode;
+    let enableTOTP: typeof import('@/lib/services/mfa').enableTOTP;
+    let disableTOTP: typeof import('@/lib/services/mfa').disableTOTP;
+    let generateTotpSecret: typeof import('@/lib/services/mfa').generateTotpSecret;
+    let verifyTOTP: typeof import('@/lib/services/mfa').verifyTOTP;
+    let getUserModel: () => any;
+
+    beforeEach(async () => {
+      const mfaModule = await import('@/lib/services/mfa');
+      sendEmailVerificationCode = mfaModule.sendEmailVerificationCode;
+      verifyEmailCode = mfaModule.verifyEmailCode;
+      verifyTotpCode = mfaModule.verifyTotpCode;
+      enableTOTP = mfaModule.enableTOTP;
+      disableTOTP = mfaModule.disableTOTP;
+      generateTotpSecret = mfaModule.generateTotpSecret;
+      verifyTOTP = mfaModule.verifyTOTP;
+
+      const userModule = await import('@/lib/db/models/user');
+      getUserModel = userModule.getUserModel;
+    });
+
+    it('should return false for invalid ObjectId on sendEmailVerificationCode', async () => {
+      const result = await sendEmailVerificationCode('not-a-valid-id');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for invalid ObjectId on verifyEmailCode', async () => {
+      const result = await verifyEmailCode('not-a-valid-id', '123456');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for invalid ObjectId on verifyTotpCode', async () => {
+      const result = await verifyTotpCode('not-a-valid-id', '123456');
+      expect(result).toBe(false);
+    });
+
+    it('should throw for invalid ObjectId on enableTOTP', async () => {
+      await expect(enableTOTP('not-a-valid-id', 'secret')).rejects.toThrow(
+        'Invalid user ID format'
+      );
+    });
+
+    it('should throw for invalid ObjectId on disableTOTP', async () => {
+      await expect(disableTOTP('not-a-valid-id')).rejects.toThrow(
+        'Invalid user ID format'
+      );
+    });
+
+    it('should throw for invalid ObjectId on generateTotpSecret', async () => {
+      await expect(generateTotpSecret('not-a-valid-id')).rejects.toThrow(
+        'Invalid user ID format'
+      );
+    });
+
+    it('should throw for invalid ObjectId on verifyTOTP', async () => {
+      await expect(verifyTOTP('not-a-valid-id', '123456')).rejects.toThrow(
+        'Invalid user ID format'
+      );
+    });
+
+    it('should return false when user not found for sendEmailVerificationCode', async () => {
+      const fakeId = generateObjectId();
+      const result = await sendEmailVerificationCode(fakeId);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when user not found for verifyEmailCode', async () => {
+      const fakeId = generateObjectId();
+      const result = await verifyEmailCode(fakeId, '123456');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when user not found for verifyTotpCode', async () => {
+      const fakeId = generateObjectId();
+      const result = await verifyTotpCode(fakeId, '123456');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when MFA is not enabled for verifyEmailCode', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: false,
+          method: 'email',
+          temporaryCode: '123456',
+          codeGeneratedAt: new Date().toISOString(),
+        },
+      });
+
+      const result = await verifyEmailCode(user._id.toString(), '123456');
+      expect(result).toBe(false);
+    });
+
+    it('should return false for empty code string on verifyEmailCode', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          temporaryCode: '654321',
+          codeGeneratedAt: new Date().toISOString(),
+        },
+      });
+
+      const result = await verifyEmailCode(user._id.toString(), '');
+      expect(result).toBe(false);
+    });
+
+    it('should handle whitespace-only code string on verifyEmailCode', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          temporaryCode: '654321',
+          codeGeneratedAt: new Date().toISOString(),
+        },
+      });
+
+      const result = await verifyEmailCode(user._id.toString(), '   ');
+      expect(result).toBe(false);
+    });
+
+    it('should handle code with leading/trailing whitespace via trimming', async () => {
+      const UserModel = getUserModel();
+      const storedCode = '654321';
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          temporaryCode: storedCode,
+          codeGeneratedAt: new Date().toISOString(),
+        },
+      });
+
+      // Whitespace should be trimmed on both sides
+      const result = await verifyEmailCode(
+        user._id.toString(),
+        `  ${storedCode}  `
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false for verifyTotpCode when MFA not enabled', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: false,
+          method: 'totp',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
+      });
+
+      const token = speakeasy.totp({
+        secret: 'JBSWY3DPEHPK3PXP',
+        encoding: 'base32',
+      });
+
+      const result = await verifyTotpCode(user._id.toString(), token);
+      expect(result).toBe(false);
+    });
+
+    it('should throw for verifyTOTP when TOTP secret is missing', async () => {
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
+        email: 'test@example.com',
+        hashedPassword: 'hashed',
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        verificationMethod: 'email',
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          // No totpSecret
+        },
+      });
+
+      await expect(
+        verifyTOTP(user._id.toString(), '123456')
+      ).rejects.toThrow('TOTP not enabled for user');
+    });
+  });
 });
