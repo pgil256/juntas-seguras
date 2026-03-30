@@ -72,10 +72,32 @@ export default defineConfig({
       testIgnore: /.*authenticated.*\.spec\.ts/,
     },
 
+    /* Authenticated tests on Firefox */
+    {
+      name: 'firefox-authenticated',
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: USER_AUTH_FILE,
+      },
+      dependencies: ['setup'],
+      testMatch: /.*authenticated.*\.spec\.ts/,
+    },
+
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
       testIgnore: /.*authenticated.*\.spec\.ts/,
+    },
+
+    /* Authenticated tests on WebKit */
+    {
+      name: 'webkit-authenticated',
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: USER_AUTH_FILE,
+      },
+      dependencies: ['setup'],
+      testMatch: /.*authenticated.*\.spec\.ts/,
     },
 
     /* Test against mobile viewports */
@@ -89,6 +111,17 @@ export default defineConfig({
       name: 'mobile-safari',
       use: { ...devices['iPhone 12'] },
       testIgnore: /.*authenticated.*\.spec\.ts/,
+    },
+
+    /* Authenticated mobile tests */
+    {
+      name: 'mobile-chrome-authenticated',
+      use: {
+        ...devices['Pixel 5'],
+        storageState: USER_AUTH_FILE,
+      },
+      dependencies: ['setup'],
+      testMatch: /.*authenticated.*\.spec\.ts/,
     },
   ],
 

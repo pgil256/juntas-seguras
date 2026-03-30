@@ -57,6 +57,66 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 - **Email**: Nodemailer with Gmail SMTP
 - **Deployment**: Vercel
 
+## Testing
+
+![Tests](https://github.com/gilhooleyp/juntas-seguras/actions/workflows/test.yml/badge.svg)
+
+Juntas Seguras has a comprehensive test suite organized by test type. Tests run automatically on every push and PR via GitHub Actions.
+
+### Test Strategy
+
+| Layer | Tool | Directory | What it covers |
+|-------|------|-----------|----------------|
+| **Unit** | Jest | `__tests__/unit/` | Business logic, components, hooks, services |
+| **Integration** | Jest + MongoMemoryServer | `__tests__/integration/` | API routes, database models, transactions |
+| **Security** | Jest | `__tests__/security/` | Auth, authorization, CSRF, rate limiting, headers |
+| **Performance** | Jest + Lighthouse CI | `__tests__/performance/` | API response times, database queries |
+| **E2E** | Playwright | `e2e/` | Full user journeys, cross-browser, mobile, accessibility |
+
+### Running Tests
+
+```bash
+# All tests
+npm test
+
+# By category
+npm run test:unit              # Unit tests only
+npm run test:integration       # Integration tests (needs MongoDB)
+npm run test:security          # Security tests
+npm run test:e2e               # E2E tests (Chromium, Firefox, WebKit)
+
+# With coverage
+npm run test:coverage          # Generate coverage report
+
+# E2E variants
+npm run test:e2e:headed        # Watch tests in browser
+npm run test:e2e:ui            # Interactive Playwright UI
+npm run test:e2e:auth          # Authenticated tests only
+npm run test:e2e:a11y          # Accessibility tests
+npm run test:e2e:mobile        # Mobile viewport tests
+```
+
+### Local Setup
+
+Integration and E2E tests need MongoDB:
+
+```bash
+docker-compose up -d           # Start MongoDB container
+npm run test:integration       # Run integration tests
+npm run test:e2e               # Run E2E tests
+```
+
+### CI Pipeline
+
+The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
+1. **Lint** -- ESLint checks
+2. **Unit Tests** -- with coverage report upload
+3. **Integration Tests** -- against MongoDB service container
+4. **Security Tests** -- auth and authorization validation
+5. **E2E Tests** -- Playwright against Chromium with artifact upload
+
+Coverage threshold: **30%** (target: 70%). Reports are uploaded as artifacts on every CI run.
+
 ## Quick Start
 
 ### Prerequisites

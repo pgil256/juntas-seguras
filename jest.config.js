@@ -25,12 +25,11 @@ const customJestConfig = {
   ],
   coverageThreshold: {
     global: {
-      // Temporarily lowered during Phase 10 implementation
-      // Target: 70% for all metrics
-      branches: 5,
-      functions: 5,
-      lines: 5,
-      statements: 5,
+      // Raised from 5% → 30% (target: 70%)
+      branches: 30,
+      functions: 30,
+      lines: 30,
+      statements: 30,
     },
   },
   moduleDirectories: ['node_modules', '<rootDir>/'],
