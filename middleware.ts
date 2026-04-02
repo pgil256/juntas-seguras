@@ -12,6 +12,8 @@ const publicRoutes = [
   '/auth/reset-password',
   '/help',
   '/help/documentation',
+  '/privacy',
+  '/terms',
   '/api/auth', // Allow all NextAuth routes (signin, callback, session, providers, etc.)
 ];
 

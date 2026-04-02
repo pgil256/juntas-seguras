@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "../../../components/ui/alert";
-import { Mail } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -47,18 +46,48 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="w-full">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl sm:text-3xl font-bold text-center">
-              Reset your password
-            </CardTitle>
-            <CardDescription className="text-center text-sm sm:text-base">
-              Enter your email address and we'll send you instructions to reset your password.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+    <div className="min-h-screen flex">
+      {/* Left branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-0 w-60 h-60 bg-indigo-400/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
+          <Link href="/" className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-lg">JS</span>
+            </div>
+            <span className="text-2xl font-bold text-white">Juntas Seguras</span>
+          </Link>
+          <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-4">
+            Don&apos;t worry, we&apos;ve got you covered
+          </h1>
+          <p className="text-blue-100 text-lg leading-relaxed">
+            We&apos;ll send you a secure link to reset your password and get back to managing your savings pools.
+          </p>
+        </div>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-12 xl:px-16 bg-white">
+        <div className="mx-auto w-full max-w-md">
+          {/* Mobile logo */}
+          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">JS</span>
+            </div>
+            <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
+          </Link>
+
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Reset your password
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Enter your email address and we&apos;ll send you instructions to reset your password.
+          </p>
+
+          <div className="mt-8">
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertTitle>Error</AlertTitle>
@@ -67,7 +96,7 @@ export default function ForgotPassword() {
             )}
             {success && (
               <Alert className="mb-4 bg-green-50 border-green-200">
-                <AlertTitle>Success</AlertTitle>
+                <AlertTitle>Check your email</AlertTitle>
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
@@ -93,7 +122,7 @@ export default function ForgotPassword() {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-blue-600 hover:bg-blue-700 h-11"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -109,16 +138,18 @@ export default function ForgotPassword() {
                 )}
               </Button>
             </form>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <Link
-              href="/auth/signin"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
-            >
-              Back to sign in
-            </Link>
-          </CardFooter>
-        </Card>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/auth/signin"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-500"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to sign in
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

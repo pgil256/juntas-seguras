@@ -80,7 +80,7 @@ export default function PageLayout({
           
           <div className="border-t border-gray-200 pt-4 mt-6 sm:mt-8">
             <p className="text-center text-sm text-gray-500">
-              &copy; 2025 Juntas Seguras. All rights reserved.
+              &copy; 2026 Juntas Seguras. All rights reserved.
             </p>
           </div>
         </div>
