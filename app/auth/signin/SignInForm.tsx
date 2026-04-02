@@ -116,21 +116,67 @@ export default function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
-          Sign in to your account
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
-            create a new account
+    <div className="min-h-screen flex">
+      {/* Left branding panel - hidden on mobile */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-0 w-60 h-60 bg-indigo-400/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
+          <Link href="/" className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-lg">JS</span>
+            </div>
+            <span className="text-2xl font-bold text-white">Juntas Seguras</span>
           </Link>
-        </p>
+          <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-4">
+            Manage your community savings with confidence
+          </h1>
+          <p className="text-blue-100 text-lg leading-relaxed mb-8">
+            Track contributions, manage payouts, and build trust with full transparency for every member.
+          </p>
+          <div className="space-y-4">
+            {[
+              "Bank-grade security with MFA",
+              "Support for Venmo, PayPal, Zelle",
+              "Real-time contribution tracking",
+            ].map((feature) => (
+              <div key={feature} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-blue-50 text-sm">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      {/* Right form panel */}
+      <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-12 xl:px-16 bg-white">
+        <div className="mx-auto w-full max-w-md">
+          {/* Mobile logo */}
+          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">JS</span>
+            </div>
+            <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
+          </Link>
+
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Welcome back
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
+              Sign up for free
+            </Link>
+          </p>
+
+          <div className="mt-8">
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
               {error}
@@ -267,6 +313,7 @@ export default function SignInForm() {
             </div>
           </form>
 
+          </div>
         </div>
       </div>
     </div>

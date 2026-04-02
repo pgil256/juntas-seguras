@@ -86,7 +86,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             </div>
             <div className="order-2 md:order-1">
               <p className="text-center md:text-left text-sm text-gray-500">
-                &copy; 2025 Juntas Seguras. All rights reserved.
+                &copy; 2026 Juntas Seguras. All rights reserved.
               </p>
             </div>
           </div>

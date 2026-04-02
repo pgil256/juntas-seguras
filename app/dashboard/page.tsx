@@ -289,78 +289,58 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Wallet className="h-6 w-6 text-blue-600" />
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            {
+              label: "Total Savings",
+              value: formatCurrency(totalSavings),
+              icon: Wallet,
+              iconBg: "bg-blue-50",
+              iconColor: "text-blue-600",
+              trend: activePools.length > 0 ? "Active" : undefined,
+              trendColor: "text-blue-600",
+            },
+            {
+              label: "Active Pools",
+              value: activePools.length.toString(),
+              icon: CreditCard,
+              iconBg: "bg-emerald-50",
+              iconColor: "text-emerald-600",
+              trend: pendingPools.length > 0 ? `+${pendingPools.length} pending` : undefined,
+              trendColor: "text-amber-600",
+            },
+            {
+              label: "Next Payout",
+              value: nextPayoutDate ? formatDate(new Date(nextPayoutDate)) : "—",
+              icon: Calendar,
+              iconBg: "bg-purple-50",
+              iconColor: "text-purple-600",
+            },
+            {
+              label: "Total Members",
+              value: totalMembers.toString(),
+              icon: Users,
+              iconBg: "bg-amber-50",
+              iconColor: "text-amber-600",
+            },
+          ].map((stat) => (
+            <Card key={stat.label} className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2 rounded-lg ${stat.iconBg}`}>
+                    <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+                  </div>
+                  {stat.trend && (
+                    <span className={`text-xs font-medium ${stat.trendColor}`}>
+                      {stat.trend}
+                    </span>
+                  )}
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Savings
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    ${totalSavings}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CreditCard className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Active Pools
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    {activePools.length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Next Payout
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    {nextPayoutDate ? formatDate(new Date(nextPayoutDate)) : '-'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Users className="h-6 w-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Members
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    {totalMembers}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{stat.label}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Recent Activity - only show if there are pools */}

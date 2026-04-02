@@ -68,8 +68,11 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center min-w-0">
             <div className="flex-shrink-0 flex items-center">
-              <Link href={isAuthenticated ? "/dashboard" : "/"} className="text-xl sm:text-2xl font-bold text-blue-600 whitespace-nowrap">
-                Juntas Seguras
+              <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 whitespace-nowrap">
+                <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-xs">JS</span>
+                </div>
+                <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-6 lg:space-x-8">
@@ -118,12 +121,12 @@ export default function Navbar() {
             {isAuthenticated ? (
               <UserProfileButton />
             ) : (
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <Link href="/auth/signin">
-                  <Button variant="outline" size="sm">Log in</Button>
+                  <Button variant="ghost" size="sm" className="text-gray-700 font-medium">Log in</Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button size="sm">Sign up</Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 shadow-sm">Sign up</Button>
                 </Link>
               </div>
             )}

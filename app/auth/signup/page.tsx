@@ -301,25 +301,72 @@ export default function SignUp() {
         emailForDisplay={email}
       />
 
-      <div className="flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl sm:text-3xl font-bold text-center">
-              {registrationStep === 'credentials' 
-                ? 'Create an Account' 
-                : registrationStep === 'mfa-setup'
-                  ? 'Set Up Two-Factor Authentication'
-                  : 'Identity Verification'}
-            </CardTitle>
-            <CardDescription className="text-center text-sm sm:text-base">
-              {registrationStep === 'credentials'
-                ? 'Enter your details to create your Juntas Seguras account'
-                : registrationStep === 'mfa-setup'
-                  ? 'Add an extra layer of security to protect your account'
-                  : 'Verify your identity to access all features and ensure security'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <div className="min-h-screen flex">
+        {/* Left branding panel - hidden on mobile */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-800 relative overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute top-1/3 -left-20 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-1/4 right-0 w-60 h-60 bg-blue-400/10 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
+            <Link href="/" className="flex items-center gap-3 mb-12">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg">JS</span>
+              </div>
+              <span className="text-2xl font-bold text-white">Juntas Seguras</span>
+            </Link>
+            <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-4">
+              Start saving with your community today
+            </h1>
+            <p className="text-blue-100 text-lg leading-relaxed mb-8">
+              Create a free account and set up your first savings pool in minutes. Invite members and start growing together.
+            </p>
+            <div className="space-y-4">
+              {[
+                "Free to create and manage pools",
+                "Invite unlimited members",
+                "Full transparency for every transaction",
+              ].map((feature) => (
+                <div key={feature} className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-blue-50 text-sm">{feature}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right form panel */}
+        <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-12 xl:px-16 bg-white overflow-y-auto">
+          <div className="mx-auto w-full max-w-lg">
+            {/* Mobile logo */}
+            <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">JS</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
+            </Link>
+
+            <div className="mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                {registrationStep === 'credentials'
+                  ? 'Create your account'
+                  : registrationStep === 'mfa-setup'
+                    ? 'Set up two-factor authentication'
+                    : 'Verify your identity'}
+              </h2>
+              <p className="mt-2 text-sm text-gray-500">
+                {registrationStep === 'credentials'
+                  ? 'Enter your details to get started with Juntas Seguras'
+                  : registrationStep === 'mfa-setup'
+                    ? 'Add an extra layer of security to protect your account'
+                    : 'Verify your identity to access all features'}
+              </p>
+            </div>
             {error && (
               <Alert 
                 variant={error.includes('verification code') && !error.includes('Failed') ? 'default' : 'destructive'} 
@@ -634,16 +681,16 @@ export default function SignUp() {
                 </p>
               </div>
             )}
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-500">
+                Already have an account?{" "}
+                <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </ClientOnly>
   );

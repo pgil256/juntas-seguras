@@ -3,47 +3,42 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 
-// Loading component to render while suspense is active
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Loading...
-          </h2>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+        <p className="mt-3 text-gray-600">Loading...</p>
       </div>
     </div>
   );
 }
 
-// The main content component that uses useSearchParams
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [token, setToken] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Use useEffect to handle client-side only operations
   useEffect(() => {
     setMounted(true);
     const tokenParam = searchParams.get('token');
     setToken(tokenParam);
-    
-    // Check token validity if available
+
     if (tokenParam) {
       fetch(`/api/auth/check-token?token=${encodeURIComponent(tokenParam)}`)
         .then(res => res.json())
         .then(data => {
-          console.log('Token check result:', data);
           if (!data.userFoundByExactToken && !data.userFoundByRegex) {
             setError('This reset token is invalid or has expired.');
           }
@@ -74,9 +69,7 @@ function ResetPasswordContent() {
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
 
@@ -97,122 +90,142 @@ function ResetPasswordContent() {
     }
   };
 
-  // Return a loading state until client-side code has executed
-  if (!mounted) {
-    return <LoadingFallback />;
-  }
+  if (!mounted) return <LoadingFallback />;
+
+  // Render content based on state
+  let formContent;
 
   if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Invalid Reset Link
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              The password reset link is invalid or has expired.
-            </p>
-          </div>
-          <div className="mt-8 text-center">
-            <Link
-              href="/auth/forgot-password"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Request a new reset link
-            </Link>
-          </div>
-        </div>
+    formContent = (
+      <div className="text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Invalid Reset Link</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          The password reset link is invalid or has expired.
+        </p>
+        <Link
+          href="/auth/forgot-password"
+          className="inline-flex items-center gap-1 mt-6 text-sm font-medium text-blue-600 hover:text-blue-500"
+        >
+          Request a new reset link
+        </Link>
       </div>
     );
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Password Reset Successful
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              Your password has been reset successfully. You will be redirected to the sign-in page.
-            </p>
-          </div>
+  } else if (success) {
+    formContent = (
+      <div className="text-center">
+        <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+          <CheckCircle className="h-6 w-6 text-green-600" />
         </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Password Reset</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          Your password has been reset successfully. Redirecting to sign in...
+        </p>
       </div>
+    );
+  } else {
+    formContent = (
+      <>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Set new password</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          Please enter your new password below.
+        </p>
+
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="password">New Password</Label>
+            <Input
+              id="password"
+              type="password"
+              required
+              placeholder="Enter new password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              required
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 h-11"
+          >
+            {isLoading ? 'Resetting Password...' : 'Reset Password'}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/auth/signin"
+            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-500"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to sign in
+          </Link>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Reset Your Password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Please enter your new password below.
+    <div className="min-h-screen flex">
+      {/* Left branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-0 w-60 h-60 bg-indigo-400/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
+          <Link href="/" className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-lg">JS</span>
+            </div>
+            <span className="text-2xl font-bold text-white">Juntas Seguras</span>
+          </Link>
+          <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight mb-4">
+            Secure your account with a new password
+          </h1>
+          <p className="text-blue-100 text-lg leading-relaxed">
+            Choose a strong password to keep your savings pools and community data protected.
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="password" className="sr-only">
-                New Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="New Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="confirm-password" className="sr-only">
-                Confirm New Password
-              </label>
-              <input
-                id="confirm-password"
-                name="confirm-password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm New Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
+      </div>
 
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
+      {/* Right form panel */}
+      <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-12 xl:px-16 bg-white">
+        <div className="mx-auto w-full max-w-md">
+          {/* Mobile logo */}
+          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">JS</span>
+            </div>
+            <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
+          </Link>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              {isLoading ? 'Resetting Password...' : 'Reset Password'}
-            </button>
-          </div>
-        </form>
+          {formContent}
+        </div>
       </div>
     </div>
   );
 }
 
-// Main component wrapped with Suspense
 export default function ResetPassword() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <ResetPasswordContent />
     </Suspense>
   );
-} 
+}
