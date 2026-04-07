@@ -51,9 +51,9 @@ const UserSchema = new Schema({
   // Note: MongoDB automatically creates _id field, we don't use custom 'id' field anymore
   // Removed custom id field to avoid conflicts with MongoDB's _id
   // Use _id.toString() when you need the ID as a string
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  phone: { type: String },
+  name: { type: String, required: true, trim: true, maxlength: 100 },
+  email: { type: String, required: true, unique: true, trim: true, maxlength: 255 },
+  phone: { type: String, trim: true, maxlength: 20 },
   createdAt: { type: Date, required: true, default: Date.now },
   lastLogin: { type: Date },
   avatar: { type: String },

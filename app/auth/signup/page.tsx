@@ -45,8 +45,13 @@ export default function SignUp() {
     e.preventDefault();
     
     // Enhanced validation
-    if (!name || !email || !password) {
+    if (!name.trim() || !email.trim() || !password) {
       setError("All fields are required");
+      return;
+    }
+
+    if (name.trim().length > 100) {
+      setError("Name must be 100 characters or less");
       return;
     }
     

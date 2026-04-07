@@ -19,6 +19,7 @@ export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const { toast } = useToast();
 
   // Email validation
@@ -49,7 +50,27 @@ export default function SignInForm() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+
+    // Handle query param messages
+    const errorParam = searchParams.get("error");
+    const registered = searchParams.get("registered");
+
+    if (registered === "true") {
+      setSuccessMessage("Your account has been created successfully. Please sign in.");
+    }
+
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        OAuthAccountNotLinked: "This email is already associated with another sign-in method. Please use your original sign-in method.",
+        OAuthSignin: "Could not start the sign-in process. Please try again.",
+        OAuthCallback: "Sign-in was interrupted. Please try again.",
+        OAuthCreateAccount: "Could not create your account. Please try again or use a different method.",
+        Callback: "An error occurred during sign-in. Please try again.",
+        Default: "An unexpected error occurred. Please try again.",
+      };
+      setError(errorMessages[errorParam] || errorMessages.Default);
+    }
+  }, [searchParams, toast]);
 
   // Handle simple redirect after authentication
   useEffect(() => {
@@ -177,6 +198,11 @@ export default function SignInForm() {
           </p>
 
           <div className="mt-8">
+          {successMessage && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+              {successMessage}
+            </div>
+          )}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
               {error}
