@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientOnly from '../../../components/ClientOnly';
 import { Button } from '../../../components/ui/button';
@@ -64,6 +64,16 @@ export default function DocumentationPage() {
   const [selectedSection, setSelectedSection] = useState('getting-started');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) return helpCategories;
+    const q = searchQuery.toLowerCase();
+    return helpCategories.filter(
+      (cat) =>
+        cat.title.toLowerCase().includes(q) ||
+        cat.description.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
   return (
     <ClientOnly>
       <div className="min-h-screen bg-gray-50">
@@ -110,7 +120,7 @@ export default function DocumentationPage() {
                 <h3 className="font-medium text-gray-900">Categories</h3>
               </div>
               <nav className="space-y-1 p-2">
-                {helpCategories.map((category) => (
+                {filteredCategories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => setSelectedSection(category.id)}

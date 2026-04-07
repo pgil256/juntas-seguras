@@ -11,16 +11,9 @@ import * as speakeasy from 'speakeasy';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: '***REMOVED***',
-    pass: '***REMOVED***'
+    user: process.env.EMAIL_USER || '***REMOVED***',
+    pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD,
   }
-});
-
-// Verify email configuration
-console.log('Email configuration:', {
-  user: process.env.EMAIL_USER,
-  pass: process.env.EMAIL_PASS,
-  from: process.env.EMAIL_FROM
 });
 
 // Generate TOTP secret (in a real app, use a proper library like speakeasy)
@@ -43,13 +36,28 @@ function generateBackupCodes() {
 export async function POST(request: NextRequest) {
   try {
     const { name, email, password, verificationMethod } = await request.json();
-    
-    console.log('Registration request received:', { name, email, verificationMethod });
-    
+
     if (!name || !email || !password || !verificationMethod) {
-      console.log('Missing required fields:', { name, email, verificationMethod });
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize and validate inputs
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (trimmedName.length > 100) {
+      return NextResponse.json(
+        { error: 'Name must be 100 characters or less' },
+        { status: 400 }
+      );
+    }
+
+    if (trimmedEmail.length > 255) {
+      return NextResponse.json(
+        { error: 'Email address is too long' },
         { status: 400 }
       );
     }
@@ -58,16 +66,15 @@ export async function POST(request: NextRequest) {
     const UserModel = getUserModel();
 
     // Clean up any existing temporary users
-    const cleanupResult = await UserModel.deleteMany({ 
-      email, 
+    await UserModel.deleteMany({
+      email: trimmedEmail,
       isTemporary: true,
       isVerified: false
     });
-    console.log('Cleaned up existing temporary users:', cleanupResult);
 
     // Check if user already exists and is verified
-    const existingUser = await UserModel.findOne({ 
-      email,
+    const existingUser = await UserModel.findOne({
+      email: trimmedEmail,
       $or: [
         { isTemporary: false },
         { isVerified: true }
@@ -75,7 +82,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      console.log('User already exists:', existingUser);
       return NextResponse.json(
         { error: 'User already exists' },
         { status: 400 }
@@ -89,21 +95,11 @@ export async function POST(request: NextRequest) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    console.log('Creating new user with:', {
-      name,
-      email,
-      verificationMethod,
-      isVerified: false,
-      isTemporary: true,
-      verificationCode: code,
-      verificationExpiry: expiry
-    });
-
     // Create tempo***REMOVED***fication data
     const userData = {
       id: uuidv4(),
-      name,
-      email,
+      name: trimmedName,
+      email: trimmedEmail,
       password: hashedPassword,
       verificationCode: code,
       verificationExpiry: expiry,
@@ -123,37 +119,19 @@ export async function POST(request: NextRequest) {
       }
     };
     
-    console.log('Attempting to cr***REMOVED***:', JSON.stringify(userData, null, 2));
-    
-    const user = await UserModel.create(userData).catch(error => {
-      console.error('User creation failed:', error);
-      throw error;
-    });
-
-    // Log the FULL user document
-    console.log('FULL user document:', JSON.stringify(user.toObject(), null, 2));
-    
-    // Log verification details specifically
-    console.log('Verification details:', {
-      code: code,
-      userVerificationCode: user.verificationCode,
-      expiry: expiry,
-      userVerificationExpiry: user.verificationExpiry
-    });
+    const user = await UserModel.create(userData);
 
     // Send verification email if using email method
     if (verificationMethod === 'email') {
       try {
         await transporter.sendMail({
           from: process.env.EMAIL_FROM,
-          to: email,
+          to: trimmedEmail,
           subject: 'Verify your account',
           text: `Your verification code is: ${code}`,
           html: `<p>Your verification code is: <strong>${code}</strong></p>`
         });
-        console.log('Verification email sent successfully');
       } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
         // Delete the temporary user since email failed
         await UserModel.deleteOne({ _id: user._id });
         return NextResponse.json(
@@ -172,7 +150,7 @@ export async function POST(request: NextRequest) {
       },
       mfaSetup: verificationMethod === 'app' ? {
         totpSecret: code,
-        totpUrl: `otpauth://totp/JuntasSeguras:${email}?secret=${code}&issuer=JuntasSeguras`
+        totpUrl: `otpauth://totp/JuntasSeguras:${trimmedEmail}?secret=${code}&issuer=JuntasSeguras`
       } : null
     });
   } catch (error) {

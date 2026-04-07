@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ClientOnly from '../../components/ClientOnly';
 import {
@@ -245,6 +246,36 @@ const helpTopics = [
 
 export default function HelpPage() {
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter FAQ data based on search query
+  const filteredFaqData = useMemo(() => {
+    if (!searchQuery.trim()) return faqData;
+    const q = searchQuery.toLowerCase();
+    const filtered: typeof faqData = {} as typeof faqData;
+    for (const [category, items] of Object.entries(faqData)) {
+      const matches = items.filter(
+        (item) =>
+          item.question.toLowerCase().includes(q) ||
+          item.answer.toLowerCase().includes(q)
+      );
+      if (matches.length > 0) {
+        (filtered as any)[category] = matches;
+      }
+    }
+    return filtered;
+  }, [searchQuery]);
+
+  // Filter help topics based on search query
+  const filteredTopics = useMemo(() => {
+    if (!searchQuery.trim()) return helpTopics;
+    const q = searchQuery.toLowerCase();
+    return helpTopics.filter(
+      (topic) =>
+        topic.title.toLowerCase().includes(q) ||
+        topic.description.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   return (
     <ClientOnly>
@@ -280,6 +311,8 @@ export default function HelpPage() {
             placeholder="Search for answers..."
             className="pl-10 py-6 text-lg w-full"
             key="search-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
@@ -304,7 +337,7 @@ export default function HelpPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-            {helpTopics.map((topic) => (
+            {filteredTopics.map((topic) => (
               <div 
                 key={topic.id}
                 className="border rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
@@ -339,7 +372,7 @@ export default function HelpPage() {
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
 
-            {Object.entries(faqData).map(([category, questions]) => (
+            {Object.entries(filteredFaqData).map(([category, questions]) => (
               <TabsContent key={category} value={category}>
                 <Card>
                   <CardContent className="pt-6">
@@ -364,6 +397,13 @@ export default function HelpPage() {
               </TabsContent>
             ))}
           </Tabs>
+          {searchQuery.trim() && Object.keys(filteredFaqData).length === 0 && filteredTopics.length === 0 && (
+            <div className="mt-6 text-center py-8">
+              <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-lg">No results found for &ldquo;{searchQuery}&rdquo;</p>
+              <p className="text-gray-400 text-sm mt-1">Try a different search term or browse the categories above</p>
+            </div>
+          )}
         </div>
 
         {/* Quick Links */}
