@@ -2,6 +2,15 @@
 
 A secure, transparent platform for managing community savings pools (juntas/ROSCAs). Juntas Seguras digitizes traditional rotating savings and credit associations, providing modern security, automation, and transparency for community-based savings groups.
 
+**[Live demo →](https://juntas-seguras.vercel.app)**
+
+[![Tests](https://github.com/pgil256/juntas-seguras/actions/workflows/test.yml/badge.svg)](https://github.com/pgil256/juntas-seguras/actions/workflows/test.yml)
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
+![Stripe](https://img.shields.io/badge/Stripe-Identity-635BFF?logo=stripe&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-Jest%20%2B%20Playwright-C21325?logo=jest&logoColor=white)
+
 ## Overview
 
 Juntas Seguras allows groups of people to create and manage savings pools where:
@@ -58,8 +67,6 @@ Juntas Seguras allows groups of people to create and manage savings pools where:
 - **Deployment**: Vercel
 
 ## Testing
-
-![Tests](https://github.com/gilhooleyp/juntas-seguras/actions/workflows/test.yml/badge.svg)
 
 Juntas Seguras has a comprehensive test suite organized by test type. Tests run automatically on every push and PR via GitHub Actions.
 
