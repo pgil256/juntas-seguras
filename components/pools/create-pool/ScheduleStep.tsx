@@ -35,6 +35,10 @@ export function ScheduleStep({
   touchedFields,
   onPaymentMethodToggle,
 }: ScheduleStepProps) {
+  const handleDateInput = (e: React.FormEvent<HTMLInputElement>) => {
+    onInputChange(e as React.ChangeEvent<HTMLInputElement>);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -110,6 +114,7 @@ export function ScheduleStep({
           name="startDate"
           value={poolData.startDate}
           onChange={onInputChange}
+          onInput={handleDateInput}
           onBlur={(e) => onFieldBlur('startDate', e.target.value)}
           type="date"
           min={new Date().toISOString().split('T')[0]}

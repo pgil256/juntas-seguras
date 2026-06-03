@@ -86,9 +86,7 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
     
     try {
       const response = await fetch('/api/support/tickets?stats=true', {
-        headers: {
-          'x-admin-key': 'admin-secret' // In a real app, this would be a proper authentication token
-        }
+        credentials: 'same-origin'
       });
       
       const data = await response.json();
@@ -157,7 +155,6 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': 'admin-secret' // In a real app, this would be a proper authentication token
         },
         body: JSON.stringify(data),
       });
@@ -200,19 +197,9 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
     setError(null);
     
     try {
-      // Attach user ID if it exists
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      
-      if (userId) {
-        headers['user-id'] = userId;
-      }
-      
-      // If response is from support, add admin key
-      if (data.fromSupport) {
-        headers['x-admin-key'] = 'admin-secret'; // In a real app, this would be a proper authentication token
-      }
       
       const response = await fetch('/api/support/tickets', {
         method: 'PUT',
@@ -253,21 +240,12 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
   };
 
   // Get a specific ticket by ID
-  const getTicket = async (id: string) => {
+  const getTicket = useCallback(async (id: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const headers: Record<string, string> = {};
-      
-      // If user ID exists, add it for authorization
-      if (userId) {
-        headers['user-id'] = userId;
-      }
-      
-      const response = await fetch(`/api/support/tickets?ticketId=${id}`, {
-        headers
-      });
+      const response = await fetch(`/api/support/tickets?ticketId=${id}`);
       
       const result = await response.json();
       
@@ -291,14 +269,14 @@ export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicket
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Load initial data
   useEffect(() => {
-    if (!initialData && (userId || ticketId)) {
+    if (!initialData && (userId || ticketId || isAdmin)) {
       fetchTickets();
     }
-  }, [fetchTickets, initialData, userId, ticketId]);
+  }, [fetchTickets, initialData, userId, ticketId, isAdmin]);
 
   return {
     tickets,

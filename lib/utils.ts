@@ -23,6 +23,74 @@ export function formatDate(date: Date): string {
   })
 }
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function parseCalendarDate(value: string | Date | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const dateOnlyMatch = DATE_ONLY_PATTERN.exec(value);
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+    const date = new Date(year, month - 1, day);
+
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return date;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function normalizeCalendarDateForApi(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const dateOnly = parseCalendarDate(value);
+  const dateOnlyMatch = DATE_ONLY_PATTERN.exec(value);
+
+  if (dateOnly && dateOnlyMatch) {
+    return new Date(Date.UTC(
+      dateOnly.getFullYear(),
+      dateOnly.getMonth(),
+      dateOnly.getDate(),
+      12,
+      0,
+      0,
+      0
+    )).toISOString();
+  }
+
+  return dateOnly?.toISOString();
+}
+
+export function isValidCalendarDateInput(value: string): boolean {
+  return Boolean(normalizeCalendarDateForApi(value));
+}
+
+export function formatCalendarDate(
+  value: string | Date | null | undefined,
+  options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+): string {
+  const date = parseCalendarDate(value);
+  return date ? date.toLocaleDateString('en-US', options) : '';
+}
+
 export function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('en-US', {
     year: 'numeric',

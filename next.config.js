@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    instrumentationHook: true,
-  },
   typescript: {
     // Don't ignore TypeScript errors - we want to catch them
     ignoreBuildErrors: false,

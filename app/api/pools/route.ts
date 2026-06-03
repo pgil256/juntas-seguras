@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           verificationMethod: 'email',
           pools: [],
           twoFactorAuth: {
-            enabled: false,
+            enabled: true,
             method: 'email',
             verified: false,
             lastUpdated: new Date().toISOString(),

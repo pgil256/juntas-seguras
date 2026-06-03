@@ -8,7 +8,11 @@
  * - Remember me functionality
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+const E2E_USER_EMAIL = process.env.E2E_TEST_USER_EMAIL || 'e2e-test@example.com';
+const E2E_USER_PASSWORD = process.env.E2E_TEST_USER_PASSWORD || 'TestPassword123!';
+const passwordInput = (page: Page) => page.locator('input[name="password"]');
 
 test.describe('User Login', () => {
   test.beforeEach(async ({ page }) => {
@@ -19,7 +23,7 @@ test.describe('User Login', () => {
     test('should display login form', async ({ page }) => {
       // Check for form fields
       await expect(page.getByLabel(/email/i)).toBeVisible();
-      await expect(page.getByLabel(/password/i)).toBeVisible();
+      await expect(passwordInput(page)).toBeVisible();
       await expect(page.getByRole('button', { name: /sign in|log in|login/i })).toBeVisible();
     });
 
@@ -57,7 +61,7 @@ test.describe('User Login', () => {
 
     test('should show error for invalid email format', async ({ page }) => {
       await page.getByLabel(/email/i).fill('invalid-email');
-      await page.getByLabel(/password/i).fill('SomePassword123!');
+      await passwordInput(page).fill('SomePassword123!');
       await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
       await expect(page.getByText(/valid email|invalid email/i)).toBeVisible();
@@ -66,18 +70,10 @@ test.describe('User Login', () => {
 
   test.describe('Login Flow', () => {
     test('should redirect to MFA after valid credentials', async ({ page }) => {
-      // Mock successful credential validation
-      await page.route('**/api/auth/callback/credentials', async (route) => {
-        await route.fulfill({
-          status: 302,
-          headers: {
-            Location: '/mfa/verify',
-          },
-        });
-      });
+      test.skip(process.env.E2E_SKIP_AUTH === 'true', 'Requires a seeded test user and live MongoDB');
 
-      await page.getByLabel(/email/i).fill('test@example.com');
-      await page.getByLabel(/password/i).fill('SecurePass123!');
+      await page.getByLabel(/email/i).fill(E2E_USER_EMAIL);
+      await passwordInput(page).fill(E2E_USER_PASSWORD);
       await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
       // Should redirect to MFA page
@@ -85,8 +81,10 @@ test.describe('User Login', () => {
     });
 
     test('should show error for invalid credentials', async ({ page }) => {
+      test.skip(process.env.E2E_SKIP_AUTH === 'true', 'Requires a live MongoDB-backed credentials provider');
+
       await page.getByLabel(/email/i).fill('wrong@example.com');
-      await page.getByLabel(/password/i).fill('WrongPassword123!');
+      await passwordInput(page).fill('WrongPassword123!');
       await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
       // Should show error message
@@ -96,7 +94,7 @@ test.describe('User Login', () => {
     test('should show error for unverified email', async ({ page }) => {
       // This test assumes the server returns an appropriate error
       await page.getByLabel(/email/i).fill('unverified@example.com');
-      await page.getByLabel(/password/i).fill('SecurePass123!');
+      await passwordInput(page).fill('SecurePass123!');
       await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
       // May show verification required error
@@ -149,26 +147,24 @@ test.describe('User Login', () => {
 
   test.describe('Password Visibility Toggle', () => {
     test('should toggle password visibility', async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
-      await passwordInput.fill('SecurePass123!');
+      const password = passwordInput(page);
+      await password.fill('SecurePass123!');
 
       // Initially password should be hidden
-      await expect(passwordInput).toHaveAttribute('type', 'password');
+      await expect(password).toHaveAttribute('type', 'password');
 
       // Find and click visibility toggle
-      const toggleButton = page.getByRole('button', { name: /show|hide|toggle/i })
-        .or(page.locator('[aria-label*="password visibility"]'))
-        .or(page.locator('button').filter({ has: page.locator('svg') }).last());
+      const toggleButton = page.getByRole('button', { name: /show password|hide password/i });
 
       if (await toggleButton.isVisible()) {
         await toggleButton.click();
 
         // Password should be visible
-        await expect(passwordInput).toHaveAttribute('type', 'text');
+        await expect(password).toHaveAttribute('type', 'text');
 
         // Toggle back
         await toggleButton.click();
-        await expect(passwordInput).toHaveAttribute('type', 'password');
+        await expect(password).toHaveAttribute('type', 'password');
       }
     });
   });
@@ -191,10 +187,12 @@ test.describe('User Login', () => {
 
   test.describe('Rate Limiting', () => {
     test('should show error after multiple failed attempts', async ({ page }) => {
+      test.skip(process.env.E2E_SKIP_AUTH === 'true', 'Requires a live MongoDB-backed credentials provider');
+
       // Attempt multiple failed logins
       for (let i = 0; i < 5; i++) {
         await page.getByLabel(/email/i).fill('test@example.com');
-        await page.getByLabel(/password/i).fill(`WrongPassword${i}!`);
+        await passwordInput(page).fill(`WrongPassword${i}!`);
         await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
         // Wait a bit between attempts
@@ -202,7 +200,7 @@ test.describe('User Login', () => {
 
         // Clear inputs for next attempt
         await page.getByLabel(/email/i).clear();
-        await page.getByLabel(/password/i).clear();
+        await passwordInput(page).clear();
       }
 
       // After multiple failures, may see rate limit message
@@ -219,27 +217,29 @@ test.describe('User Login', () => {
       await expect(emailInput).toBeVisible();
 
       // Password input should have label
-      const passwordInput = page.getByLabel(/password/i);
-      await expect(passwordInput).toBeVisible();
+      await expect(passwordInput(page)).toBeVisible();
     });
 
     test('should be keyboard navigable', async ({ page }) => {
-      // Tab to email input
-      await page.keyboard.press('Tab');
-      await expect(page.getByLabel(/email/i)).toBeFocused();
+      const emailInput = page.getByLabel(/email/i);
+      const password = passwordInput(page);
 
-      // Tab to password input
-      await page.keyboard.press('Tab');
-      await expect(page.getByLabel(/password/i)).toBeFocused();
+      await emailInput.focus();
+      await expect(emailInput).toBeFocused();
 
-      // Tab to submit button
       await page.keyboard.press('Tab');
-      // Next focused element should be a button or link
+      await expect(page.getByRole('link', { name: /forgot.*password/i })).toBeFocused();
+
+      await page.keyboard.press('Tab');
+      await expect(password).toBeFocused();
+
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('button', { name: /show password|hide password/i })).toBeFocused();
     });
 
     test('should allow form submission with Enter key', async ({ page }) => {
       await page.getByLabel(/email/i).fill('test@example.com');
-      await page.getByLabel(/password/i).fill('SecurePass123!');
+      await passwordInput(page).fill('SecurePass123!');
 
       // Press Enter to submit
       await page.keyboard.press('Enter');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { 
   Send, 
@@ -65,12 +65,12 @@ export default function TicketViewer({
     getTicket,
     updateTicket,
     addResponse
-  } = useTickets({ ticketId, userId });
+  } = useTickets({ ticketId, userId, isAdmin });
 
   // Load ticket on component mount
-  useState(() => {
+  useEffect(() => {
     getTicket(ticketId);
-  });
+  }, [getTicket, ticketId]);
 
   // Status badge styles
   const getStatusBadge = (status: TicketStatus) => {

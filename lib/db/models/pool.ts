@@ -32,8 +32,7 @@ const PoolMemberSchema = new Schema({
   id: { type: Number },
   userId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    sparse: true
+    ref: 'User'
   },
   name: { type: String, required: true },
   email: { type: String, required: true, lowercase: true },
@@ -198,7 +197,7 @@ const PoolSchema = new Schema({
 PoolSchema.index({ creatorId: 1, status: 1 });
 PoolSchema.index({ 'members.email': 1 });
 // Index for userId-based authorization (hybrid pattern)
-PoolSchema.index({ 'members.userId': 1 });
+PoolSchema.index({ 'members.userId': 1 }, { sparse: true });
 // Index for status-only queries
 PoolSchema.index({ status: 1 });
 // Note: 'id' field already has an index from unique: true constraint

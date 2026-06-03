@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
 import ClientOnly from "../../../components/ClientOnly";
@@ -33,12 +34,12 @@ export default function AuthError() {
     <ClientOnly>
       <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
         <div className="mb-8">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">JS</span>
             </div>
             <span className="text-xl font-bold text-gray-900">Juntas Seguras</span>
-          </a>
+          </Link>
         </div>
         <Card className="w-full max-w-md border border-gray-100 shadow-sm">
           <CardHeader className="space-y-1 text-center">

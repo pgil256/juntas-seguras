@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
-import { TwoFactorMethod } from '../../../../types/security';
 import nodemailer from 'nodemailer';
-import * as speakeasy from 'speakeasy';
+import { generateVerificationCode } from '../../../../lib/utils/verification';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -15,22 +13,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD,
   }
 });
-
-// Generate TOTP secret (in a real app, use a proper library like speakeasy)
-function generateTotpSecret() {
-  return Array.from({ length: 16 }, () => 
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]
-  ).join('');
-}
-
-// Generate backup codes
-function generateBackupCodes() {
-  return Array.from({ length: 8 }, () => 
-    Array.from({ length: 8 }, () => 
-      '0123456789'[Math.floor(Math.random() * 10)]
-    ).join('')
-  );
-}
 
 // POST /api/auth/register - Register a new user
 export async function POST(request: NextRequest) {
@@ -92,15 +74,14 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate verification code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateVerificationCode();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Create tempo***REMOVED***fication data
     const userData = {
-      id: uuidv4(),
       name: trimmedName,
       email: trimmedEmail,
-      password: hashedPassword,
+      hashedPassword,
       verificationCode: code,
       verificationExpiry: expiry,
       verificationMethod,
@@ -148,10 +129,7 @@ export async function POST(request: NextRequest) {
         mfaMethod: verificationMethod,
         isTemporary: true // Indicate this is a temporary user
       },
-      mfaSetup: verificationMethod === 'app' ? {
-        totpSecret: code,
-        totpUrl: `otpauth://totp/JuntasSeguras:${trimmedEmail}?secret=${code}&issuer=JuntasSeguras`
-      } : null
+      mfaSetup: null
     });
   } catch (error) {
     console.error('Registration error:', error);

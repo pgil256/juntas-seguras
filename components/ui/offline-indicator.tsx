@@ -45,7 +45,7 @@ export function OfflineIndicator({ className }: OfflineIndicatorProps) {
 
     try {
       // Try to fetch a small resource to check connectivity
-      await fetch('/api/auth/check-token', {
+      await fetch('/favicon.ico', {
         method: 'HEAD',
         cache: 'no-store'
       });

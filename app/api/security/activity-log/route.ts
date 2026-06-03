@@ -1,15 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ActivityType } from '../../../../types/security';
 import { logServerActivity, getActivityLogs } from '../../../../lib/utils';
+import { getCurrentUser } from '../../../../lib/auth';
+
+function getAdminEmails(): Set<string> {
+  const configuredEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (process.env.EMAIL_USER) {
+    configuredEmails.push(process.env.EMAIL_USER.trim().toLowerCase());
+  }
+
+  return new Set(configuredEmails);
+}
+
+function isActivityAdmin(email?: string | null): boolean {
+  return !!email && getAdminEmails().has(email.toLowerCase());
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, type, metadata = {} } = body;
-
-    if (!userId || !type) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'User ID and activity type are required' },
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+
+    const body = await request.json();
+    const { type, metadata = {} } = body;
+
+    if (!type) {
+      return NextResponse.json(
+        { error: 'Activity type is required' },
         { status: 400 }
       );
     }
@@ -34,7 +60,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Log the activity using the server utility
-    const activityLog = logServerActivity(userId, type as ActivityType, enhancedMetadata);
+    const activityLog = logServerActivity(userResult.user._id.toString(), type as ActivityType, enhancedMetadata);
 
     return NextResponse.json({
       success: true,
@@ -51,18 +77,23 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const requestedUserId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const type = searchParams.get('type') as ActivityType | undefined;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
+    const currentUserId = userResult.user._id.toString();
+    const userId = isActivityAdmin(userResult.user.email) && requestedUserId
+      ? requestedUserId
+      : currentUserId;
 
     // Get logs using the utility function
     const result = getActivityLogs(userId, page, limit, type);

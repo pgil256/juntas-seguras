@@ -154,7 +154,7 @@ export default function Navbar() {
       <div
         className={cn(
           "sm:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300",
-          mobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          mobileMenuOpen ? "opacity-100" : "hidden opacity-0 pointer-events-none"
         )}
         onClick={closeMobileMenu}
         aria-hidden="true"
@@ -166,7 +166,7 @@ export default function Navbar() {
           "sm:hidden fixed inset-y-0 right-0 z-50 w-[80%] max-w-xs",
           "bg-white shadow-2xl",
           "transform transition-transform duration-300 ease-out",
-          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          mobileMenuOpen ? "translate-x-0" : "hidden translate-x-full"
         )}
         id="mobile-menu"
         role="dialog"

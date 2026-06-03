@@ -77,24 +77,10 @@ export async function POST(req: NextRequest) {
     
     // Check if MFA is actually enabled for this user
     if (!user.twoFactorAuth?.enabled) {
-      console.log('[Auth] MFA not enabled for user, clearing session MFA requirement');
-      
-      // Clear any pending MFA flags
-      await UserModel.findByIdAndUpdate(
-        user._id,
-        { 
-          $set: { 
-            pendingMfaVerification: false,
-            mfaSetupComplete: true 
-          } 
-        }
+      return NextResponse.json(
+        { error: 'MFA is required but is not configured for this account' },
+        { status: 400 }
       );
-      
-      return NextResponse.json({
-        success: true,
-        message: 'MFA not required - verification successful',
-        requiresSetup: false
-      });
     }
 
     // Verify MFA code based on the method (email or TOTP app only)
@@ -110,7 +96,7 @@ export async function POST(req: NextRequest) {
     try {
       if (mfaMethod === 'email') {
         mfaValid = await verifyEmailCode(token.id as string, code.trim());
-      } else if (mfaMethod === 'app') {
+      } else if (mfaMethod === 'app' || mfaMethod === 'totp') {
         mfaValid = await verifyTotpCode(token.id as string, code);
       } else {
         console.error(`Unknown MFA method: ${mfaMethod}`);

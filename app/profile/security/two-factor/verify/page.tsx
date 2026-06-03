@@ -9,13 +9,13 @@ import { Label } from '../../../../../components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '../../../../../components/ui/alert';
 import { Shield, Loader2, X, KeyRound } from 'lucide-react';
 import { TwoFactorMethod } from '../../../../../types/security';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 
 // Separate component that uses useSearchParams
 function TwoFactorVerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   
   // Get return URL from query parameters
   const returnUrl = searchParams.get('returnUrl') || '/dashboard';
@@ -82,11 +82,11 @@ function TwoFactorVerifyContent() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId,
-          code: recoveryMode ? null : verificationCode,
-          recoveryCode: recoveryMode ? recoveryCode : null
-        })
+        body: JSON.stringify(
+          recoveryMode
+            ? { recoveryCode }
+            : { code: verificationCode }
+        )
       });
       
       if (!response.ok) {
@@ -94,18 +94,7 @@ function TwoFactorVerifyContent() {
         throw new Error(data.error || 'Verification failed');
       }
       
-      // Complete the authentication with the verified MFA code
-      const result = await signIn('credentials', {
-        redirect: false,
-        email: session.user.email,
-        password: 'placeholder-not-used', // Not actually used for verification
-        mfaCode: recoveryMode ? recoveryCode : verificationCode,
-        callbackUrl: returnUrl
-      });
-      
-      if (result?.error) {
-        throw new Error('Authentication failed after MFA verification');
-      }
+      await update();
       
       // Successful verification - redirect to the return URL
       router.push(returnUrl);
@@ -130,10 +119,7 @@ function TwoFactorVerifyContent() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId,
-          method
-        })
+        body: JSON.stringify({ method })
       });
       
       const data = await response.json();

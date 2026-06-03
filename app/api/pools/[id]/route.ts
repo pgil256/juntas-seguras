@@ -72,13 +72,18 @@ export async function PATCH(
       throw new ApiError('Pool not found', 404);
     }
     
-    // Check if the user is an admin of this pool
-    const userMember = pool.members.find((member: PoolMemberDB) =>
-      // The user's email is stored in the member record
-      member.email === (pool.members.find((m: PoolMemberDB) => m.id.toString() === '1')?.email)
+    const user = await findUserById(userId);
+    if (!user) {
+      throw new ApiError('User not found or invalid session', 401);
+    }
+
+    const userEmailLower = user.email?.toLowerCase();
+    const userMember = pool.members.find((member: PoolMemberDB & { userId?: unknown }) =>
+      member.userId?.toString() === user._id.toString() ||
+      member.email?.toLowerCase() === userEmailLower
     );
 
-    if (!userMember || userMember.role !== 'admin') {
+    if (!userMember || !['admin', 'creator'].includes(userMember.role)) {
       throw new ApiError('Only pool administrators can update the pool', 403);
     }
     

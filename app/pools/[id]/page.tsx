@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -66,8 +66,8 @@ import { usePoolMessages } from "../../../lib/hooks/usePoolMessages";
 import { usePoolContributions } from "../../../lib/hooks/usePoolContributions";
 import { TransactionType, PoolMemberRole } from "../../../types/pool";
 
-export default function PoolDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function PoolDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status: authStatus } = useSession();

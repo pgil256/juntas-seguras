@@ -2,19 +2,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import connectToDatabase from '../../../../lib/db/connect';
 import getAuditLogModel from '../../../../lib/db/models/auditLog';
-import { getUserModel } from '../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../lib/auth';
 import { AuditLogType } from '../../../../types/audit';
+
+function getAdminEmails(): Set<string> {
+  const configuredEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (process.env.EMAIL_USER) {
+    configuredEmails.push(process.env.EMAIL_USER.trim().toLowerCase());
+  }
+
+  return new Set(configuredEmails);
+}
+
+function isAuditAdmin(email?: string | null): boolean {
+  return !!email && getAdminEmails().has(email.toLowerCase());
+}
 
 // POST /api/audit/log - Create a new audit log entry
 export async function POST(request: NextRequest) {
   try {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+
     const body = await request.json();
-    const { userId, type, action, metadata, poolId, success, errorMessage } = body;
+    const { type, action, metadata, poolId, success, errorMessage } = body;
     
     // Validate required fields
-    if (!userId || !type || !action) {
+    if (!type || !action) {
       return NextResponse.json(
-        { error: 'User ID, type, and action are required' },
+        { error: 'Type and action are required' },
         { status: 400 }
       );
     }
@@ -32,11 +57,8 @@ export async function POST(request: NextRequest) {
     
     // Get models
     const AuditLogModel = getAuditLogModel();
-    const UserModel = getUserModel();
-    
-    // Get the user for additional context
-    const user = await UserModel.findOne({ id: userId });
-    const userEmail = user ? user.email : undefined;
+    const user = userResult.user;
+    const userId = user._id.toString();
     
     // Get request information
     const ip = request.headers.get('x-forwarded-for') || 
@@ -50,7 +72,7 @@ export async function POST(request: NextRequest) {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       userId,
-      userEmail,
+      userEmail: user.email,
       type,
       action,
       ip,
@@ -79,6 +101,17 @@ export async function POST(request: NextRequest) {
 // GET /api/audit/log - Query audit logs
 export async function GET(request: NextRequest) {
   try {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+
+    const currentUser = userResult.user;
+    const isAdmin = isAuditAdmin(currentUser.email);
+
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
@@ -86,14 +119,16 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10), 1), 100);
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0);
     
     // Build query object
     const query: any = {};
     
-    if (userId) {
+    if (isAdmin && userId) {
       query.userId = userId;
+    } else if (!isAdmin) {
+      query.userId = currentUser._id.toString();
     }
     
     if (poolId) {

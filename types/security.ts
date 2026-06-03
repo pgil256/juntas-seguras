@@ -4,7 +4,7 @@
  */
 
 // Two-factor authentication types (Email-only MFA - SMS removed)
-export type TwoFactorMethod = 'app' | 'email';
+export type TwoFactorMethod = 'app' | 'email' | 'totp';
 
 export interface TwoFactorSetup {
   enabled: boolean;
