@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'C:\\Users\\patri\\Documents\\Projects\\juntas-seguras\\.codex\\hooks\\post-tool-use-tracker.sh'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'C:\\Users\\patri\\Documents\\Projects\\juntas-seguras\\.codex\\hooks\\skill-activation-prompt.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}

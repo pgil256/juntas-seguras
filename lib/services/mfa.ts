@@ -369,7 +369,7 @@ export async function enableTOTP(userId: string, secret: string) {
       {
         $set: {
           'twoFactorAuth.totpSecret': secret,
-          'twoFactorAuth.method': 'totp',
+          'twoFactorAuth.method': 'app',
           'twoFactorAuth.enabled': true
         }
       }

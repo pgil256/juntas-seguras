@@ -9,7 +9,19 @@
  */
 
 import { chromium, FullConfig } from '@playwright/test';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import path from 'path';
+import speakeasy from 'speakeasy';
+
+[
+  '.env.development.local',
+  '.env.local',
+  '.env.development',
+  '.env',
+].forEach((file) => {
+  dotenv.config({ path: path.join(process.cwd(), file) });
+});
 
 // Storage state paths for different user types
 export const AUTH_STATE_PATH = path.join(__dirname, '.auth');
@@ -31,7 +43,14 @@ export const TEST_USERS = {
 };
 
 // Test MFA code (should be accepted in test mode)
-export const TEST_MFA_CODE = process.env.E2E_TEST_MFA_CODE || '123456';
+export const TEST_TOTP_SECRET = process.env.E2E_TEST_TOTP_SECRET || 'JBSWY3DPEHPK3PXP';
+
+export function getTestMfaCode() {
+  return speakeasy.totp({
+    secret: TEST_TOTP_SECRET,
+    encoding: 'base32',
+  });
+}
 
 async function globalSetup(config: FullConfig) {
   // Create auth directory if it doesn't exist
@@ -58,9 +77,16 @@ async function globalSetup(config: FullConfig) {
 
   console.log('Setting up authentication state for E2E tests...');
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(
+    process.env.PLAYWRIGHT_USE_SYSTEM_CHROME === '1'
+      ? { channel: 'chrome' }
+      : undefined
+  );
 
   try {
+    await seedTestUser(TEST_USERS.regular);
+    await seedTestUser(TEST_USERS.admin);
+
     // Set up regular user auth state
     await setupUserAuth(browser, baseURL, TEST_USERS.regular, USER_AUTH_FILE);
     console.log('Regular user auth state saved');
@@ -79,6 +105,55 @@ async function globalSetup(config: FullConfig) {
   } finally {
     await browser.close();
   }
+}
+
+async function seedTestUser(user: { email: string; password: string; name: string }) {
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is required to seed E2E users');
+  }
+
+  const { default: connectToDatabase } = require('../lib/db/connect');
+  const { getUserModel } = require('../lib/db/models/user');
+
+  await connectToDatabase();
+  const UserModel = getUserModel();
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+  const now = new Date();
+
+  await UserModel.findOneAndUpdate(
+    { email: user.email.toLowerCase() },
+    {
+      $set: {
+        name: user.name,
+        email: user.email.toLowerCase(),
+        hashedPassword,
+        provider: 'credentials',
+        emailVerified: true,
+        isVerified: true,
+        isTemporary: false,
+        verificationMethod: 'email',
+        pendingMfaVerification: false,
+        mfaSetupComplete: true,
+        lastLogin: now,
+        twoFactorAuth: {
+          enabled: true,
+          method: 'app',
+          verified: true,
+          totpSecret: TEST_TOTP_SECRET,
+          backupCodes: [],
+          lastUpdated: now.toISOString(),
+        },
+        metadata: {
+          mfaFailedAttempts: '0',
+        },
+      },
+      $setOnInsert: {
+        createdAt: now,
+        pools: [],
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 }
 
 async function setupUserAuth(
@@ -107,7 +182,7 @@ async function setupUserAuth(
     // Handle MFA if required
     if (page.url().includes('/mfa/verify')) {
       // Fill in MFA code
-      await page.fill('input[name="code"], input[type="text"]', TEST_MFA_CODE);
+      await page.fill('input[name="code"], input[type="text"]', getTestMfaCode());
       await page.click('button[type="submit"]');
 
       // Wait for redirect to dashboard

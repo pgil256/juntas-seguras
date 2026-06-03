@@ -5,16 +5,30 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export function securityHeaders(req: NextRequest): NextResponse {
   // Create a new response with security headers
-  const response = NextResponse.next();
+  return applySecurityHeaders(NextResponse.next(), req);
+}
 
+export function applySecurityHeaders(response: NextResponse, req: NextRequest): NextResponse {
   // Set security headers
   const headers = response.headers;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const scriptSrc = [
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    'https://js.stripe.com',
+  ].join(' ');
+  const connectSrc = [
+    "'self'",
+    ...(isDevelopment ? ['ws:', 'http://localhost:3000', 'http://127.0.0.1:3000'] : []),
+    'https://api.stripe.com',
+  ].join(' ');
   
   // Content Security Policy
   // Customize this based on your application needs
   headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://*.stripe.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.stripe.com; frame-src 'self' https://js.stripe.com https://hooks.stripe.com;"
+    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://*.stripe.com; font-src 'self' https://fonts.gstatic.com; connect-src ${connectSrc}; frame-src 'self' https://js.stripe.com https://hooks.stripe.com;`
   );
   
   // Prevent browsers from incorrectly detecting non-scripts as scripts
@@ -63,7 +77,9 @@ export function rateLimit(req: NextRequest): NextResponse | null {
     return null;
   }
   
-  const ip = req.ip || 'unknown';
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown';
   const now = Date.now();
   
   // Initialize or reset counter if window expired

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "../../ui/select";
 import { StepProps } from "./types";
+import { formatCalendarDate } from "../../../lib/utils";
 
 interface QuickCreateStepProps extends StepProps {
   onSwitchToDetailed: () => void;
@@ -30,6 +31,10 @@ export function QuickCreateStep({
   touchedFields,
   onSwitchToDetailed,
 }: QuickCreateStepProps) {
+  const handleDateInput = (e: React.FormEvent<HTMLInputElement>) => {
+    onInputChange(e as React.ChangeEvent<HTMLInputElement>);
+  };
+
   return (
     <div className="space-y-4">
       <FormField>
@@ -111,6 +116,7 @@ export function QuickCreateStep({
             name="startDate"
             value={poolData.startDate}
             onChange={onInputChange}
+            onInput={handleDateInput}
             type="date"
             min={new Date().toISOString().split('T')[0]}
           />
@@ -136,7 +142,7 @@ export function QuickCreateStep({
             <div className="flex justify-between">
               <span>First payout:</span>
               <span className="font-medium text-gray-900">
-                {new Date(poolData.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {formatCalendarDate(poolData.startDate, { month: 'short', day: 'numeric' })}
               </span>
             </div>
           )}

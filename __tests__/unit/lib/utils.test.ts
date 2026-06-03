@@ -3,7 +3,13 @@
  * Tests utility functions used throughout the application
  */
 
-import { cn } from '@/lib/utils';
+import {
+  cn,
+  formatCalendarDate,
+  isValidCalendarDateInput,
+  normalizeCalendarDateForApi,
+  parseCalendarDate,
+} from '@/lib/utils';
 
 describe('Utility Functions', () => {
   describe('cn (className merger)', () => {
@@ -68,6 +74,36 @@ describe('Utility Functions', () => {
         'final'
       );
       expect(result).toBe('base arr1 arr2 conditional final');
+    });
+  });
+
+  describe('calendar date helpers', () => {
+    it('should parse date-only strings as local calendar dates', () => {
+      const date = parseCalendarDate('2026-06-04');
+
+      expect(date).not.toBeNull();
+      expect(date?.getFullYear()).toBe(2026);
+      expect(date?.getMonth()).toBe(5);
+      expect(date?.getDate()).toBe(4);
+    });
+
+    it('should normalize date-only strings to a stable API datetime', () => {
+      expect(normalizeCalendarDateForApi('2026-06-04')).toBe('2026-06-04T12:00:00.000Z');
+    });
+
+    it('should format date-only strings without shifting a day', () => {
+      expect(
+        formatCalendarDate('2026-06-04', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      ).toBe('Jun 4, 2026');
+    });
+
+    it('should reject invalid calendar dates', () => {
+      expect(isValidCalendarDateInput('2026-02-30')).toBe(false);
+      expect(normalizeCalendarDateForApi('2026-02-30')).toBeUndefined();
     });
   });
 });

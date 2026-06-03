@@ -294,7 +294,14 @@ export default function SignUp() {
 
   // Render either credentials form, MFA setup form, or identity verification form
   return (
-    <ClientOnly>
+    <ClientOnly
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-hidden="true" />
+          <span className="sr-only">Loading sign up</span>
+        </div>
+      }
+    >
       {/* Verification popup overlay */}
       <VerificationPopup
         isOpen={showVerificationPopup}
@@ -471,11 +478,11 @@ export default function SignUp() {
                 <div className="mt-4 text-center text-sm">
                   <p className="text-gray-500">
                     By signing up, you agree to our{' '}
-                    <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+                    <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-600">
                       Terms of Service
                     </Link>{' '}
                     and{' '}
-                    <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+                    <Link href="/privacy" className="text-blue-700 underline underline-offset-2 hover:text-blue-600">
                       Privacy Policy
                     </Link>
                     .

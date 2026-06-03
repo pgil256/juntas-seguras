@@ -31,7 +31,6 @@ import AzureADProvider from "next-auth/providers/azure-ad";
 import * as bcrypt from 'bcryptjs';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
-import { v4 as uuidv4 } from 'uuid';
 import { sendEmailVerificationCode, verifyEmailCode, verifyTotpCode } from '../../../../lib/services/mfa';
 
 /**
@@ -63,6 +62,11 @@ async function findOrCreateOAuthUser(
     if (dbUser) {
       // Existing user found - update their OAuth info and last login
       console.log(`[OAuth] Found existing user: ${email}, MongoDB _id: ${dbUser._id.toString()}`);
+      const shouldEnableMfa = dbUser.twoFactorAuth?.enabled !== true;
+      const existingMethod = dbUser.twoFactorAuth?.method === 'totp'
+        ? 'app'
+        : dbUser.twoFactorAuth?.method;
+      const mfaMethod = shouldEnableMfa ? 'email' : (existingMethod || 'email');
 
       await UserModel.findByIdAndUpdate(dbUser._id, {
         $set: {
@@ -72,15 +76,21 @@ async function findOrCreateOAuthUser(
           ...((!dbUser.provider || dbUser.provider === 'credentials') && {
             provider: provider,
             providerId: providerId,
-          })
+          }),
+          ...(shouldEnableMfa && {
+            'twoFactorAuth.enabled': true,
+            'twoFactorAuth.method': 'email',
+            'twoFactorAuth.verified': false,
+            'twoFactorAuth.lastUpdated': new Date().toISOString(),
+          }),
         }
       });
 
       return {
         userId: dbUser._id.toString(),
         isNewUser: false,
-        mfaEnabled: dbUser.twoFactorAuth?.enabled === true,
-        mfaMethod: dbUser.twoFactorAuth?.method
+        mfaEnabled: true,
+        mfaMethod,
       };
     }
 
@@ -98,7 +108,7 @@ async function findOrCreateOAuthUser(
       verificationMethod: 'email',
       pools: [],
       twoFactorAuth: {
-        enabled: false, // New OAuth users start with MFA disabled
+        enabled: true,
         method: 'email',
         verified: false,
         lastUpdated: new Date().toISOString(),
@@ -110,8 +120,8 @@ async function findOrCreateOAuthUser(
     return {
       userId: dbUser._id.toString(),
       isNewUser: true,
-      mfaEnabled: false,
-      mfaMethod: undefined
+      mfaEnabled: true,
+      mfaMethod: 'email'
     };
   } catch (error) {
     console.error('[OAuth] Error in findOrCreateOAuthUser:', error);
@@ -120,9 +130,9 @@ async function findOrCreateOAuthUser(
 }
 
 // Authenticate user with secure password comparison
-async function authenticateUser(email: string, password: string, mfaCode?: string) {
+async function authenticateUser(email: string, password: string) {
   // SECURITY: Only log non-sensitive authentication attempt info
-  console.log(`[Auth] Login attempt for user, mfaCode provided: ${!!mfaCode}`);
+  console.log('[Auth] Login attempt for user');
 
   await connectToDatabase();
   const UserModel = getUserModel();
@@ -133,32 +143,6 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
     return null;
   }
 
-  // If MFA code is provided, skip password check and verify MFA directly
-  if (mfaCode && mfaCode !== 'undefined') {
-    // SECURITY: Never log MFA codes
-    console.log(`[Auth] MFA verification attempt for user`);
-    const userObjectIdString = user._id.toString();
-    const mfaValid = await verifyEmailCode(userObjectIdString, mfaCode);
-
-    if (!mfaValid) {
-      console.log('[Auth] MFA validation failed');
-      return null; // Indicate MFA failure
-    }
-
-    console.log('[Auth] MFA validation successful');
-    // Update last login time
-    await UserModel.findByIdAndUpdate(userObjectIdString, { $set: { lastLogin: new Date().toISOString() } });
-    
-    // Return user details without requiresMfa flag
-    return {
-      id: userObjectIdString,
-      name: user.name,
-      email: user.email,
-      // No requiresMfa here, verification is complete
-    };
-  }
-
-  // --- Original Flow: No MFA code provided, check password first ---
   console.log('[Auth] Checking password');
   const hashedPassword = user.hashedPassword;
   if (!hashedPassword) {
@@ -174,40 +158,46 @@ async function authenticateUser(email: string, password: string, mfaCode?: strin
 
   console.log('[Auth] Password validation successful, checking MFA');
 
-  // --- Check if MFA is actually enabled for this user ---
-  // Only require MFA if the user has explicitly enabled it AND it's configured
-  const mfaEnabled = user.twoFactorAuth?.enabled === true;
-  
-  if (!mfaEnabled) {
-    // No MFA required, complete login
-    console.log('[Auth] MFA not enabled, completing login');
-    await UserModel.findByIdAndUpdate(user._id, { $set: { lastLogin: new Date().toISOString() } });
-    
-    return {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      // No requiresMfa flag
-    };
+  const userObjectIdString = user._id.toString();
+  let mfaMethod = user.twoFactorAuth?.method || 'email';
+
+  // MFA is mandatory. Legacy users without MFA are moved to email MFA on next login.
+  if (!user.twoFactorAuth?.enabled) {
+    await UserModel.findByIdAndUpdate(user._id, {
+      $set: {
+        'twoFactorAuth.enabled': true,
+        'twoFactorAuth.method': 'email',
+        'twoFactorAuth.verified': false,
+        'twoFactorAuth.lastUpdated': new Date().toISOString(),
+      },
+    });
+    mfaMethod = 'email';
   }
 
-  // --- Initiate MFA Flow (Send Code) ---
-  console.log('[Auth] MFA is enabled, sending code');
-  const userObjectIdString = user._id.toString();
-  const codeSent = await sendEmailVerificationCode(userObjectIdString);
-  if (!codeSent) {
-    console.error('[Auth] Failed to send email verification code');
-    return null; // Indicate code sending failure
+  if (mfaMethod === 'totp') {
+    mfaMethod = 'app';
+  }
+
+  if (mfaMethod === 'email') {
+    console.log('[Auth] MFA is enabled, sending email code');
+    const codeSent = await sendEmailVerificationCode(userObjectIdString);
+    if (!codeSent) {
+      console.error('[Auth] Failed to send email verification code');
+      return null;
+    }
+  } else if (mfaMethod !== 'app') {
+    console.error(`[Auth] Unsupported MFA method configured: ${mfaMethod}`);
+    return null;
   }
 
   // Return user details WITH requiresMfa flag
-  console.log('[Auth] MFA code sent, requiring verification');
+  console.log('[Auth] MFA required');
   return {
-  id: userObjectIdString,
-  name: user.name,
-  email: user.email,
-  requiresMfa: true,
-  mfaMethod: 'email' as const
+    id: userObjectIdString,
+    name: user.name,
+    email: user.email,
+    requiresMfa: true,
+    mfaMethod: mfaMethod as 'email' | 'app'
   };
 }
 
@@ -216,7 +206,9 @@ async function validateMfaCode(userId: string, code: string): Promise<boolean> {
   await connectToDatabase();
   const UserModel = getUserModel();
   
-  const user = await UserModel.findOne({ id: userId });
+  const user = isValidMongoObjectId(userId)
+    ? await UserModel.findById(userId)
+    : null;
   if (!user || !user.twoFactorAuth?.enabled) {
     return false;
   }
@@ -249,7 +241,7 @@ async function validateMfaCode(userId: string, code: string): Promise<boolean> {
   
   // For TOTP app authentication, use the verifyTotpCode service
   // which properly validates TOTP codes using speakeasy
-  if (user.twoFactorAuth.method === 'app') {
+  if (user.twoFactorAuth.method === 'app' || user.twoFactorAuth.method === 'totp') {
     // SECURITY: Never bypass MFA verification - use proper TOTP validation
     // The actual TOTP verification is handled by verifyTotpCode() in lib/services/mfa.ts
     return false; // Return false here - TOTP should use the dedicated verification endpoint
@@ -283,8 +275,7 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        mfaCode: { label: "MFA Code", type: "text" }
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -293,8 +284,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await authenticateUser(
           credentials.email,
-          credentials.password,
-          credentials.mfaCode
+          credentials.password
         );
 
         if (!user) {
@@ -362,8 +352,8 @@ export const authOptions: NextAuthOptions = {
           token.id = oauthResult.userId;
           console.log(`[JWT] OAuth user mapped to MongoDB _id: ${token.id}`);
 
-          // Handle MFA for existing OAuth users who have enabled it
-          if (!oauthResult.isNewUser && oauthResult.mfaEnabled) {
+          // MFA is mandatory for both new and existing OAuth users.
+          if (oauthResult.mfaEnabled) {
             const mfaMethod = oauthResult.mfaMethod || 'email';
 
             if (mfaMethod === 'email') {
@@ -376,7 +366,7 @@ export const authOptions: NextAuthOptions = {
               } else {
                 console.error(`[JWT] Failed to send MFA code for OAuth user: ${email}`);
               }
-            } else if (mfaMethod === 'app') {
+            } else if (mfaMethod === 'app' || mfaMethod === 'totp') {
               // TOTP/authenticator app - no code to send, user enters from app
               token.requiresMfa = true;
               token.mfaMethod = 'app';
@@ -574,7 +564,6 @@ export const authOptions: NextAuthOptions = {
     signOut: '/auth/signout',
     error: '/auth/error',
   },
-  // In production, these should be environment variables
-  secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
 };

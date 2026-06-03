@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import mongoose from 'mongoose';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
 import { PoolMemberStatus, PoolMemberRole, PoolMember } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
@@ -453,14 +451,15 @@ export async function GET(
 ) {
   try {
     const { id: poolId } = await params;
-    const authSession = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
 
-    if (!authSession?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const requestingUser = userResult.user;
 
     if (!poolId) {
       return NextResponse.json(
@@ -476,6 +475,20 @@ export async function GET(
       return NextResponse.json(
         { error: 'Pool not found' },
         { status: 404 }
+      );
+    }
+
+    const requestingUserId = requestingUser._id.toString();
+    const requestingUserEmail = requestingUser.email?.toLowerCase();
+    const isMember = pool.members.some((member: any) =>
+      member.userId?.toString() === requestingUserId ||
+      member.email?.toLowerCase() === requestingUserEmail
+    );
+
+    if (!isMember) {
+      return NextResponse.json(
+        { error: 'You do not have access to this pool' },
+        { status: 403 }
       );
     }
 

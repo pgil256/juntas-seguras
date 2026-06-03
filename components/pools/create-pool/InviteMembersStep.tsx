@@ -11,6 +11,7 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { RadioGroup, RadioGroupItem } from "../../ui/radio-group";
 import { StepProps, AVAILABLE_PAYMENT_METHODS } from "./types";
+import { formatCalendarDate } from "../../../lib/utils";
 
 interface InviteMembersStepProps extends StepProps {
   payoutDates: Date[];
@@ -117,7 +118,7 @@ export function InviteMembersStep({
               {payoutDates.slice(0, 6).map((date, index) => (
                 <div key={index} className="flex justify-between">
                   <span>Round {index + 1}:</span>
-                  <span>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  <span>{formatCalendarDate(date)}</span>
                 </div>
               ))}
               {payoutDates.length > 6 && (

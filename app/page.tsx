@@ -299,7 +299,7 @@ export default function LandingPage() {
               },
             ].map((item) => (
               <div key={item.step} className="relative">
-                <div className="text-6xl font-extrabold text-gray-100 mb-4">
+                <div className="text-6xl font-extrabold text-gray-500 mb-4">
                   {item.step}
                 </div>
                 <div
@@ -425,7 +425,7 @@ export default function LandingPage() {
                 <div className="mt-1 text-sm font-medium text-gray-300">
                   {stat.label}
                 </div>
-                <div className="mt-0.5 text-xs text-gray-500">{stat.detail}</div>
+                <div className="mt-0.5 text-xs text-gray-300">{stat.detail}</div>
               </div>
             ))}
           </div>
@@ -489,7 +489,7 @@ export default function LandingPage() {
                 Terms
               </Link>
             </div>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600">
               &copy; 2026 Juntas Seguras
             </p>
           </div>

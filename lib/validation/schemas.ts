@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { isValidCalendarDateInput, normalizeCalendarDateForApi } from '../utils';
 
 // ============================================================================
 // Common Schemas
@@ -30,6 +31,10 @@ export const PoolStatusSchema = z.enum(['pending', 'active', 'completed', 'cance
 
 export const PaymentMethodTypeSchema = z.enum(['venmo', 'cashapp', 'paypal', 'zelle']);
 
+export const CalendarDateInputSchema = z.string()
+  .refine(isValidCalendarDateInput, 'Invalid date')
+  .transform((value) => normalizeCalendarDateForApi(value)!);
+
 export const CreatePoolSchema = z.object({
   name: z.string()
     .min(3, 'Pool name must be at least 3 characters')
@@ -48,7 +53,7 @@ export const CreatePoolSchema = z.object({
     .min(2, 'Pool must have at least 2 rounds')
     .max(20, 'Pool can have at most 20 rounds'),
   frequency: PoolFrequencySchema.optional().default('weekly'),
-  startDate: z.string().datetime().optional(),
+  startDate: CalendarDateInputSchema.optional(),
   allowedPaymentMethods: z.array(PaymentMethodTypeSchema).optional(),
   invitations: z.array(EmailSchema).optional(),
 });

@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import { ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getUserModel } from '../../../../../lib/db/models/user';
-import { ActivityType } from '../../../../../types/security';
+import { getCurrentUser } from '../../../../../lib/auth';
 import { logServerActivity } from '../../../../../lib/utils';
+import { verifyEmailCode, verifyTotpCode } from '../../../../../lib/services/mfa';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, code, recoveryCode } = body;
-
-    if (!userId) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+
+    const user = userResult.user;
+    const { code, recoveryCode } = await request.json();
 
     if (!code && !recoveryCode) {
       return NextResponse.json(
@@ -24,112 +26,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Connect to the database and get the user
     await connectToDatabase();
     const UserModel = getUserModel();
-
-    // Use findById with proper ObjectId validation
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(userId);
-    const user = isValidObjectId
-      ? await UserModel.findById(userId)
-      : await UserModel.findOne({ email: userId });
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Check if twoFactorAuth is present in the user object
-    if (!user.twoFactorAuth) {
-      // Initialize twoFactorAuth if it's not defined
-      user.twoFactorAuth = {
-        enabled: true,
-        method: 'email',
-        verified: false,
-        lastUpdated: new Date().toISOString(),
-      };
-      await user.save();
-    } else if (!user.twoFactorAuth.enabled) {
-      // If twoFactorAuth exists but is not enabled, enable it
-      user.twoFactorAuth.enabled = true;
-      await user.save();
-    }
-
+    const userId = user._id.toString();
     let success = false;
     let usedRecoveryCode = false;
 
-    // In development mode, accept any 6-digit numeric code for easier testing
-    if (process.env.NODE_ENV === 'development' && code && code.length === 6 && /^\d{6}$/.test(code)) {
-      console.log('Development mode: accepting any 6-digit code for verification');
-      success = true;
-    }
-    // Otherwise, perform normal validation
-    else if (code) {
-      // First check if this is a temporary code from email verification
-      if (user.twoFactorAuth?.temporaryCode && code === user.twoFactorAuth.temporaryCode) {
-        // Verify the code isn't expired (codes are valid for 10 minutes)
-        const codeGeneratedAt = new Date(user.twoFactorAuth.codeGeneratedAt || 0);
-        const now = new Date();
-        const codeAgeInMinutes = (now.getTime() - codeGeneratedAt.getTime()) / (1000 * 60);
-        
-        if (codeAgeInMinutes <= 10) {
-          success = true;
-          // Clear the temporary code after successful use
-          user.twoFactorAuth.temporaryCode = undefined;
-          user.twoFactorAuth.codeGeneratedAt = undefined;
-        }
-      } 
-      // If not a temporary code, or temporary code verification failed,
-      // check if it's a TOTP code for authenticator app
-      else if (user.twoFactorAuth?.method === 'app' && user.twoFactorAuth.secret) {
-        success = verifyTotpCode(code, user.twoFactorAuth.secret);
-      }
-    } else if (recoveryCode) {
-      // Verify recovery code
-      if (user.twoFactorAuth.backupCodes && user.twoFactorAuth.backupCodes.includes(recoveryCode)) {
+    if (recoveryCode) {
+      const backupCodes = user.twoFactorAuth?.backupCodes || [];
+      if (backupCodes.includes(recoveryCode)) {
         success = true;
         usedRecoveryCode = true;
-        
-        // Remove the used recovery code
-        user.twoFactorAuth.backupCodes = user.twoFactorAuth.backupCodes.filter(
-          (backupCode: string) => backupCode !== recoveryCode
-        );
-        await user.save();
+        await UserModel.findByIdAndUpdate(user._id, {
+          $pull: { 'twoFactorAuth.backupCodes': recoveryCode },
+          $set: {
+            'twoFactorAuth.verified': true,
+            'twoFactorAuth.enabled': true,
+            pendingMfaVerification: false,
+            mfaSetupComplete: true,
+          },
+        });
+      }
+    } else if (code && typeof code === 'string') {
+      const method = user.twoFactorAuth?.method === 'totp' ? 'app' : user.twoFactorAuth?.method;
+
+      if (method === 'app') {
+        success = await verifyTotpCode(userId, code);
+      } else {
+        success = await verifyEmailCode(userId, code);
+      }
+
+      if (success) {
+        await UserModel.findByIdAndUpdate(user._id, {
+          $set: {
+            'twoFactorAuth.verified': true,
+            'twoFactorAuth.enabled': true,
+            pendingMfaVerification: false,
+            mfaSetupComplete: true,
+          },
+        });
       }
     }
 
-    if (success) {
-      // Mark the user as verified and not pending MFA
-      user.pendingMfaVerification = false;
-      
-      // Mark 2FA as verified
-      if (user.twoFactorAuth) {
-        user.twoFactorAuth.verified = true;
-        // Add this to ensure MFA status is preserved
-        user.mfaSetupComplete = true;
-      }
-      
-      await user.save();
-      
-      // Log the successful verification
-      logServerActivity(userId, ActivityType.TWO_FACTOR_SETUP, { 
-        usedRecoveryCode,
-        method: user.twoFactorAuth.method,
-        verified: true
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Two-factor authentication verified successfully'
-      });
-    } else {
-      // Log the failed verification
-      logServerActivity(userId, ActivityType.SUSPICIOUS_ACTIVITY, { 
-        usedRecoveryCode,
-        method: user.twoFactorAuth.method,
-        event: 'two_factor_failed'
+    if (!success) {
+      logServerActivity(userId, ActivityType.SUSPICIOUS_ACTIVITY, {
+        method: user.twoFactorAuth?.method || 'unknown',
+        event: 'two_factor_failed',
       });
 
       return NextResponse.json(
@@ -137,6 +79,17 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    logServerActivity(userId, ActivityType.TWO_FACTOR_SETUP, {
+      usedRecoveryCode,
+      method: user.twoFactorAuth?.method || 'unknown',
+      verified: true,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Two-factor authentication verified successfully',
+    });
   } catch (error) {
     console.error('2FA verification error:', error);
     return NextResponse.json(
@@ -145,29 +98,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-// Helper functions
-function verifyTotpCode(inputCode: string, secret: string) {
-  // In a real app, this would use a proper TOTP validation library 
-  // like speakeasy or otplib to verify the code against the secret
-  
-  // For development/testing purposes only - replace with actual TOTP verification in production!
-  // Example speakeasy implementation:
-  // return speakeasy.totp.verify({ 
-  //   secret: secret, 
-  //   encoding: 'base32',
-  //   token: inputCode,
-  //   window: 1 // Allow 1 step before/after for clock drift
-  // });
-  
-  // For development mode, accept any 6-digit code for easier testing
-  if (process.env.NODE_ENV === 'development') {
-    return inputCode.length === 6 && /^\d{6}$/.test(inputCode);
-  }
-  
-  // Mock implementation for development - accept both a standard code and the first 6 digits
-  // of the secret (to help with debugging)
-  const debugCode = secret ? secret.substring(0, 6) : '';
-  return inputCode === '123456' || inputCode === debugCode;
-}
-

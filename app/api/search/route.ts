@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { SearchResponse, PaginationInfo, SearchResult } from '../../../types/search';
-import { handleApiRequest } from '../../../lib/api';
+import { findUserById, handleApiRequest } from '../../../lib/api';
 import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
-import { getUserModel } from '../../../lib/db/models/user';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -415,11 +414,10 @@ export async function GET(request: NextRequest) {
     } : undefined;
     
     // Get data from database
-    const UserModel = getUserModel();
     const PoolModel = getPoolModel();
     
     // Get user data to find accessible pools
-    const user = await UserModel.findOne({ id: userId });
+    const user = await findUserById(userId);
     if (!user) {
       return { results: createEmptySearchResponse(page, limit) };
     }

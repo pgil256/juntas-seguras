@@ -131,7 +131,7 @@ export default function DocumentationPage() {
                     }`}
                   >
                     <div className="font-medium">{category.title}</div>
-                    <div className="text-sm text-gray-500 truncate">{category.description}</div>
+                    <div className="text-sm text-gray-600 truncate">{category.description}</div>
                   </button>
                 ))}
               </nav>

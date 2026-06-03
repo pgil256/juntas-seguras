@@ -33,6 +33,7 @@ import {
   CardTitle,
   CardFooter,
 } from "../../components/ui/card";
+import { formatCalendarDate, normalizeCalendarDateForApi } from "../../lib/utils";
 
 // Mock user ID - in a real app, this would come from authentication context
 const mockUserId = 'user123';
@@ -122,7 +123,7 @@ export default function CreatePoolPage() {
         contributionAmount: Number(poolData.contributionAmount),
         frequency: poolData.frequency,
         totalRounds,
-        startDate: poolData.startDate
+        startDate: normalizeCalendarDateForApi(poolData.startDate)
       };
       
       // Use the hook to create the pool
@@ -326,6 +327,7 @@ export default function CreatePoolPage() {
                     name="startDate"
                     value={poolData.startDate}
                     onChange={handleInputChange}
+                    onInput={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement>)}
                     type="date"
                     required
                   />
@@ -448,7 +450,7 @@ export default function CreatePoolPage() {
                     <span className="font-medium">Start date:</span>
                     <span>
                       {poolData.startDate
-                        ? new Date(poolData.startDate).toLocaleDateString()
+                        ? formatCalendarDate(poolData.startDate)
                         : "Not set"}
                     </span>
                   </div>

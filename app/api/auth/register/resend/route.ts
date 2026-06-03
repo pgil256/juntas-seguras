@@ -32,7 +32,16 @@ export async function POST(req: Request) {
 
     // Update user with new verification code
     user.verificationCode = verificationCode;
-    user.verificationCodeExpiresAt = expiresAt;
+    user.verificationExpiry = expiresAt;
+    user.twoFactorAuth = {
+      ...(user.twoFactorAuth || {}),
+      enabled: true,
+      method: verificationMethod,
+      verified: false,
+      temporaryCode: verificationCode,
+      codeGeneratedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    };
     await user.save();
 
     // Send verification email

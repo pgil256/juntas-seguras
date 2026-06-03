@@ -190,7 +190,7 @@ test.describe('Modal Accessibility', () => {
       await page.waitForTimeout(300);
 
       // Check if dialog is visible
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:visible');
       if (await dialog.count() > 0) {
         // Tab multiple times
         for (let i = 0; i < 15; i++) {
@@ -199,7 +199,12 @@ test.describe('Modal Accessibility', () => {
 
         // Focus should still be within the dialog
         const focusInDialog = await page.evaluate(() => {
-          const dialog = document.querySelector('[role="dialog"]');
+          const dialog = Array.from(document.querySelectorAll('[role="dialog"]'))
+            .find((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = window.getComputedStyle(element);
+              return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+            });
           const activeElement = document.activeElement;
           return dialog?.contains(activeElement) ?? false;
         });
@@ -224,7 +229,7 @@ test.describe('Modal Accessibility', () => {
       await dialogTrigger.first().click();
       await page.waitForTimeout(300);
 
-      const dialog = page.locator('[role="dialog"]');
+      const dialog = page.locator('[role="dialog"]:visible');
       if (await dialog.count() > 0) {
         await expect(dialog).toBeVisible();
 

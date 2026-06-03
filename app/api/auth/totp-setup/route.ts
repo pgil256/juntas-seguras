@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       {
         $set: {
           'twoFactorAuth.pendingTotpSecret': secret.base32,
-          'twoFactorAuth.method': 'totp',
+          'twoFactorAuth.method': 'app',
         }
       }
     );

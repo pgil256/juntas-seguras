@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
         $set: {
           'twoFactorAuth.totpSecret': user.twoFactorAuth.pendingTotpSecret,
           'twoFactorAuth.verified': true,
-          'twoFactorAuth.method': 'totp',
+          'twoFactorAuth.method': 'app',
+          'twoFactorAuth.enabled': true,
           'mfaSetupComplete': true
         },
         $unset: {

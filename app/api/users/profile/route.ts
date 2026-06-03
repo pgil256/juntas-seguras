@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { getUserModel } from "../../../../lib/db/models/user";
 import connect from "../../../../lib/db/connect";
 import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
-import { logServerActivity } from "../../../../lib/utils";
-import { ActivityType } from "../../../../types/security";
 
 // GET /api/users/profile - Get current user profile
 export async function GET(req: NextRequest) {
@@ -26,7 +24,7 @@ export async function GET(req: NextRequest) {
     
     // Return user profile data without sensitive information
     return NextResponse.json({
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
       phone: user.phone || '',
@@ -88,7 +86,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
     }
     return NextResponse.json({
-      id: updatedUser.id,
+      id: updatedUser._id.toString(),
       name: updatedUser.name,
       email: updatedUser.email,
       phone: updatedUser.phone || '',
@@ -107,27 +105,24 @@ export async function PUT(req: NextRequest) {
 // PATCH /api/users/profile - Partial update of user profile
 export async function PATCH(req: NextRequest) {
   try {
-    // Check for userId in query params (for signup flow) or use session auth
-    const url = new URL(req.url);
-    const userId = url.searchParams.get('userId');
     const data = await req.json();
+
+    if (data.mfaSetupComplete !== undefined) {
+      return NextResponse.json(
+        { error: "MFA setup must be completed through a verification endpoint" },
+        { status: 400 }
+      );
+    }
     
     await connect();
     const UserModel = getUserModel();
-    
-    let user;
-    
-    // If userId provided, use it directly (for setup flows)
-    if (userId) {
-      user = await UserModel.findOne({ id: userId });
-    } else {
-      // Otherwise, verify session auth
-      const session = await getServerSession(authOptions);
-      if (!session || !session.user?.email) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      user = await UserModel.findOne({ email: session.user.email });
+
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const user = await UserModel.findOne({ email: session.user.email });
     
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -141,35 +136,9 @@ export async function PATCH(req: NextRequest) {
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     
-    // Allow updating MFA setup status
-    if (data.mfaSetupComplete !== undefined) {
-      updateData.mfaSetupComplete = data.mfaSetupComplete;
-      
-      // If MFA setup is complete, also mark as verified and not pending
-      if (data.mfaSetupComplete === true) {
-        // Using dot notation doesn't work well with Mongoose, using the $ operator instead
-        updateData['twoFactorAuth.verified'] = true;
-        updateData.pendingMfaVerification = false;
-        
-        // Ensure MFA is enabled
-        updateData['twoFactorAuth.enabled'] = true;
-        
-        // Log activity for completing MFA setup
-        try {
-          logServerActivity(
-            user.id, 
-            ActivityType.TWO_FACTOR_SETUP,
-            { method: user.twoFactorAuth?.method || 'unknown', completed: true }
-          );
-        } catch (error) {
-          console.error('Failed to log MFA setup activity:', error);
-        }
-      }
-    }
-    
     // Update the user
     const updatedUser = await UserModel.findOneAndUpdate(
-      userId ? { id: userId } : { email: user.email },
+      { _id: user._id },
       updateData,
       { new: true }
     );
@@ -179,7 +148,7 @@ export async function PATCH(req: NextRequest) {
     }
     return NextResponse.json({
       success: true,
-      id: updatedUser.id,
+      id: updatedUser._id.toString(),
       mfaSetupComplete: updatedUser.mfaSetupComplete,
     });
   } catch (error) {

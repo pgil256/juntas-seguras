@@ -31,6 +31,7 @@ import { Button } from "../../components/ui/button";
 import { CreatorRulesAcknowledgmentDialog } from "./CreatorRulesAcknowledgmentDialog";
 import { PaymentMethodType } from "../../types/pool";
 import { PoolOnboardingModal } from "../payments/PoolOnboardingModal";
+import { normalizeCalendarDateForApi, parseCalendarDate } from "../../lib/utils";
 
 // Import step components
 import {
@@ -151,7 +152,11 @@ const CreatePoolModal = ({
       return [];
     }
 
-    const startDate = new Date(poolData.startDate);
+    const startDate = parseCalendarDate(poolData.startDate);
+    if (!startDate) {
+      return [];
+    }
+
     const totalMembers = parseInt(poolData.totalMembers);
     const dates: Date[] = [];
 
@@ -334,7 +339,7 @@ const CreatePoolModal = ({
         contributionAmount: Number(poolData.contributionAmount),
         frequency: poolData.frequency,
         totalRounds,
-        startDate: poolData.startDate,
+        startDate: normalizeCalendarDateForApi(poolData.startDate),
         invitations,
         allowedPaymentMethods: poolData.allowedPaymentMethods
       };

@@ -29,6 +29,17 @@ interface UpcomingPayment {
   payoutAmount?: number;
 }
 
+const CONTRIBUTING_MEMBER_STATUSES = [
+  PoolMemberStatus.ACTIVE,
+  PoolMemberStatus.CURRENT,
+  PoolMemberStatus.UPCOMING,
+  PoolMemberStatus.COMPLETED,
+];
+
+function isContributingMemberStatus(status?: string): boolean {
+  return CONTRIBUTING_MEMBER_STATUSES.includes(status as PoolMemberStatus);
+}
+
 /**
  * GET /api/payments/upcoming - Calculate and return upcoming payment obligations
  *
@@ -56,11 +67,15 @@ export async function GET(request: NextRequest) {
     const Pool = getPoolModel();
     const Payment = getPaymentModel();
 
-    // Find all active pools where user is an active member
+    // Find all active pools where user is still a contribution participant.
     const userPools = await Pool.find({
       status: { $in: [PoolStatus.ACTIVE, PoolStatus.PENDING] },
-      'members.email': user.email,
-      'members.status': PoolMemberStatus.ACTIVE
+      members: {
+        $elemMatch: {
+          email: user.email,
+          status: { $in: CONTRIBUTING_MEMBER_STATUSES },
+        },
+      },
     }).lean();
 
     const upcomingPayments: UpcomingPayment[] = [];
@@ -70,7 +85,7 @@ export async function GET(request: NextRequest) {
       // Find the user's member record
       const userMember = pool.members.find(
         (m: { email: string; status: string }) =>
-          m.email === user.email && m.status === PoolMemberStatus.ACTIVE
+          m.email === user.email && isContributingMemberStatus(m.status)
       );
 
       if (!userMember) continue;

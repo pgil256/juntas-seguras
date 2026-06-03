@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
-import { FormField, FormError, FormHelper } from "../../../components/ui/form-field";
+import { FormField, FormError } from "../../../components/ui/form-field";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -15,7 +16,10 @@ export default function SignInForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -34,6 +38,13 @@ export default function SignInForm() {
     return "";
   }, []);
 
+  const validatePassword = useCallback((value: string): string => {
+    if (!value) {
+      return "Password is required";
+    }
+    return "";
+  }, []);
+
   // Validate email on blur
   const handleEmailBlur = () => {
     setEmailTouched(true);
@@ -45,6 +56,18 @@ export default function SignInForm() {
     setEmail(e.target.value);
     if (emailTouched && emailError) {
       setEmailError(validateEmail(e.target.value));
+    }
+  };
+
+  const handlePasswordBlur = () => {
+    setPasswordTouched(true);
+    setPasswordError(validatePassword(password));
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (passwordTouched && passwordError) {
+      setPasswordError(validatePassword(e.target.value));
     }
   };
 
@@ -84,6 +107,19 @@ export default function SignInForm() {
   const handleInitialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const nextEmailError = validateEmail(email);
+    const nextPasswordError = validatePassword(password);
+
+    setEmailTouched(true);
+    setPasswordTouched(true);
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -97,7 +133,7 @@ export default function SignInForm() {
 
       if (result?.error) {
         if (!result.error.toLowerCase().includes('verification required')) {
-          setError(result.error);
+          setError(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
         }
       } else if (result?.ok) {
         console.log('Sign-in successful, redirecting to dashboard...');
@@ -131,10 +167,6 @@ export default function SignInForm() {
       setIsOAuthLoading(null);
     }
   };
-
-  if (!mounted) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen flex">
@@ -214,7 +246,7 @@ export default function SignInForm() {
             <button
               type="button"
               onClick={() => handleOAuthSignIn('google')}
-              disabled={isLoading || isOAuthLoading !== null}
+              disabled={!mounted || isLoading || isOAuthLoading !== null}
               className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isOAuthLoading === 'google' ? (
@@ -236,7 +268,7 @@ export default function SignInForm() {
             <button
               type="button"
               onClick={() => handleOAuthSignIn('azure-ad')}
-              disabled={isLoading || isOAuthLoading !== null}
+              disabled={!mounted || isLoading || isOAuthLoading !== null}
               className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isOAuthLoading === 'azure-ad' ? (
@@ -265,7 +297,7 @@ export default function SignInForm() {
             </div>
           </div>
 
-          <form className="space-y-6" onSubmit={handleInitialSubmit}>
+          <form className="space-y-6" method="post" onSubmit={handleInitialSubmit} noValidate>
             <FormField>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -276,7 +308,6 @@ export default function SignInForm() {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  required
                   value={email}
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
@@ -304,24 +335,42 @@ export default function SignInForm() {
                   </Link>
                 </div>
               </div>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  onChange={handlePasswordChange}
+                  onBlur={handlePasswordBlur}
+                  aria-invalid={!!passwordError}
+                  aria-describedby={passwordError ? "password-error" : undefined}
+                  className={`appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                    passwordError ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
               </div>
+              {passwordError && <FormError id="password-error">{passwordError}</FormError>}
             </FormField>
 
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={!mounted || isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (

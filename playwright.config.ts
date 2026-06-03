@@ -9,63 +9,42 @@ import path from 'path';
 // Auth state storage paths
 const AUTH_DIR = path.join(__dirname, 'e2e', '.auth');
 const USER_AUTH_FILE = path.join(AUTH_DIR, 'user.json');
+const USE_SYSTEM_CHROME = process.env.PLAYWRIGHT_USE_SYSTEM_CHROME === '1';
+const desktopChrome = {
+  ...devices['Desktop Chrome'],
+  ...(USE_SYSTEM_CHROME ? { channel: 'chrome' as const } : {}),
+};
+const mobileChrome = {
+  ...devices['Pixel 5'],
+  ...(USE_SYSTEM_CHROME ? { channel: 'chrome' as const } : {}),
+};
 
-export default defineConfig({
-  testDir: './e2e',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use */
-  reporter: [
-    ['html', { open: 'never' }],
-    ['list'],
-  ],
-  /* Shared settings for all the projects below */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')` */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
-    /* Collect trace when retrying the failed test */
-    trace: 'on-first-retry',
-    /* Screenshot on failure */
-    screenshot: 'only-on-failure',
-    /* Video on retry */
-    video: 'on-first-retry',
+const projects = [
+  /* Setup project runs first to authenticate test users */
+  {
+    name: 'setup',
+    testMatch: /global\.setup\.ts/,
   },
 
-  /* Global setup runs once before all tests to set up auth state */
-  globalSetup: require.resolve('./e2e/global.setup.ts'),
+  /* Unauthenticated tests (auth flows, public pages) */
+  {
+    name: 'chromium',
+    use: desktopChrome,
+    testIgnore: /.*authenticated.*\.spec\.ts/,
+  },
 
-  /* Configure projects for major browsers */
-  projects: [
-    /* Setup project runs first to authenticate test users */
-    {
-      name: 'setup',
-      testMatch: /global\.setup\.ts/,
+  /* Authenticated tests run after setup */
+  {
+    name: 'chromium-authenticated',
+    use: {
+      ...desktopChrome,
+      storageState: USER_AUTH_FILE,
     },
+    dependencies: ['setup'],
+    testMatch: /.*authenticated.*\.spec\.ts/,
+  },
 
-    /* Unauthenticated tests (auth flows, public pages) */
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-      testIgnore: /.*authenticated.*\.spec\.ts/,
-    },
-
-    /* Authenticated tests run after setup */
-    {
-      name: 'chromium-authenticated',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: USER_AUTH_FILE,
-      },
-      dependencies: ['setup'],
-      testMatch: /.*authenticated.*\.spec\.ts/,
-    },
-
+  ...(USE_SYSTEM_CHROME ? [] : [
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
@@ -100,30 +79,64 @@ export default defineConfig({
       testMatch: /.*authenticated.*\.spec\.ts/,
     },
 
-    /* Test against mobile viewports */
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-      testIgnore: /.*authenticated.*\.spec\.ts/,
-    },
-
     {
       name: 'mobile-safari',
       use: { ...devices['iPhone 12'] },
       testIgnore: /.*authenticated.*\.spec\.ts/,
     },
+  ]),
 
-    /* Authenticated mobile tests */
-    {
-      name: 'mobile-chrome-authenticated',
-      use: {
-        ...devices['Pixel 5'],
-        storageState: USER_AUTH_FILE,
-      },
-      dependencies: ['setup'],
-      testMatch: /.*authenticated.*\.spec\.ts/,
+  /* Test against mobile viewports */
+  {
+    name: 'mobile-chrome',
+    use: mobileChrome,
+    testIgnore: /.*authenticated.*\.spec\.ts/,
+  },
+
+  /* Authenticated mobile tests */
+  {
+    name: 'mobile-chrome-authenticated',
+    use: {
+      ...mobileChrome,
+      storageState: USER_AUTH_FILE,
     },
+    dependencies: ['setup'],
+    testMatch: /.*authenticated.*\.spec\.ts/,
+  },
+];
+
+export default defineConfig({
+  testDir: './e2e',
+  /* Run tests in files in parallel */
+  fullyParallel: true,
+  /* Fail the build on CI if you accidentally left test.only in the source code */
+  forbidOnly: !!process.env.CI,
+  /* Retry on CI only */
+  retries: process.env.CI ? 2 : 0,
+  /* Opt out of parallel tests on CI */
+  workers: process.env.CI ? 1 : undefined,
+  /* Reporter to use */
+  reporter: [
+    ['html', { open: 'never' }],
+    ['list'],
   ],
+  /* Shared settings for all the projects below */
+  use: {
+    /* Base URL to use in actions like `await page.goto('/')` */
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
+    /* Collect trace when retrying the failed test */
+    trace: 'on-first-retry',
+    /* Screenshot on failure */
+    screenshot: 'only-on-failure',
+    /* Video on retry */
+    video: 'on-first-retry',
+  },
+
+  /* Global setup runs once before all tests to set up auth state */
+  globalSetup: require.resolve('./e2e/global.setup.ts'),
+
+  /* Configure projects for major browsers */
+  projects,
 
   /* Run your local dev server before starting the tests */
   webServer: {

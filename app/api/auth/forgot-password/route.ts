@@ -1,155 +1,100 @@
-import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { MongoClient, ObjectId } from 'mongodb';
+import connectToDatabase from '../../../../lib/db/connect';
+import { getUserModel } from '../../../../lib/db/models/user';
+import { getClientIp, RateLimiters } from '../../../../lib/utils/rate-limiter';
 
-// Email configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'juntassegurasservice@gmail.com',
-    pass: 'mpdo mzvb dotr pqna'
+const PASSWORD_RESET_SUCCESS = 'If an account exists with this email, you will receive password reset instructions.';
+
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function createTransporter() {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    return null;
   }
-});
 
-// MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/juntas-app';
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+}
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
-    
-    if (!email) {
+
+    if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { error: 'Email is required' },
         { status: 400 }
       );
     }
 
-    // Connect directly to MongoDB using the native driver instead of Mongoose
-    console.log('Connecting to MongoDB directly...');
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    
-    console.log('Connected to MongoDB. Accessing database...');
-    const db = client.db();
-    const usersCollection = db.collection('users');
-    
-    // Find user by email
-    const user = await usersCollection.findOne({ email });
-    
+    const trimmedEmail = email.trim().toLowerCase();
+    const rateLimitResult = RateLimiters.passwordReset(`${getClientIp(request)}:${trimmedEmail}`);
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Too many password reset requests. Please try again later.',
+          retryAfter: Math.ceil(rateLimitResult.retryAfterMs / 1000),
+        },
+        { status: 429 }
+      );
+    }
+
+    await connectToDatabase();
+    const UserModel = getUserModel();
+    const user = await UserModel.findOne({ email: trimmedEmail });
+
     if (!user) {
-      // Return success even if user doesn't exist to prevent email enumeration
-      await client.close();
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, message: PASSWORD_RESET_SUCCESS });
     }
 
-    // Generate a reset token
-    const resetToken = uuidv4();
-    const resetTokenExpiry = new Date();
-    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // Token expires in 1 hour
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-    console.log('Updating user with reset token:', {
-      userId: user._id,
-      email: user.email,
-      resetToken
+    await UserModel.findByIdAndUpdate(user._id, {
+      $set: {
+        resetToken: hashResetToken(resetToken),
+        resetTokenExpiry,
+      },
     });
 
-    // Update the user document directly with the MongoDB driver
-    const updateResult = await usersCollection.updateOne(
-      { _id: user._id },
-      { 
-        $set: { 
-          resetToken: resetToken,
-          resetTokenExpiry: resetTokenExpiry
-        }
-      }
-    );
+    const transporter = createTransporter();
+    if (!transporter) {
+      console.warn('Password reset requested, but email credentials are not configured.');
+      return NextResponse.json({ success: true, message: PASSWORD_RESET_SUCCESS });
+    }
 
-    console.log('Update result from MongoDB native driver:', updateResult);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const resetUrl = `${baseUrl}/auth/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-    // Verify the update
-    const updatedUser = await usersCollection.findOne({ _id: user._id });
-    
-    console.log('Updated user:', {
-      _id: updatedUser?._id,
-      email: updatedUser?.email,
-      resetToken: updatedUser?.resetToken,
-      resetTokenExpiry: updatedUser?.resetTokenExpiry
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Reset Your Juntas Seguras Password',
+      text: `Use this link to reset your password: ${resetUrl}\n\nThis link will expire in 1 hour.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Reset Your Password</h2>
+          <p>Use the button below to reset your password. This link will expire in 1 hour.</p>
+          <p style="text-align: center; margin: 24px 0;">
+            <a href="${resetUrl}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Reset Password</a>
+          </p>
+          <p>If you did not request a password reset, you can ignore this email.</p>
+          <p style="word-break: break-all; color: #4b5563;">${resetUrl}</p>
+        </div>
+      `,
     });
-    
-    if (!updatedUser?.resetToken) {
-      console.error('Failed to save reset token to user');
-      await client.close();
-      return NextResponse.json(
-        { error: 'Failed to generate reset token' },
-        { status: 500 }
-      );
-    }
 
-    // Send reset email
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetUrl = `${baseUrl}/auth/reset-password?token=${updatedUser.resetToken}`;
-    console.log('Reset URL:', resetUrl);
-    
-    try {
-      await transporter.sendMail({
-        from: 'juntassegurasservice@gmail.com',
-        to: user.email,
-        subject: 'Reset Your Juntas Seguras Password',
-        text: `Click this link to reset your password: ${resetUrl}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Reset Your Password</title>
-            </head>
-            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #111827; margin-bottom: 20px;">Reset Your Password</h2>
-                <p style="color: #4b5563; margin-bottom: 20px;">
-                  Click the button below to reset your password. This link will expire in 1 hour.
-                </p>
-                <div style="text-align: center; margin: 20px 0;">
-                  <a href="${resetUrl}" 
-                     style="display: inline-block; 
-                            padding: 12px 24px; 
-                            background-color: #3B82F6; 
-                            color: white; 
-                            text-decoration: none; 
-                            border-radius: 6px; 
-                            font-weight: 500;
-                            border: none;
-                            cursor: pointer;">
-                    Reset Password
-                  </a>
-                </div>
-                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                  If you didn't request a password reset, please ignore this email.
-                </p>
-                <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                  Or copy and paste this link into your browser:<br>
-                  <span style="word-break: break-all;">${resetUrl}</span>
-                </p>
-              </div>
-            </body>
-          </html>
-        `
-      });
-
-      await client.close();
-      return NextResponse.json({ success: true });
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-      await client.close();
-      return NextResponse.json(
-        { error: 'An error occurred while sending the email' },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({ success: true, message: PASSWORD_RESET_SUCCESS });
   } catch (error) {
     console.error('Error in forgot password:', error);
     return NextResponse.json(

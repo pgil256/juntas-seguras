@@ -1,0 +1,54 @@
+
+> my-juntas-app@0.1.0 dev
+> node node_modules/next/dist/bin/next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · instrumentationHook
+
+ ✓ Starting...
+ ○ Compiling /instrumentation ...
+ ✓ Compiled /instrumentation in 1281ms (21 modules)
+
+🔍 Validating environment variables...
+✓ Environment variables validated successfully
+ ✓ Ready in 4.7s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1693ms (172 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 14.5s (786 modules)
+ ✓ Compiled in 810ms (380 modules)
+ GET / 200 in 116ms
+ GET / 200 in 168ms
+ ✓ Compiled in 785ms (547 modules)
+ ✓ Compiled in 1255ms (380 modules)
+ ✓ Compiled in 689ms (380 modules)
+ ✓ Compiled in 606ms (380 modules)
+ ✓ Compiled in 802ms (380 modules)
+ ✓ Compiled in 815ms (380 modules)
+ ✓ Compiled in 612ms (380 modules)
+ ✓ Compiled in 404ms (380 modules)
+ ✓ Compiled in 953ms (380 modules)
+ ✓ Compiled in 647ms (380 modules)
+ ✓ Compiled in 502ms (380 modules)
+ ✓ Compiled in 899ms (380 modules)
+ ✓ Compiled in 587ms (380 modules)
+ ✓ Compiled in 724ms (380 modules)
+ ✓ Compiled in 435ms (380 modules)
+ ✓ Compiled in 675ms (380 modules)
+ ✓ Compiled in 833ms (380 modules)
+ ✓ Compiled in 447ms (173 modules)
+ ✓ Compiled in 541ms (380 modules)
+ ✓ Compiled in 1236ms (380 modules)
+ ✓ Compiled in 886ms (380 modules)
+ ✓ Compiled in 434ms (380 modules)
+ ✓ Compiled in 1196ms (380 modules)
+ ✓ Compiled in 604ms (380 modules)
+ ✓ Compiled in 807ms (380 modules)
+ ✓ Compiled in 722ms (380 modules)
+ ✓ Compiled in 590ms (380 modules)
+ ✓ Compiled in 554ms (380 modules)
+ ✓ Compiled in 774ms (380 modules)
+ ✓ Compiled in 715ms (548 modules)

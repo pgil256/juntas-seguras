@@ -32,21 +32,7 @@ function ResetPasswordContent() {
 
   useEffect(() => {
     setMounted(true);
-    const tokenParam = searchParams.get('token');
-    setToken(tokenParam);
-
-    if (tokenParam) {
-      fetch(`/api/auth/check-token?token=${encodeURIComponent(tokenParam)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.userFoundByExactToken && !data.userFoundByRegex) {
-            setError('This reset token is invalid or has expired.');
-          }
-        })
-        .catch(err => {
-          console.error('Failed to check token:', err);
-        });
-    }
+    setToken(searchParams.get('token'));
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
