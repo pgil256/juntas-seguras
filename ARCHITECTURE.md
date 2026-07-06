@@ -11,7 +11,7 @@ How Juntas Seguras is put together: the request path, the authentication/MFA flo
 | Data | MongoDB + Mongoose (12 models) |
 | Auth | NextAuth.js v4 (JWT), mandatory MFA (email or TOTP), Google/Microsoft OAuth |
 | Cross-cutting | `middleware.ts` (auth gate, MFA gate, security headers, rate limiting), `instrumentation.ts` (env validation at boot) |
-| Payments | Manual method tracking (Venmo/PayPal/Zelle/Cash App) + escrow tracking; PayPal server SDK; Stripe Identity KYC *scaffolded* |
+| Payments | Manual method tracking (Venmo/PayPal/Zelle/Cash App) + escrow tracking, deep links & Zelle QR; Stripe Identity KYC *scaffolded* |
 | Email | Nodemailer + Gmail SMTP |
 | Hosting | Vercel + MongoDB Atlas |
 

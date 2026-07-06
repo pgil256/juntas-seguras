@@ -52,8 +52,7 @@ The demo account is pre-verified and MFA-exempt so you can sign in without email
 - Admin confirms each contribution and records payouts to recipients
 - **Escrow tracking**: contributions are tracked as held until a round is complete
 - **Payment reminders** with customizable settings
-- Zelle QR code generation and payment deep links
-- PayPal server SDK integrated for payout workflows
+- Zelle QR code generation and payment deep links (PayPal.me, Venmo)
 - *Stripe Identity (KYC) is scaffolded but not yet wired up — see [Roadmap](#roadmap)*
 
 ### Security
@@ -77,7 +76,7 @@ The demo account is pre-verified and MFA-exempt so you can sign in without email
 - **Frontend**: React 18, Tailwind CSS, shadcn/ui (Radix primitives)
 - **Database**: MongoDB with Mongoose ODM
 - **Authentication**: NextAuth.js v4 (JWT strategy) + Google / Microsoft OAuth
-- **Payments**: Manual method tracking (Venmo/PayPal/Zelle/Cash App); PayPal server SDK; Stripe Identity KYC *scaffolded*
+- **Payments**: Manual method tracking (Venmo/PayPal/Zelle/Cash App) with payment deep links & Zelle QR; Stripe Identity KYC *scaffolded*
 - **Email**: Nodemailer with Gmail SMTP
 - **Testing**: Jest + React Testing Library + mongodb-memory-server; Playwright for E2E
 - **Deployment**: Vercel
