@@ -71,9 +71,9 @@ console.log('OK: Build check passed');
 
 console.log('All checks completed. Ready for deployment!');
 console.log('');
-console.log('REMINDER: When deploying to Vercel, add these environment variables:');
+console.log('REMINDER: When deploying to Vercel, add every variable from .env.example:');
 console.log('- MONGODB_URI (your MongoDB Atlas connection string)');
-console.log('- NEXTAUTH_SECRET (from .env.production)');
+console.log('- NEXTAUTH_SECRET (generate with: openssl rand -base64 32)');
 console.log('- NEXTAUTH_URL (your Vercel deployment URL)');
 console.log('');
-console.log('See VERCEL_DEPLOYMENT.md for more details.');
+console.log('See SETUP_GUIDE.md for more details.');

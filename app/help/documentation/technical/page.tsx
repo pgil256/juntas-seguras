@@ -393,7 +393,7 @@ NEXTAUTH_URL=http://localhost:3000`}
             
             <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100">
               <p className="text-sm text-blue-800">
-                <span className="font-medium">Tip:</span> See SETUP_GUIDE.md and VERCEL_DEPLOYMENT.md in the repository root for detailed setup instructions.
+                <span className="font-medium">Tip:</span> See SETUP_GUIDE.md and ARCHITECTURE.md in the repository root for detailed setup instructions.
               </p>
             </div>
           </section>

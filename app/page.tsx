@@ -415,7 +415,7 @@ export default function LandingPage() {
             {[
               { label: "Payment Methods", value: "4+", detail: "Venmo, PayPal, Zelle, Cash App" },
               { label: "Security Layers", value: "MFA", detail: "Multi-factor authentication" },
-              { label: "API Endpoints", value: "59", detail: "Full-featured REST API" },
+              { label: "API Endpoints", value: "60", detail: "Full-featured REST API" },
               { label: "Uptime", value: "99.9%", detail: "Hosted on Vercel" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">

@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Framework & Routing
-- **Next.js 14.2 App Router**: All pages in `app/` directory
+- **Next.js 15 App Router**: All pages in `app/` directory
 - **API Routes**: Located in `app/api/` following Next.js convention
 - **Middleware**: `middleware.ts` handles auth protection, security headers, rate limiting
 - **Instrumentation**: `instrumentation.ts` validates environment variables at startup
@@ -60,7 +60,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `Pool` - savings pool configuration, members, transactions
   - `Payment` - payment records
   - `PoolInvitation` - pool member invitations
-  - `Message` - pool messaging (legacy)
+  - `Message` - pool-wide chat (older channel; predates `Discussion` threads but is still fully wired and used)
   - `DirectMessage` - direct messages between members
   - `Discussion` - pool discussion threads
   - `DiscussionMention` - @mentions in discussions
@@ -299,17 +299,23 @@ POST /api/support/contact              # Contact support
 
 ## Environment Variables
 
-Required:
+Validated at startup by `lib/validation.ts`. See `.env.example` for the authoritative list.
+
+Required (always):
 - `MONGODB_URI` - MongoDB connection string
 - `NEXTAUTH_URL` - Application URL
-- `NEXTAUTH_SECRET` - NextAuth secret
-- `NEXT_PUBLIC_APP_URL` - Public app URL
-- `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM` - Gmail SMTP
+- `NEXTAUTH_SECRET` - NextAuth secret (>= 32 chars)
+- `EMAIL_USER`, `EMAIL_PASSWORD` - Gmail SMTP credentials
 
-Optional:
+Required in production only:
+- `NEXT_PUBLIC_APP_URL` - Public app URL (HTTPS in prod)
+- `EMAIL_FROM` - From address for outbound email
+
+Optional / feature-gated:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
 - `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID` - Microsoft OAuth
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` - SMS MFA
+- `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` - Stripe Identity (KYC) — scaffolded/WIP; not required to run the app
 - `CRON_SECRET` - Cron job authentication
 
 ## Common Tasks
@@ -317,7 +323,7 @@ Optional:
 ### Adding a New API Route
 1. Create file in `app/api/[feature]/route.ts`
 2. Export handler functions (GET, POST, PUT, DELETE)
-3. Use `getServerSession` for auth
+3. Use `getCurrentUser()` from `lib/auth.ts` for auth (the standard helper; resolves the user with OAuth email fallback)
 4. Add audit logging for important actions
 
 ### Adding a New Database Model
@@ -340,15 +346,26 @@ Optional:
 
 ## Testing
 
-Currently no automated tests. When implementing:
-- Unit tests: Jest + React Testing Library
-- E2E tests: Playwright or Cypress
-- Run with: `npm run test`
+Comprehensive suite: **92 Jest test files** (unit/integration/security/performance) + **16 Playwright E2E specs**.
+
+| Layer | Tool | Directory |
+|-------|------|-----------|
+| Unit | Jest + React Testing Library | `__tests__/unit/` (59 files) |
+| Integration | Jest + `mongodb-memory-server` | `__tests__/integration/` (24 files) |
+| Security | Jest | `__tests__/security/` (7 files) |
+| Performance | Jest | `__tests__/performance/` (2 files) |
+| E2E | Playwright | `e2e/` (16 specs) |
+
+- Config: `jest.config.js` (jsdom env, `@/` path alias, 60s timeout, e2e ignored) and `playwright.config.ts`.
+- Coverage threshold: **30%** global (target: 70%), enforced in `jest.config.js`.
+- Integration tests spin up an in-memory MongoDB — no external DB needed.
+- Commands: `npm test`, `npm run test:unit`, `npm run test:integration`, `npm run test:security`, `npm run test:coverage`, `npm run test:e2e`.
+- CI runs lint + type-check + unit/integration/security + build on every push/PR (`.github/workflows/ci.yml`).
 
 ## Deployment
 
 - **Platform**: Vercel (recommended)
 - **Build Command**: `npm run vercel-build`
 - **MongoDB**: MongoDB Atlas
-- **Environment**: Set all env vars in Vercel dashboard
-- See `VERCEL_DEPLOYMENT.md` for details
+- **Environment**: Set all env vars (see `.env.example`) in the Vercel dashboard
+- See `SETUP_GUIDE.md` for local setup and `ARCHITECTURE.md` for system design

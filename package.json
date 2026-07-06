@@ -1,7 +1,25 @@
 {
-  "name": "my-juntas-app",
-  "version": "0.1.0",
+  "name": "juntas-seguras",
+  "version": "1.0.0",
   "private": true,
+  "description": "A secure, transparent platform for managing community savings pools (juntas/ROSCAs) — digitizing rotating savings and credit associations with mandatory MFA, audit logging, and transparent contribution/payout tracking.",
+  "author": "Patrick Gilhooley",
+  "license": "MIT",
+  "homepage": "https://juntas-seguras.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pgil256/juntas-seguras.git"
+  },
+  "keywords": [
+    "nextjs",
+    "typescript",
+    "mongodb",
+    "mongoose",
+    "rosca",
+    "savings-pool",
+    "fintech",
+    "nextauth"
+  ],
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",
     "dev:turbo": "next dev --turbo",
@@ -13,7 +31,9 @@
     "clean": "rimraf .next",
     "clean:build": "rimraf .next && next build",
     "lint": "eslint . --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
     "test-db": "node lib/db/test-connection.js",
+    "seed": "tsx scripts/seed.ts",
     "pre-deploy-check": "node scripts/pre-deploy-check.js",
     "vercel-build": "npm install --include=dev && npm run build",
     "test": "jest",
@@ -116,6 +136,7 @@
     "supertest": "^7.2.2",
     "tailwindcss": "^3.3.0",
     "ts-jest": "^29.4.6",
+    "tsx": "^4.20.3",
     "typescript": "5.8.3",
     "undici": "^7.18.2"
   },
