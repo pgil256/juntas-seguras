@@ -159,6 +159,25 @@ async function authenticateUser(email: string, password: string) {
   console.log('[Auth] Password validation successful, checking MFA');
 
   const userObjectIdString = user._id.toString();
+
+  // Demo account bypass: let reviewers sign in without an email/TOTP step.
+  // The password is still required. This is INERT unless DEMO_ACCOUNT_EMAIL is
+  // set, and only matches that exact address — never set it in a real
+  // production deployment (only in the public demo environment).
+  if (
+    process.env.DEMO_ACCOUNT_EMAIL &&
+    user.email?.toLowerCase() === process.env.DEMO_ACCOUNT_EMAIL.toLowerCase()
+  ) {
+    console.log('[Auth] Demo account sign-in — skipping MFA (DEMO_ACCOUNT_EMAIL is set)');
+    return {
+      id: userObjectIdString,
+      name: user.name,
+      email: user.email,
+      requiresMfa: false,
+      mfaMethod: 'email' as const,
+    };
+  }
+
   let mfaMethod = user.twoFactorAuth?.method || 'email';
 
   // MFA is mandatory. Legacy users without MFA are moved to email MFA on next login.
@@ -289,13 +308,11 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) {
           // If authenticateUser returns null (e.g., bad password, failed MFA send)
-          console.log('authenticateUser returned null, throwing Invalid email or password error.');
           throw new Error("Invalid email or password");
         }
 
         // Directly return the user object.
         // If requiresMfa is true, the jwt/session callbacks will handle it.
-        console.log('Authorize function returning user object:', JSON.stringify(user));
         return user;
       }
     })
