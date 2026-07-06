@@ -1,0 +1,61 @@
+name: E2E
+
+# End-to-end tests need a running app plus a seeded database, so they are NOT a
+# PR gate (that's what ci.yml is for). Run this manually from the Actions tab,
+# or let it run on the nightly schedule.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *' # 06:00 UTC nightly
+
+jobs:
+  e2e:
+    name: Playwright (Chromium)
+    runs-on: ubuntu-latest
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/juntas-e2e
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-nextauth-secret-0000000000000000000
+      EMAIL_USER: ci@example.com
+      EMAIL_PASSWORD: ci-password
+      EMAIL_FROM: ci@example.com
+      DEMO_ACCOUNT_EMAIL: demo@juntas-seguras.app
+      DEMO_ACCOUNT_PASSWORD: DemoPass123!
+
+    services:
+      mongodb:
+        image: mongo:6
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed demo data
+        run: npm run seed
+
+      # Playwright's webServer config starts `npm run dev` automatically.
+      - name: Run E2E (Chromium)
+        run: npx playwright test --project=setup --project=chromium --project=chromium-authenticated
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
