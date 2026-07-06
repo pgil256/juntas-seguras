@@ -135,7 +135,6 @@ export default function SignUp() {
   const handleVerify = async (code: string) => {
     setIsLoading(true);
     try {
-      console.log("Verifying with:", { userId, code, email });
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,9 +142,7 @@ export default function SignUp() {
       });
 
       const data = await response.json();
-      
-      console.log("Verification response:", data);
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Verification failed');
       }

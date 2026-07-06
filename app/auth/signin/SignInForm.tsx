@@ -98,7 +98,6 @@ export default function SignInForm() {
   // Handle simple redirect after authentication
   useEffect(() => {
     if (status === "authenticated" && !session?.requiresMfa) {
-      console.log('User authenticated and MFA not required. Redirecting...');
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
       router.push(callbackUrl);
     }
@@ -129,15 +128,11 @@ export default function SignInForm() {
         redirect: false,
       });
 
-      console.log('Initial signIn result:', result);
-
       if (result?.error) {
         if (!result.error.toLowerCase().includes('verification required')) {
           setError(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
         }
       } else if (result?.ok) {
-        console.log('Sign-in successful, redirecting to dashboard...');
-        
         // Force redirect to dashboard regardless of MFA status
         const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
         router.push(callbackUrl);

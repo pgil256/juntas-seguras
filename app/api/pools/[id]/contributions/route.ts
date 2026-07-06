@@ -7,6 +7,42 @@ import { createNotification, notifyPoolMembers, NotificationTemplates } from '..
 
 const Pool = getPoolModel();
 
+// Lightweight shapes for the embedded sub-documents this route iterates over.
+// Enum-ish fields are typed as `string` so comparisons against string literals
+// and the payment-domain TransactionType enum stay valid.
+interface PoolMemberLite {
+  id: number;
+  userId?: { toString(): string };
+  name: string;
+  email?: string;
+  phone?: string;
+  position: number;
+  role?: string;
+  status?: string;
+}
+
+interface PoolTransactionLite {
+  id?: number;
+  type: string;
+  amount?: number;
+  date?: string;
+  member: string;
+  status?: string;
+  round?: number;
+}
+
+interface RoundPaymentLite {
+  memberId?: number;
+  memberEmail?: string;
+  status?: string;
+  memberConfirmedAt?: Date | string;
+  memberConfirmedVia?: string;
+}
+
+interface PoolMessageLite {
+  id?: number;
+}
+
 /**
  * GET /api/pools/[id]/contributions - Get contribution status for current round
  *
@@ -52,7 +88,7 @@ export async function GET(
     // Check if user is a member of this pool (case-insensitive email comparison)
     const userEmailLower = user.email?.toLowerCase();
     const userMember = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
+      (m: PoolMemberLite) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!userMember) {
@@ -66,19 +102,19 @@ export async function GET(
 
     // Find the recipient for this round (member whose position matches current round)
     const payoutRecipient = pool.members.find(
-      (m: any) => m.position === currentRound
+      (m: PoolMemberLite) => m.position === currentRound
     );
 
     // Get contribution status for all members for current round
     // UNIVERSAL CONTRIBUTION MODEL: All members must contribute, including the recipient
-    const contributionStatus = pool.members.map((member: any) => {
+    const contributionStatus = pool.members.map((member: PoolMemberLite) => {
       const isRecipient = member.position === currentRound;
       const memberEmailLower = member.email?.toLowerCase();
 
       // Check if this member has contributed for the current round
       // Check both transactions and currentRoundPayments
       const contribution = pool.transactions.find(
-        (t: any) =>
+        (t: PoolTransactionLite) =>
           t.member === member.name &&
           t.type === TransactionType.CONTRIBUTION &&
           t.round === currentRound
@@ -86,7 +122,7 @@ export async function GET(
 
       // Also check currentRoundPayments for pending/confirmed payments (case-insensitive email)
       const roundPayment = pool.currentRoundPayments?.find(
-        (p: any) => p.memberId === member.id || p.memberEmail?.toLowerCase() === memberEmailLower
+        (p: RoundPaymentLite) => p.memberId === member.id || p.memberEmail?.toLowerCase() === memberEmailLower
       );
 
       const hasConfirmedPayment = roundPayment?.status === 'member_confirmed' ||
@@ -111,7 +147,7 @@ export async function GET(
 
     // Check if ALL members have contributed (including recipient under universal model)
     const allContributionsReceived = contributionStatus.every(
-      (c: any) => c.hasContributed
+      (c: { hasContributed: boolean }) => c.hasContributed
     );
 
     return NextResponse.json({
@@ -190,7 +226,7 @@ export async function POST(
     // Check if user is a member of this pool (case-insensitive email comparison)
     const userEmailLower = user.email?.toLowerCase();
     const userMember = pool.members.find(
-      (m: any) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
+      (m: PoolMemberLite) => m.userId?.toString() === user._id.toString() || m.email?.toLowerCase() === userEmailLower
     );
 
     if (!userMember) {
@@ -207,7 +243,7 @@ export async function POST(
     if (action === 'confirm_manual') {
       // Check if user has already contributed for this round
       const existingContribution = pool.transactions.find(
-        (t: any) =>
+        (t: PoolTransactionLite) =>
           t.member === userMember.name &&
           t.type === TransactionType.CONTRIBUTION &&
           t.round === currentRound
@@ -236,7 +272,7 @@ export async function POST(
 
       // Check if there's already a pending payment for this member (case-insensitive email)
       const existingPayment = pool.currentRoundPayments?.find(
-        (p: any) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
+        (p: RoundPaymentLite) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
       );
 
       if (existingPayment) {
@@ -261,7 +297,7 @@ export async function POST(
 
       // Remove any existing pending payment for this member (case-insensitive email)
       pool.currentRoundPayments = pool.currentRoundPayments.filter(
-        (p: any) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
+        (p: RoundPaymentLite) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
       );
 
       // Add the new payment - marked as complete immediately (no admin verification needed)
@@ -297,7 +333,7 @@ export async function POST(
 
       // Add a system message
       const messageId = Math.max(
-        ...pool.messages.map((m: any) => m.id || 0),
+        ...pool.messages.map((m: PoolMessageLite) => m.id || 0),
         0
       ) + 1;
       pool.messages.push({
@@ -310,7 +346,7 @@ export async function POST(
       await pool.save();
 
       // Notify pool admin about the payment
-      const adminMember = pool.members.find((m: any) => m.role === 'admin');
+      const adminMember = pool.members.find((m: PoolMemberLite) => m.role === 'admin');
       if (adminMember?.email) {
         await createNotification({
           userId: adminMember.email,
@@ -337,11 +373,11 @@ export async function POST(
     if (action === 'undo_payment') {
       // Check if user has a payment to undo
       const existingPayment = pool.currentRoundPayments?.find(
-        (p: any) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
+        (p: RoundPaymentLite) => (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower)
       );
 
       const existingTransaction = pool.transactions.find(
-        (t: any) =>
+        (t: PoolTransactionLite) =>
           t.member === userMember.name &&
           t.type === TransactionType.CONTRIBUTION &&
           t.round === currentRound
@@ -357,14 +393,14 @@ export async function POST(
       // Remove from currentRoundPayments
       if (pool.currentRoundPayments) {
         pool.currentRoundPayments = pool.currentRoundPayments.filter(
-          (p: any) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
+          (p: RoundPaymentLite) => p.memberId !== userMember.id && p.memberEmail?.toLowerCase() !== userMemberEmailLower
         );
       }
 
       // Remove the transaction record
       if (existingTransaction) {
         pool.transactions = pool.transactions.filter(
-          (t: any) => !(
+          (t: PoolTransactionLite) => !(
             t.member === userMember.name &&
             t.type === TransactionType.CONTRIBUTION &&
             t.round === currentRound
@@ -374,7 +410,7 @@ export async function POST(
 
       // Add a system message
       const messageId = Math.max(
-        ...pool.messages.map((m: any) => m.id || 0),
+        ...pool.messages.map((m: PoolMessageLite) => m.id || 0),
         0
       ) + 1;
       pool.messages.push({

@@ -3,6 +3,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { SearchResponse, SearchParams } from '../../types/search';
 import { useDebounce } from './useDebounce';
 
+/** Loose filter shape accepted by the search URL/query builders. */
+interface SearchFilterInput {
+  category?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+  sortField?: string;
+  sortDirection?: string;
+}
+
 /**
  * Custom hook to handle search functionality
  * Provides search state, methods to perform searches, and handles URL synchronization
@@ -37,7 +47,7 @@ export function useSearch(initialParams?: Partial<SearchParams>) {
   /**
    * Updates the URL with current search parameters
    */
-  const updateSearchUrl = useCallback((searchQuery: string, searchFilters: any, page: number) => {
+  const updateSearchUrl = useCallback((searchQuery: string, searchFilters: SearchFilterInput, page: number) => {
     const params = new URLSearchParams({
       q: searchQuery,
     });
@@ -64,7 +74,7 @@ export function useSearch(initialParams?: Partial<SearchParams>) {
     
     if (searchFilters.sortField) {
       params.append('sortField', searchFilters.sortField);
-      params.append('sortDirection', searchFilters.sortDirection);
+      params.append('sortDirection', searchFilters.sortDirection || 'desc');
     }
     
     // Update URL without causing a navigation/reload
@@ -75,8 +85,8 @@ export function useSearch(initialParams?: Partial<SearchParams>) {
    * Performs search with the given parameters
    */
   const performSearch = useCallback(async (
-    searchQuery: string, 
-    searchFilters: any = {}, 
+    searchQuery: string,
+    searchFilters: SearchFilterInput = {},
     page: number = 1,
     limit: number = 10
   ) => {

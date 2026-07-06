@@ -7,6 +7,7 @@ import {
   SentReminderDocument,
 } from '../db/models/reminder';
 import { PendingReminder } from './scheduler';
+import { createNotification, NotificationType } from '../services/notifications';
 
 /**
  * ReminderSender - Sends reminders through various channels
@@ -371,9 +372,9 @@ async function sendSmsReminder(reminder: PendingReminder): Promise<{
   messageId?: string;
   error?: string;
 }> {
-  // TODO: Implement Twilio SMS integration
-  console.log(`[Sender] SMS not implemented yet. Would send to ${reminder.memberName}`);
-  return { success: false, error: 'SMS not implemented' };
+  // SMS is a planned future channel — reminders go out over email + in-app today.
+  // Enabling it means wiring Twilio (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN) here.
+  return { success: false, error: `Channel "${reminder.channel}" not enabled (email + in-app only)` };
 }
 
 /**
@@ -384,9 +385,8 @@ async function sendPushReminder(reminder: PendingReminder): Promise<{
   messageId?: string;
   error?: string;
 }> {
-  // TODO: Implement web push notifications
-  console.log(`[Sender] Push notifications not implemented yet. Would send to ${reminder.memberName}`);
-  return { success: false, error: 'Push notifications not implemented' };
+  // Web push is a planned future channel (see ARCHITECTURE.md → Roadmap).
+  return { success: false, error: `Channel "${reminder.channel}" not enabled (email + in-app only)` };
 }
 
 /**
@@ -397,9 +397,23 @@ async function createInAppNotification(reminder: PendingReminder): Promise<{
   messageId?: string;
   error?: string;
 }> {
-  // TODO: Implement in-app notifications (store in database for frontend to fetch)
-  console.log(`[Sender] In-app notifications not fully implemented. Would create for ${reminder.memberName}`);
-  return { success: true, messageId: `inapp_${Date.now()}` };
+  // Persist an in-app notification via the notification service (the frontend
+  // polls /api/notifications). Payment reminders map to the 'payment' type.
+  const type: NotificationType =
+    reminder.type === ReminderType.PAYMENT_DUE || reminder.type === ReminderType.PAYMENT_OVERDUE
+      ? 'payment'
+      : 'system';
+
+  const created = await createNotification({
+    userId: String(reminder.userId),
+    message: getReminderTemplate(reminder).subject,
+    type,
+    isImportant: reminder.type === ReminderType.PAYMENT_OVERDUE,
+  });
+
+  return created
+    ? { success: true, messageId: `inapp_${reminder.scheduleId}` }
+    : { success: false, error: 'Failed to create in-app notification' };
 }
 
 /**

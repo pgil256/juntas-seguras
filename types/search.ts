@@ -55,3 +55,55 @@ export interface SearchParams {
     direction: 'asc' | 'desc';
   };
 }
+
+/**
+ * Date/status filters accepted by the search API.
+ */
+export interface SearchFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+}
+
+/**
+ * Flattened, searchable projections built from Pool documents.
+ * (Deliberately looser than the strict domain models in types/pool.ts —
+ * these are the shapes the search scorer operates on.)
+ */
+export interface SearchablePool {
+  id: string;
+  name: string;
+  description: string;
+  members: number;
+  contributionAmount: number;
+  frequency: string;
+  totalAmount: number;
+}
+
+export interface SearchableMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  poolId: string;
+  position: number;
+  status: string;
+}
+
+export interface SearchableTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  date: string;
+  member: string;
+  poolId: string;
+  status: string;
+}
+
+export interface SearchableMessage {
+  id: string;
+  author: string;
+  content: string;
+  date: string;
+  poolId: string;
+}

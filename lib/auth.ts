@@ -109,9 +109,6 @@ export async function getCurrentUser(): Promise<GetCurrentUserResult> {
   if (!user && session.user.email) {
     try {
       user = await User.findOne({ email: session.user.email });
-      if (user) {
-        console.log(`Found user by email fallback: ${session.user.email}, _id: ${user._id}`);
-      }
     } catch (error) {
       console.error('Error finding user by email:', error);
     }

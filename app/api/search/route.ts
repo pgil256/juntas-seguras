@@ -1,5 +1,14 @@
 import { NextRequest } from 'next/server';
-import { SearchResponse, PaginationInfo, SearchResult } from '../../../types/search';
+import {
+  SearchResponse,
+  PaginationInfo,
+  SearchResult,
+  SearchFilters,
+  SearchablePool,
+  SearchableMember,
+  SearchableTransaction,
+  SearchableMessage,
+} from '../../../types/search';
 import { findUserById, handleApiRequest } from '../../../lib/api';
 import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
@@ -94,12 +103,12 @@ function sortResults<T extends Record<string, any>>(items: T[], field: string, d
  * Calculate relevance score for search results
  * Matches in title are weighted higher than matches in other fields
  */
-function calculateRelevance(item: any, query: string, fields: string[]): number {
+function calculateRelevance(item: object, query: string, fields: string[]): number {
   const normalizedQuery = query.toLowerCase();
   let score = 0;
-  
+
   fields.forEach(field => {
-    const value = item[field]?.toString().toLowerCase() || '';
+    const value = String((item as Record<string, unknown>)[field] ?? '').toLowerCase();
     
     // Exact match boosts score significantly
     if (value === normalizedQuery) {
@@ -120,16 +129,16 @@ function calculateRelevance(item: any, query: string, fields: string[]): number 
 
 // Perform the search using database data
 function performSearch(
-  query: string, 
-  category: string = 'all', 
-  filters: any = {}, 
-  page: number = 1, 
+  query: string,
+  category: string = 'all',
+  filters: SearchFilters = {},
+  page: number = 1,
   limit: number = 10,
   sort?: { field: string, direction: 'asc' | 'desc' },
-  poolsData: any[] = [],
-  membersData: any[] = [],
-  transactionsData: any[] = [],
-  messagesData: any[] = []
+  poolsData: SearchablePool[] = [],
+  membersData: SearchableMember[] = [],
+  transactionsData: SearchableTransaction[] = [],
+  messagesData: SearchableMessage[] = []
 ) {
   // Normalize the search query
   const normalizedQuery = query.toLowerCase();

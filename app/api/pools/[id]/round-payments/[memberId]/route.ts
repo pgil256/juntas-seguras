@@ -4,6 +4,7 @@ import { Pool } from '../../../../../../lib/db/models/pool';
 import { User } from '../../../../../../lib/db/models/user';
 import { PoolMemberRole } from '../../../../../../types/pool';
 import { getCurrentUser } from '../../../../../../lib/auth';
+import { createNotification } from '../../../../../../lib/services/notifications';
 
 interface Params {
   params: Promise<{ id: string; memberId: string }>;
@@ -252,8 +253,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           }
         }
 
-        // TODO: Actually send the reminder email/notification
-        // For now, just track that reminder was sent
+        // Create an in-app notification for the member (their email doubles as
+        // the notification userId elsewhere in the app). Email/SMS reminders are
+        // handled by the scheduled reminder pipeline (lib/reminders).
+        if (payment.memberEmail) {
+          await createNotification({
+            userId: payment.memberEmail,
+            message: `Reminder: your contribution of $${payment.amount} is still due. Please submit your payment.`,
+            type: 'payment',
+            isImportant: true,
+          });
+        }
 
         payments[paymentIndex] = {
           ...payment,
