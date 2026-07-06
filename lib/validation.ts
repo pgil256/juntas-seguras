@@ -47,18 +47,19 @@ const ENV_VAR_CONFIG: EnvVarConfig[] = [
     name: 'EMAIL_FROM',
     required: 'production',
   },
-  // Stripe (primary payment processor)
+  // Stripe — Identity / KYC verification (scaffolded, work in progress).
+  // Optional: the app runs fine without these. If set, use test-mode keys.
   {
     name: 'STRIPE_SECRET_KEY',
-    required: true,
+    required: false,
   },
   {
     name: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
-    required: true,
+    required: false,
   },
   {
     name: 'STRIPE_WEBHOOK_SECRET',
-    required: 'production',
+    required: false,
   },
   // App URL
   {

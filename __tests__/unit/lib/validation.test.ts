@@ -145,26 +145,32 @@ describe('Environment Variable Validation', () => {
         expect(result.errors).toContain('Missing required environment variable: EMAIL_PASSWORD');
       });
 
-      it('should return error for missing STRIPE_SECRET_KEY', () => {
+      // Stripe Identity/KYC is scaffolded (work in progress), so its keys are
+      // optional — missing them must NOT fail startup validation.
+      it('should treat STRIPE_SECRET_KEY as optional', () => {
         process.env.NODE_ENV = 'development';
         setAllRequiredEnvVars();
+        process.env.GOOGLE_CLIENT_ID = 'google-client-id';
+        process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
         delete process.env.STRIPE_SECRET_KEY;
 
         const result = validateEnvVars();
 
-        expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Missing required environment variable: STRIPE_SECRET_KEY');
+        expect(result.valid).toBe(true);
+        expect(result.errors).not.toContain('Missing required environment variable: STRIPE_SECRET_KEY');
       });
 
-      it('should return error for missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', () => {
+      it('should treat NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as optional', () => {
         process.env.NODE_ENV = 'development';
         setAllRequiredEnvVars();
+        process.env.GOOGLE_CLIENT_ID = 'google-client-id';
+        process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
         delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
         const result = validateEnvVars();
 
-        expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Missing required environment variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
+        expect(result.valid).toBe(true);
+        expect(result.errors).not.toContain('Missing required environment variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
       });
 
       it('should return multiple errors when multiple required vars are missing', () => {
@@ -226,16 +232,18 @@ describe('Environment Variable Validation', () => {
         expect(result.errors).not.toContain('Missing required environment variable: STRIPE_WEBHOOK_SECRET');
       });
 
-      it('should require STRIPE_WEBHOOK_SECRET in production', () => {
+      it('should not require STRIPE_WEBHOOK_SECRET in production (Stripe is scaffolded/WIP)', () => {
         process.env.NODE_ENV = 'production';
         setAllRequiredEnvVars();
         setProductionEnvVars();
         delete process.env.STRIPE_WEBHOOK_SECRET;
+        delete process.env.STRIPE_SECRET_KEY;
+        delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
         const result = validateEnvVars();
 
-        expect(result.valid).toBe(false);
-        expect(result.errors).toContain('Missing required environment variable: STRIPE_WEBHOOK_SECRET');
+        expect(result.valid).toBe(true);
+        expect(result.errors).not.toContain('Missing required environment variable: STRIPE_WEBHOOK_SECRET');
       });
 
       it('should not require NEXT_PUBLIC_APP_URL in development', () => {
