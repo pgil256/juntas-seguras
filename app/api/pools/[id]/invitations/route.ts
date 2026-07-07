@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import type { CreateInvitationRequest, ResendInvitationRequest, CancelInvitationRequest } from '../../../../../types/pool';
 import { InvitationStatus } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { User } from '../../../../../lib/db/models/user';
+import { getCurrentUser } from '../../../../../lib/auth';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { createNotification, NotificationTemplates } from '../../../../../lib/services/notifications';
@@ -37,14 +36,15 @@ export async function GET(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
     
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
     
     if (!poolId) {
       return NextResponse.json(
@@ -67,8 +67,8 @@ export async function GET(
     // Only pool admins and creators can view invitations
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) || 
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
     
@@ -121,15 +121,16 @@ export async function POST(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
     const body = await request.json() as CreateInvitationRequest;
     
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
     
     if (!poolId) {
       return NextResponse.json(
@@ -160,8 +161,8 @@ export async function POST(
     
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) || 
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
     
@@ -200,7 +201,7 @@ export async function POST(
         await existingInvitation.save();
         
         // Send email
-        await sendInvitationEmail(existingInvitation, pool, session.user);
+        await sendInvitationEmail(existingInvitation, pool, user);
         
         return NextResponse.json({
           success: true,
@@ -227,7 +228,7 @@ export async function POST(
       email: email.toLowerCase(),
       name,
       phone,
-      invitedBy: session.user.id,
+      invitedBy: user._id.toString(),
       invitationCode,
       status: InvitationStatus.PENDING,
       sentDate: new Date(),
@@ -237,11 +238,11 @@ export async function POST(
     });
     
     // Send invitation email
-    await sendInvitationEmail(newInvitation, pool, session.user);
+    await sendInvitationEmail(newInvitation, pool, user);
 
     // Log activity
     try {
-      await logActivity(session.user.id, 'pool_invitation_sent', {
+      await logActivity(user._id.toString(),'pool_invitation_sent', {
         poolId,
         invitationId: newInvitation._id.toString(),
         email
@@ -256,7 +257,7 @@ export async function POST(
       if (existingUser) {
         await createNotification({
           userId: existingUser.email,
-          message: NotificationTemplates.invitationReceived(pool.name, session.user.name || session.user.email || 'Someone'),
+          message: NotificationTemplates.invitationReceived(pool.name, user.name || user.email || 'Someone'),
           type: 'invite',
           isImportant: true,
         });
@@ -295,16 +296,17 @@ export async function PATCH(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
     const body = await request.json() as ResendInvitationRequest;
     const { invitationId } = body;
     
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
     
     if (!poolId || !invitationId) {
       return NextResponse.json(
@@ -326,8 +328,8 @@ export async function PATCH(
     
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) || 
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
     
@@ -356,11 +358,11 @@ export async function PATCH(
     await invitation.save();
     
     // Resend email
-    await sendInvitationEmail(invitation, pool, session.user);
+    await sendInvitationEmail(invitation, pool, user);
     
     // Log activity
     try {
-      await logActivity(session.user.id, 'pool_invitation_resent', {
+      await logActivity(user._id.toString(),'pool_invitation_resent', {
         poolId,
         invitationId,
         email: invitation.email
@@ -397,15 +399,16 @@ export async function DELETE(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
     const invitationId = request.nextUrl.searchParams.get('invitationId');
     
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
     
     if (!poolId || !invitationId) {
       return NextResponse.json(
@@ -427,8 +430,8 @@ export async function DELETE(
     
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) || 
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
     
@@ -451,7 +454,7 @@ export async function DELETE(
     
     // Log activity
     try {
-      await logActivity(session.user.id, 'pool_invitation_cancelled', {
+      await logActivity(user._id.toString(),'pool_invitation_cancelled', {
         poolId,
         invitationId,
         email: invitation.email

@@ -135,18 +135,19 @@ import { PoolService } from '@/lib/services/pool';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     const body = await request.json();
 
     const pool = await PoolService.createPool(
-      session.user.id,
+      user._id.toString(),
       body
     );
 

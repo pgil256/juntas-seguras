@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import { InvitationStatus } from '../../../../../types/pool';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
+import { getCurrentUser } from '../../../../../lib/auth';
 import crypto from 'crypto';
 
 const Pool = getPoolModel();
@@ -19,14 +18,15 @@ export async function POST(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
 
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     if (!poolId) {
       return NextResponse.json(
@@ -59,8 +59,8 @@ export async function POST(
 
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) ||
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
 
@@ -109,7 +109,7 @@ export async function POST(
         poolId,
         email: `invite-link-${poolId}@shareable.local`, // Marker email for shareable links
         name: 'Shareable Invite Link',
-        invitedBy: session.user.id,
+        invitedBy: user._id.toString(),
         invitationCode,
         status: InvitationStatus.PENDING,
         sentDate: new Date(),
@@ -148,14 +148,15 @@ export async function GET(
 ) {
   try {
     const { id: poolId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
 
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     if (!poolId) {
       return NextResponse.json(
@@ -177,8 +178,8 @@ export async function GET(
 
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) ||
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
 

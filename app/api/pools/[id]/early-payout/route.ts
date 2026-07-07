@@ -9,9 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import mongoose from 'mongoose';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import { TransactionStatus, TransactionType } from '../../../../../types/payment';
 import { PoolMemberStatus, PoolMemberRole, EarlyPayoutVerification } from '../../../../../types/pool';
 import { AuditLogType } from '../../../../../types/audit';
@@ -224,14 +222,15 @@ export async function GET(
 ) {
   try {
     const { id: poolId } = await params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
 
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const requestingUser = userResult.user;
 
     if (!poolId) {
       return NextResponse.json(
@@ -252,7 +251,7 @@ export async function GET(
 
     // Check if user is admin
     const userMembership = pool.members.find(
-      (member: any) => member.email === session.user?.email
+      (member: any) => member.email === requestingUser.email
     );
 
     if (!userMembership || userMembership.role !== PoolMemberRole.ADMIN) {

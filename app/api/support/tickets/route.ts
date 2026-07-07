@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import mongoose from 'mongoose';
-import { authOptions } from '../../auth/[...nextauth]/options';
+import { getCurrentUser } from '../../../../lib/auth';
 import connectToDatabase from '../../../../lib/db/connect';
 import {
   SupportTicket,
@@ -28,8 +27,10 @@ async function getTicketsCollection() {
 }
 
 async function isSupportAdmin(): Promise<boolean> {
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.email?.toLowerCase();
+  // Soft identity check: getCurrentUser returns { user: null } when unauthenticated
+  // rather than throwing, so admin-gated flows fall through to a 403 as before.
+  const { user } = await getCurrentUser();
+  const email = user?.email?.toLowerCase();
   if (!email) return false;
 
   const adminEmails = (process.env.ADMIN_EMAILS || process.env.EMAIL_USER || '')
@@ -41,11 +42,13 @@ async function isSupportAdmin(): Promise<boolean> {
 }
 
 async function getSessionUser() {
-  const session = await getServerSession(authOptions);
+  // Soft identity: anonymous ticket submission is allowed, so a missing user is
+  // not an error here — callers fall back to the request body / return 403.
+  const { user } = await getCurrentUser();
   return {
-    id: session?.user?.id,
-    email: session?.user?.email?.toLowerCase(),
-    name: session?.user?.name,
+    id: user?._id?.toString(),
+    email: user?.email?.toLowerCase(),
+    name: user?.name,
   };
 }
 

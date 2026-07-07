@@ -41,25 +41,25 @@ lib/
 ```typescript
 // app/api/[resource]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/db/connect';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Authentication check
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 1. Authenticate — getCurrentUser() validates the session, connects to the
+    //    DB, and returns the full User document (401 if not authenticated/found).
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
+    const user = userResult.user;
 
-    // 2. Connect to database
-    await connectDB();
-
-    // 3. Business logic
+    // 2. Business logic (the DB is already connected)
     // ...
 
-    // 4. Return response
+    // 3. Return response
     return NextResponse.json({ data });
   } catch (error) {
     console.error('API Error:', error);
@@ -84,15 +84,26 @@ await connectDB();
 
 ### Authentication
 
+Use `getCurrentUser()` (or `requireCurrentUser()`) from `@/lib/auth` — the single
+standard. It returns the full `User` document with an OAuth email fallback and
+returns a 401 when the session user isn't in the DB. See
+[Authentication](./resources/authentication.md) for details.
+
 ```typescript
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 
-const session = await getServerSession(authOptions);
+const userResult = await getCurrentUser();
+if (userResult.error) {
+  return NextResponse.json(
+    { error: userResult.error.message },
+    { status: userResult.error.status }
+  );
+}
+const user = userResult.user;
 
-// Access user data
-const userId = session?.user?.id;
-const userEmail = session?.user?.email;
+// Access user data from the resolved document
+const userId = user._id.toString();
+const userEmail = user.email;
 ```
 
 ### Response Patterns
@@ -127,7 +138,7 @@ Key models in this application:
 
 ## Key Conventions
 
-1. **Always authenticate** - Check session at the start of every protected route
+1. **Always authenticate** - Call `getCurrentUser()` / `requireCurrentUser()` at the start of every protected route
 2. **Always connect DB** - Call `connectDB()` before any database operation
 3. **Use try-catch** - Wrap all async operations in try-catch blocks
 4. **Log errors** - Use `console.error` for server-side error logging

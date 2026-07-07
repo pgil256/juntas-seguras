@@ -9,7 +9,7 @@
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { GET, PUT, PATCH } from '@/app/api/users/profile/route';
 import { getUserModel } from '@/lib/db/models/user';
 import {
@@ -21,8 +21,9 @@ import {
 } from '@/__tests__/helpers/test-utils';
 import { createTestUser, testUsers } from '@/__tests__/fixtures/users';
 
-// Mock next-auth
-jest.mock('next-auth', () => ({
+// Mock next-auth. getCurrentUser (lib/auth) resolves the session via
+// `next-auth/next`, so the session mock must target that module.
+jest.mock('next-auth/next', () => ({
   getServerSession: jest.fn(),
 }));
 
@@ -113,7 +114,7 @@ describe('User Profile API Tests', () => {
       const { data, status } = await parseResponse(response);
 
       expect(status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Not authenticated');
     });
 
     it('returns 401 when session has no email', async () => {
@@ -132,10 +133,10 @@ describe('User Profile API Tests', () => {
       const { data, status } = await parseResponse(response);
 
       expect(status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('User not found or invalid session');
     });
 
-    it('returns 404 when user not found in database', async () => {
+    it('returns 401 when user not found in database', async () => {
       (getServerSession as jest.Mock).mockResolvedValue({
         user: {
           id: 'non-existent-id',
@@ -150,8 +151,10 @@ describe('User Profile API Tests', () => {
       const response = await GET(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(404);
-      expect(data.error).toBe('User not found');
+      // getCurrentUser does a DB lookup and returns 401 (not 404) when the
+      // session's user cannot be resolved to a database record.
+      expect(status).toBe(401);
+      expect(data.error).toBe('User not found or invalid session');
     });
 
     it('returns empty string for missing optional fields', async () => {
@@ -250,10 +253,10 @@ describe('User Profile API Tests', () => {
       const { data, status } = await parseResponse(response);
 
       expect(status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Not authenticated');
     });
 
-    it('returns 404 when user not found', async () => {
+    it('returns 401 when user not found', async () => {
       (getServerSession as jest.Mock).mockResolvedValue({
         user: {
           email: 'nonexistent@example.com',
@@ -271,8 +274,9 @@ describe('User Profile API Tests', () => {
       const response = await PUT(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(404);
-      expect(data.error).toBe('User not found');
+      // getCurrentUser returns 401 (not 404) when the session user is not in the DB.
+      expect(status).toBe(401);
+      expect(data.error).toBe('User not found or invalid session');
     });
 
     it('updates only allowed fields', async () => {
@@ -412,7 +416,7 @@ describe('User Profile API Tests', () => {
       const { data, status } = await parseResponse(response);
 
       expect(status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Not authenticated');
     });
 
     it('returns 404 for non-existent userId', async () => {

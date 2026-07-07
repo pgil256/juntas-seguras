@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/options';
-import connectToDatabase from '../../../../lib/db/connect';
+import { getCurrentUser } from '../../../../lib/auth';
 import { PoolInvitation } from '../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../lib/db/models/pool';
 import { InvitationStatus } from '../../../../types/pool';
@@ -16,23 +14,21 @@ const Pool = getPoolModel();
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
-
-    await connectToDatabase();
+    const user = userResult.user;
 
     // Clean up expired invitations first
     await PoolInvitation.cleanupExpired();
 
     // Find all pending invitations for the user's email
     const invitations = await PoolInvitation.find({
-      email: session.user.email.toLowerCase(),
+      email: user.email.toLowerCase(),
       status: InvitationStatus.PENDING,
       expiresAt: { $gt: new Date() }
     })

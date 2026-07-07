@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import type { Session } from 'next-auth';
-import { authOptions } from '../../../app/api/auth/[...nextauth]/options';
-import { getUserModel } from '../../../lib/db/models/user';
-import connect from '../../../lib/db/connect';
+import { getCurrentUser } from '../../../lib/auth';
+import { getUserModel, UserDocument } from '../../../lib/db/models/user';
 import mongoose from 'mongoose';
 import { Notification, NotificationPreference } from '../../../types/notification';
-import { isValidObjectId } from '../../../lib/utils/objectId';
 
 // Default notification preferences
 const defaultPreferences: NotificationPreference[] = [
@@ -47,29 +43,18 @@ const defaultPreferences: NotificationPreference[] = [
   },
 ];
 
-// Get real notifications from the database
-function getNotificationOwnerIds(session: Session): string[] {
+// Build the set of identifiers a notification may be stored under for this user.
+// Notifications are keyed by the user's UUID (`id`), ObjectId (`_id`), or email
+// depending on when/how they were created, so we match against all of them.
+function getNotificationOwnerIds(user: UserDocument): string[] {
   const values = [
-    session.user?.id,
-    session.user?.email,
-    session.user?.email?.toLowerCase(),
+    (user as unknown as { id?: string }).id,
+    user._id?.toString(),
+    user.email,
+    user.email?.toLowerCase(),
   ].filter((value): value is string => !!value);
 
   return Array.from(new Set(values));
-}
-
-function getUserLookup(userId?: string | null, email?: string | null) {
-  const conditions: Record<string, string>[] = [];
-
-  if (isValidObjectId(userId)) {
-    conditions.push({ _id: userId! });
-  }
-
-  if (email) {
-    conditions.push({ email: email.toLowerCase() });
-  }
-
-  return conditions.length > 0 ? { $or: conditions } : { email: '__missing_user__' };
 }
 
 function normalizeNotificationId(id: unknown): number | string {
@@ -98,29 +83,25 @@ async function getUserNotifications(ownerIds: string[]): Promise<Notification[]>
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
-    const ownerIds = getNotificationOwnerIds(session);
-    
-    // Connect to database
-    await connect();
-    
-    // Get real notifications from the database
+    const user = userResult.user;
+
+    const ownerIds = getNotificationOwnerIds(user);
+
+    // Get real notifications from the database (getCurrentUser has connected)
     const userNotifications = await getUserNotifications(ownerIds);
-    
-    // Get user preferences from user document
-    const UserModel = getUserModel();
-    const user = await UserModel.findOne(getUserLookup(session.user.id, session.user.email));
-    
-    // Use user preferences or default if not found
+
+    // Use the current user's stored preferences or defaults
     const userPreferences = (user as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
-    
-    return NextResponse.json({ 
-      notifications: userNotifications, 
+
+    return NextResponse.json({
+      notifications: userNotifications,
       unreadCount: userNotifications.filter(n => !n.read).length,
       preferences: userPreferences
     });
@@ -132,18 +113,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
-    const ownerIds = getNotificationOwnerIds(session);
+    const user = userResult.user;
+
+    const ownerIds = getNotificationOwnerIds(user);
     const { action, id, type, preferences } = await request.json();
-    
-    // Connect to database
-    await connect();
-    
+
     switch (action) {
       case 'markAsRead':
         if (id) {
@@ -151,22 +132,22 @@ export async function POST(request: NextRequest) {
           const db1 = mongoose.connection.db;
           if (!db1) throw new Error('Database not connected');
           const notificationsCollection = db1.collection('notifications');
-          
+
           await notificationsCollection.updateOne(
             { id: normalizeNotificationId(id), userId: { $in: ownerIds } },
             { $set: { read: true } }
           );
-          
+
           return NextResponse.json({ success: true });
         }
         break;
-        
+
       case 'markAllAsRead': {
         // Update all user's notifications in MongoDB
         const db2 = mongoose.connection.db;
         if (!db2) throw new Error('Database not connected');
         const notificationsCollection2 = db2.collection('notifications');
-        
+
         await notificationsCollection2.updateMany(
           { userId: { $in: ownerIds }, read: false },
           { $set: { read: true } }
@@ -181,24 +162,22 @@ export async function POST(request: NextRequest) {
           const db3 = mongoose.connection.db;
           if (!db3) throw new Error('Database not connected');
           const notificationsCollection3 = db3.collection('notifications');
-          
+
           await notificationsCollection3.deleteOne({
             id: normalizeNotificationId(id),
             userId: { $in: ownerIds },
           });
-          
+
           return NextResponse.json({ success: true });
         }
         break;
-        
+
       case 'togglePreference':
         if (id && type) {
-          // Get current user and preferences
-          const UserModel2 = getUserModel();
-          const user2 = await UserModel2.findOne(getUserLookup(session.user.id, session.user.email));
+          const UserModel = getUserModel();
 
-          // Get existing preferences or defaults
-          const currentPreferences = (user2 as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
+          // Get existing preferences or defaults from the current user document
+          const currentPreferences = (user as unknown as { notificationPreferences?: NotificationPreference[] })?.notificationPreferences || [...defaultPreferences];
 
           // Find the preference
           const prefIndex = currentPreferences.findIndex((p: NotificationPreference) => p.id === id);
@@ -209,33 +188,33 @@ export async function POST(request: NextRequest) {
             pref[type] = !currentValue;
 
             // Save back to database
-            await UserModel2.findOneAndUpdate(
-              getUserLookup(session.user.id, session.user.email),
+            await UserModel.findOneAndUpdate(
+              { _id: user._id },
               { $set: { notificationPreferences: currentPreferences } }
             );
           }
-          
+
           return NextResponse.json({ success: true });
         }
         break;
-        
+
       case 'savePreferences':
         if (preferences) {
           // Save preferences directly to the user document
-          const UserModel3 = getUserModel();
-          await UserModel3.findOneAndUpdate(
-            getUserLookup(session.user.id, session.user.email),
+          const UserModel = getUserModel();
+          await UserModel.findOneAndUpdate(
+            { _id: user._id },
             { $set: { notificationPreferences: preferences } }
           );
 
           return NextResponse.json({ success: true });
         }
         break;
-        
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-    
+
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
   } catch (error) {
     console.error('Error in notifications POST:', error);
@@ -246,18 +225,18 @@ export async function POST(request: NextRequest) {
 // To create a new notification (for testing purposes)
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
-    const userId = session.user.id || session.user.email;
+    const user = userResult.user;
+
+    const userId = (user as unknown as { id?: string }).id || user._id?.toString() || user.email;
     const notificationData = await request.json();
-    
-    // Connect to database
-    await connect();
-    
+
     // Create new notification object
     const newNotification: Notification = {
       id: Date.now(), // Generate a unique ID
@@ -266,14 +245,14 @@ export async function PUT(request: NextRequest) {
       read: false,
       userId
     };
-    
+
     // Insert into MongoDB
     const db4 = mongoose.connection.db;
     if (!db4) throw new Error('Database not connected');
     const notificationsCollection4 = db4.collection('notifications');
-    
+
     await notificationsCollection4.insertOne(newNotification);
-    
+
     return NextResponse.json({ success: true, notification: newNotification });
   } catch (error) {
     console.error('Error in notifications PUT:', error);

@@ -23,8 +23,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../../../app/api/auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../../lib/db/connect';
 import { DirectMessage, getSortedParticipants } from '../../../../../../lib/db/models/directMessage';
 import { Pool } from '../../../../../../lib/db/models/pool';

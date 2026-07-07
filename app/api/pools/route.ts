@@ -4,112 +4,113 @@ import { Pool, CreatePoolRequest, PoolStatus, PoolMemberRole, PoolMemberStatus }
 import connectToDatabase from '../../../lib/db/connect';
 import getPoolModel from '../../../lib/db/models/pool';
 import { User } from '../../../lib/db/models/user';
-import { handleApiRequest, ApiError, findUserById } from '../../../lib/api';
+import { getCurrentUser, getSession } from '../../../lib/auth';
+import { ApiError, errorResponse, ApiErrors } from '../../../lib/api';
 import { createDefaultReminderSchedules } from '../../../lib/reminders/scheduler';
 import { CreatePoolSchema, validateRequestBody } from '../../../lib/validation/schemas';
 import { createBatchInvitations } from '../../../lib/services/invitations';
 
 // GET /api/pools - Get all pools for a user
 export async function GET(request: NextRequest) {
-  return handleApiRequest(request, async ({ userId }) => {
+  try {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return errorResponse(userResult.error.message, { status: userResult.error.status });
+    }
+    const user = userResult.user;
+
     await connectToDatabase();
     const PoolModel = getPoolModel();
 
-    // Find the user using centralized lookup with email fallback
-    const user = await findUserById(userId);
-
-    if (!user) {
-      console.error(`User not found in /api/pools for provided userId: ${userId}`);
-      throw new ApiError('User not found or invalid session', 401);
-    }
-    
     // Handle the case where user has no pools yet or pools array doesn't exist
     if (!user.pools || !Array.isArray(user.pools) || user.pools.length === 0) {
-      return { 
-        success: true, 
-        pools: []
-      };
+      return NextResponse.json({ success: true, pools: [] });
     }
-    
-    try {
-      // Get all pools that this user is a member of
-      const pools = await PoolModel.find({ id: { $in: user.pools } });
-      
-      // Ensure we always return an array even if find() returns null or undefined
-      return { 
-        success: true,
-        pools: Array.isArray(pools) ? pools : [] 
-      };
-    } catch (error) {
-      console.error('Error fetching pools:', error);
-      throw new ApiError('Failed to fetch pools', 500);
+
+    // Get all pools that this user is a member of
+    const pools = await PoolModel.find({ id: { $in: user.pools } });
+
+    // Ensure we always return an array even if find() returns null or undefined
+    return NextResponse.json({
+      success: true,
+      pools: Array.isArray(pools) ? pools : [],
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return errorResponse(error.message, { status: error.status });
     }
-  }, {
-    requireAuth: true,
-    methods: ['GET']
-  });
+    console.error('Error fetching pools:', error);
+    return errorResponse('Failed to fetch pools', { status: 500 });
+  }
 }
 
 // POST /api/pools - Create a new pool
 export async function POST(request: NextRequest) {
-  return handleApiRequest(request, async ({ userId }) => {
+  try {
+    // Resolve the current user. getCurrentUser returns an error when either there
+    // is no session or the session user isn't in the DB. To preserve first-login
+    // onboarding, distinguish the two: no session -> 401; session but no user ->
+    // create the user from the OAuth session (after validating the request body).
+    const { user: resolvedUser, error: authError } = await getCurrentUser();
+    let user = resolvedUser;
+    let onboardingSession: Awaited<ReturnType<typeof getSession>> = null;
+
+    if (!user) {
+      onboardingSession = await getSession();
+      if (!onboardingSession?.user?.email) {
+        return errorResponse(authError!.message, { status: authError!.status });
+      }
+    }
+
     // Validate request body using Zod schema
     const validationResult = await validateRequestBody(request, CreatePoolSchema);
     if (!validationResult.success) {
-      throw new ApiError(validationResult.error, 400);
+      return errorResponse(validationResult.error, { status: 400 });
     }
     const body = validationResult.data;
 
     await connectToDatabase();
     const PoolModel = getPoolModel();
 
-    // Find the user using centralized lookup with email fallback
-    let user = await findUserById(userId);
-
-    // If user not found, try to create from OAuth session
+    // Create the user from the OAuth session if they weren't in the DB yet.
     if (!user) {
-      const { getServerSession } = await import('next-auth/next');
-      const { authOptions } = await import('../auth/[...nextauth]/options');
-      const session = await getServerSession(authOptions);
-
-      if (session?.user?.email) {
-        console.log('Creating new user from OAuth session...');
-        user = await User.create({
-          email: session.user.email,
-          name: session.user.name || 'Unknown',
-          emailVerified: true,
-          provider: 'azure-ad', // Default, will be corrected on next login
-          lastLogin: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          verificationMethod: 'email',
-          pools: [],
-          twoFactorAuth: {
-            enabled: true,
-            method: 'email',
-            verified: false,
-            lastUpdated: new Date().toISOString(),
-          },
-        });
-        console.log(`Created new user: ${user!.email}, _id: ${user!._id}`);
-      }
+      console.log('Creating new user from OAuth session...');
+      user = await User.create({
+        email: onboardingSession!.user!.email,
+        name: onboardingSession!.user!.name || 'Unknown',
+        emailVerified: true,
+        provider: 'azure-ad', // Default, will be corrected on next login
+        lastLogin: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        verificationMethod: 'email',
+        pools: [],
+        twoFactorAuth: {
+          enabled: true,
+          method: 'email',
+          verified: false,
+          lastUpdated: new Date().toISOString(),
+        },
+      });
+      console.log(`Created new user: ${user!.email}, _id: ${user!._id}`);
     }
 
     if (!user) {
-      console.error(`User not found in POST /api/pools for provided userId: ${userId}`);
-      throw new ApiError('User not found or invalid session', 401);
+      // Unreachable in practice: user was either resolved by getCurrentUser or
+      // created above. Kept as a defensive guard (and to narrow the type).
+      return errorResponse('User not found or invalid session', { status: 401 });
     }
-    
+
     // Generate a unique ID
     const poolId = uuidv4();
-    
+
     // Calculate member count based on total rounds
     // In this app, total rounds equals number of members
-    const memberCount = body.totalRounds; 
-    
+    const memberCount = body.totalRounds;
+
     // Calculate payment schedule based on frequency and start date
     const startDate = body.startDate ? new Date(body.startDate) : new Date();
     const nextPayoutDate = calculateNextPayoutDate(startDate, body.frequency);
-    
+
     // Validate and set allowed payment methods (default to all if not provided)
     const validPaymentMethods: ('venmo' | 'cashapp' | 'paypal' | 'zelle')[] = ['venmo', 'cashapp', 'paypal', 'zelle'];
     let allowedPaymentMethods: ('venmo' | 'cashapp' | 'paypal' | 'zelle')[] = [...validPaymentMethods];
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest) {
         }
       ]
     };
-    
+
     // Save the new pool to the database first
     const poolDoc = await PoolModel.create(newPool);
 
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
     user.pools.push(poolId);
     await user.save();
-    
+
     // Process invitations if provided (after pool is created)
     if (body.invitations && body.invitations.length > 0) {
       console.log(`Sending ${body.invitations.length} invitations for pool ${poolId}`);
@@ -221,30 +222,24 @@ export async function POST(request: NextRequest) {
       // Update the pool with the new message
       await PoolModel.updateOne({ id: poolId }, { $set: { messages: newPool.messages } });
     }
-    
-    // Log activity (in a real app)
-    // await logActivity(userId, 'pool_create', {
-    //   poolId,
-    //   poolName: newPool.name,
-    //   memberCount: newPool.memberCount,
-    //   contributionAmount: newPool.contributionAmount,
-    //   frequency: newPool.frequency
-    // });
-    
-    return {
+
+    return NextResponse.json({
       success: true,
       pool: newPool
-    };
-  }, {
-    requireAuth: true,
-    methods: ['POST']
-  });
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return errorResponse(error.message, { status: error.status });
+    }
+    console.error('API error:', error);
+    return ApiErrors.internalError();
+  }
 }
 
 // Helper function to calculate next payout date based on frequency
 function calculateNextPayoutDate(startDate: Date, frequency: string): Date {
   const nextDate = new Date(startDate);
-  
+
   switch (frequency.toLowerCase()) {
     case 'weekly':
       nextDate.setDate(nextDate.getDate() + 7);
@@ -259,6 +254,6 @@ function calculateNextPayoutDate(startDate: Date, frequency: string): Date {
       // Default to weekly
       nextDate.setDate(nextDate.getDate() + 7);
   }
-  
+
   return nextDate;
 }

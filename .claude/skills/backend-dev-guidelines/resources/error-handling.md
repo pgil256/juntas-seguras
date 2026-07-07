@@ -38,13 +38,14 @@
 export async function POST(request: NextRequest) {
   try {
     // 1. Authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     // 2. Parse and validate input
     const body = await request.json();
@@ -296,7 +297,7 @@ try {
 ```typescript
 // Log with context
 console.error('Pool creation failed:', {
-  userId: session.user.id,
+  userId: user._id.toString(),
   error: error.message,
   stack: error.stack
 });

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/options';
-import connectToDatabase from '../../../../lib/db/connect';
+import { getCurrentUser } from '../../../../lib/auth';
 import { User } from '../../../../lib/db/models/user';
 import {
   validatePayoutHandle,
@@ -14,25 +12,14 @@ import {
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
-
-    await connectToDatabase();
-
-    const user = await User.findOne({ email: session.user.email });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
+    const user = userResult.user;
 
     // Return both formats for compatibility
     return NextResponse.json({
@@ -60,18 +47,16 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     const body = await request.json();
-
-    await connectToDatabase();
 
     // Check if this is the new multi-method format
     if (body.payoutMethods !== undefined) {
@@ -189,13 +174,13 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const user = await User.findOneAndUpdate(
-        { email: session.user.email },
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: user._id },
         { $set: updateData },
         { new: true }
       );
 
-      if (!user) {
+      if (!updatedUser) {
         return NextResponse.json(
           { error: 'User not found' },
           { status: 404 }
@@ -204,8 +189,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        payoutMethod: user.payoutMethod,
-        payoutMethods: user.payoutMethods,
+        payoutMethod: updatedUser.payoutMethod,
+        payoutMethods: updatedUser.payoutMethods,
       });
     }
 
@@ -240,8 +225,8 @@ export async function POST(request: NextRequest) {
 
     const sanitizedHandle = validation.sanitizedHandle || handle.trim();
 
-    const user = await User.findOneAndUpdate(
-      { email: session.user.email },
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id },
       {
         $set: {
           payoutMethod: {
@@ -259,7 +244,7 @@ export async function POST(request: NextRequest) {
       { new: true }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -268,8 +253,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      payoutMethod: user.payoutMethod,
-      payoutMethods: user.payoutMethods,
+      payoutMethod: updatedUser.payoutMethod,
+      payoutMethods: updatedUser.payoutMethods,
     });
   } catch (error) {
     console.error('Error saving payout method:', error);
@@ -289,19 +274,17 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
-
-    await connectToDatabase();
 
     let updateQuery: { $unset: Record<string, number>; $set?: Record<string, unknown> };
 
@@ -326,8 +309,7 @@ export async function DELETE(request: NextRequest) {
       };
 
       // If removing the preferred method, also clear the legacy payoutMethod
-      const user = await User.findOne({ email: session.user.email });
-      if (user?.payoutMethods?.preferred === type) {
+      if (user.payoutMethods?.preferred === type) {
         updateQuery.$unset['payoutMethod'] = 1;
         if (updateQuery.$set) {
           updateQuery.$set['payoutMethods.preferred'] = null;
@@ -335,13 +317,13 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    const user = await User.findOneAndUpdate(
-      { email: session.user.email },
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id },
       updateQuery,
       { new: true }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -350,8 +332,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      payoutMethod: user.payoutMethod || null,
-      payoutMethods: user.payoutMethods || null,
+      payoutMethod: updatedUser.payoutMethod || null,
+      payoutMethods: updatedUser.payoutMethods || null,
     });
   } catch (error) {
     console.error('Error removing payout method:', error);

@@ -1,7 +1,6 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { SearchResponse, PaginationInfo, SearchResult } from '../../../types/search';
-import { findUserById, handleApiRequest } from '../../../lib/api';
-import connectToDatabase from '../../../lib/db/connect';
+import { getCurrentUser } from '../../../lib/auth';
 import getPoolModel from '../../../lib/db/models/pool';
 
 export const dynamic = 'force-dynamic';
@@ -390,7 +389,16 @@ function performSearch(
 }
 
 export async function GET(request: NextRequest) {
-  return handleApiRequest(request, async ({ userId }) => {
+  try {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+    const user = userResult.user;
+
     // Extract query parameters
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q') || '';
@@ -416,14 +424,8 @@ export async function GET(request: NextRequest) {
     // Get data from database
     const PoolModel = getPoolModel();
     
-    // Get user data to find accessible pools
-    const user = await findUserById(userId);
-    if (!user) {
-      return { results: createEmptySearchResponse(page, limit) };
-    }
-    
-    // Get pools accessible to this user
-    const userPools = await PoolModel.find({ id: { $in: user.pools } });
+    // Get pools accessible to this user (user resolved above via getCurrentUser)
+    const userPools = await PoolModel.find({ id: { $in: user.pools || [] } });
     
     // Create search collections from DB data
     const pools = userPools.map(pool => ({
@@ -479,30 +481,12 @@ export async function GET(request: NextRequest) {
       pools, members, transactions, messages
     );
     
-    return { results };
-  }, {
-    requireAuth: true,
-    methods: ['GET']
-  });
-}
-
-// Helper function to create an empty search response
-function createEmptySearchResponse(page: number, limit: number): SearchResponse {
-  const pagination: PaginationInfo = {
-    currentPage: page,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false, 
-    totalItems: 0,
-    itemsPerPage: limit,
-  };
-  
-  return {
-    pools: [],
-    members: [],
-    transactions: [],
-    messages: [],
-    totalResults: 0,
-    pagination,
-  };
+    return NextResponse.json({ results });
+  } catch (error) {
+    console.error('Search error:', error);
+    return NextResponse.json(
+      { error: 'Failed to perform search' },
+      { status: 500 }
+    );
+  }
 }

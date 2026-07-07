@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
 import { getPoolModel } from '../../../../../lib/db/models/pool';

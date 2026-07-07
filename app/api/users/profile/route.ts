@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getCurrentUser } from "../../../../lib/auth";
 import { getUserModel } from "../../../../lib/db/models/user";
-import connect from "../../../../lib/db/connect";
-import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
 
 // GET /api/users/profile - Get current user profile
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
-    await connect();
-    const UserModel = getUserModel();
-    
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
+    const user = userResult.user;
+
     // Return user profile data without sensitive information
     return NextResponse.json({
       id: user._id.toString(),
@@ -44,44 +36,40 @@ export async function GET(req: NextRequest) {
 // PUT /api/users/profile - Update user profile
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
+    const user = userResult.user;
+
     const data = await req.json();
-    
+
     // Only allow updating specific fields
     const { name, phone, avatar } = data;
-    
+
     if (!name) {
       return NextResponse.json(
         { error: "Name is required" },
         { status: 400 }
       );
     }
-    
-    await connect();
+
     const UserModel = getUserModel();
-    
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
+
     // Update the user profile
     const updatedUser = await UserModel.findOneAndUpdate(
-      { email: session.user.email },
-      { 
+      { _id: user._id },
+      {
         name,
         phone,
         avatar
       },
       { new: true }
     );
-    
+
     if (!updatedUser) {
       return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
     }
@@ -113,29 +101,26 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    
-    await connect();
+
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
+    }
+    const user = userResult.user;
+
     const UserModel = getUserModel();
 
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
     // Determine which fields to update
     const updateData: Record<string, any> = {};
-    
-    // Allow updating name, phone, avatar 
+
+    // Allow updating name, phone, avatar
     if (data.name) updateData.name = data.name;
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
-    
+
     // Update the user
     const updatedUser = await UserModel.findOneAndUpdate(
       { _id: user._id },

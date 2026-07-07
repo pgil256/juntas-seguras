@@ -10,27 +10,83 @@ This project uses NextAuth.js v4 with JWT strategy and mandatory MFA for all use
 // lib/auth.ts - Main NextAuth configuration
 ```
 
-## Session Access in API Routes
+## Authenticating API Routes (Standard)
+
+**`getCurrentUser()` from `lib/auth.ts` is the single standard** for
+authenticating API routes in this project (also documented in CLAUDE.md). Do
+**not** call `getServerSession(authOptions)` directly in route handlers —
+`getCurrentUser()` wraps it and adds the behavior every route needs.
+
+`getCurrentUser()`:
+- validates the NextAuth session,
+- connects to the database,
+- resolves the session to a **full `User` document** (looking up by Mongo
+  `ObjectId`, then falling back to email for OAuth users whose session id is a
+  provider id), and
+- returns `{ user, error }`, where `error` is `{ message, status }` and is
+  non-null (status 401) when there is no session **or** the user isn't found.
+
+> Behavior note: because it does a DB lookup, `getCurrentUser()` returns **401**
+> for a valid session whose user no longer exists — stricter than a raw
+> `getServerSession` check. Routes that previously returned 404 "User not found"
+> now return 401 here.
 
 ```typescript
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
+  // getCurrentUser() validates the session AND connects to the database.
+  const userResult = await getCurrentUser();
+  if (userResult.error) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: userResult.error.message },
+      { status: userResult.error.status }
     );
   }
+  const user = userResult.user; // full Mongoose User document
 
-  // User is authenticated
-  const userId = session.user.id;
-  const userEmail = session.user.email;
-  const userName = session.user.name;
+  // Use the resolved user directly — no extra findOne needed.
+  const userId = user._id.toString();
+  const userEmail = user.email;
+  const userName = user.name;
+
+  // ... business logic ...
+  return NextResponse.json({ data: { userId } });
 }
+```
+
+### `requireCurrentUser()` — throwing variant
+
+For handlers whose body is already wrapped in `try/catch`, use
+`requireCurrentUser()`, which returns the `User` document directly and throws an
+`Error` with a `.status` property when authentication fails:
+
+```typescript
+import { requireCurrentUser } from '@/lib/auth';
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireCurrentUser(); // throws on auth failure
+    // ... business logic ...
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const status = (error as { status?: number }).status ?? 500;
+    return NextResponse.json({ error: (error as Error).message }, { status });
+  }
+}
+```
+
+### When raw `getServerSession` is still appropriate
+
+`getServerSession(authOptions)` is used **only** inside `lib/auth.ts` (which
+`getCurrentUser` builds on) and in the NextAuth handler/config. For "soft"
+identity (endpoints that also allow anonymous access) still call
+`getCurrentUser()`, but treat a missing user as optional rather than a hard 401:
+
+```typescript
+const { user } = await getCurrentUser(); // user may be null; do not 401
+const requesterId = user?._id?.toString();
 ```
 
 ## Session Type Extension
@@ -61,10 +117,24 @@ declare module 'next-auth' {
 
 ## MFA Verification Check
 
-```typescript
-// For sensitive operations, verify MFA status
-const session = await getServerSession(authOptions);
+MFA state lives on the **session token** (`mfaVerified`), so read it from the
+session. Authenticate with `getCurrentUser()` as usual, then use `getSession()`
+(also from `lib/auth.ts`) for the session-level flag:
 
+```typescript
+import { getCurrentUser, getSession } from '@/lib/auth';
+
+// Authenticate (and load the user) the standard way.
+const userResult = await getCurrentUser();
+if (userResult.error) {
+  return NextResponse.json(
+    { error: userResult.error.message },
+    { status: userResult.error.status }
+  );
+}
+
+// For sensitive operations, also require MFA (a session-level flag).
+const session = await getSession();
 if (!session?.user?.mfaVerified) {
   return NextResponse.json(
     { error: 'MFA verification required' },
@@ -119,28 +189,30 @@ export function verifyTOTP(token: string, secret: string): boolean {
 ## Protected Route Pattern
 
 ```typescript
-// Middleware protection pattern
+import { getCurrentUser } from '@/lib/auth';
+import type { UserDocument } from '@/lib/db/models/user';
+
+// Reusable guard that hands the resolved user to your handler.
 export async function protectedRouteHandler(
   request: NextRequest,
-  handler: (session: Session) => Promise<NextResponse>
+  handler: (user: UserDocument) => Promise<NextResponse>
 ) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
+  const userResult = await getCurrentUser();
+  if (userResult.error) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: userResult.error.message },
+      { status: userResult.error.status }
     );
   }
 
-  return handler(session);
+  return handler(userResult.user);
 }
 
 // Usage
 export async function GET(request: NextRequest) {
-  return protectedRouteHandler(request, async (session) => {
+  return protectedRouteHandler(request, async (user) => {
     // Your protected logic here
-    return NextResponse.json({ userId: session.user.id });
+    return NextResponse.json({ userId: user._id.toString() });
   });
 }
 ```
@@ -157,8 +229,8 @@ async function checkPoolAdmin(
   return pool?.creatorId.toString() === userId;
 }
 
-// In route handler
-const isAdmin = await checkPoolAdmin(params.id, session.user.id);
+// In route handler (user comes from getCurrentUser())
+const isAdmin = await checkPoolAdmin(params.id, user._id.toString());
 if (!isAdmin) {
   return NextResponse.json(
     { error: 'Admin access required' },
@@ -230,7 +302,7 @@ const isValid = await bcrypt.compare(inputPassword, storedHash);
 
 ## Security Best Practices
 
-1. **Always check session** in protected routes
+1. **Always authenticate** protected routes with `getCurrentUser()` / `requireCurrentUser()`
 2. **Verify MFA** for sensitive operations (payments, settings changes)
 3. **Use HTTPS** in production
 4. **Set secure cookies** via NextAuth configuration

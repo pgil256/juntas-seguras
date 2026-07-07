@@ -6,9 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/options';
-import connectToDatabase from '../../../../lib/db/connect';
+import { getCurrentUser } from '../../../../lib/auth';
 import { User } from '../../../../lib/db/models/user';
 import { decodeQRFromBase64 } from '../../../../lib/payments/qr-decode';
 
@@ -18,25 +16,14 @@ import { decodeQRFromBase64 } from '../../../../lib/payments/qr-decode';
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
-
-    await connectToDatabase();
-
-    const user = await User.findOne({ email: session.user.email });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
+    const user = userResult.user;
 
     const zelleQR = user.payoutMethods?.zelleQR || null;
 
@@ -62,14 +49,14 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     const body = await request.json();
     const { imageDataUrl } = body;
@@ -99,8 +86,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectToDatabase();
-
     // Store the decoded QR data
     const zelleQRData = {
       token: decodeResult.data.token,
@@ -109,8 +94,8 @@ export async function POST(request: NextRequest) {
       uploadedAt: new Date(),
     };
 
-    const user = await User.findOneAndUpdate(
-      { email: session.user.email },
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id },
       {
         $set: {
           'payoutMethods.zelleQR': zelleQRData,
@@ -120,7 +105,7 @@ export async function POST(request: NextRequest) {
       { new: true }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -152,19 +137,17 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
-    await connectToDatabase();
-
-    const user = await User.findOneAndUpdate(
-      { email: session.user.email },
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id },
       {
         $unset: { 'payoutMethods.zelleQR': 1 },
         $set: { 'payoutMethods.updatedAt': new Date() },
@@ -172,7 +155,7 @@ export async function DELETE() {
       { new: true }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }

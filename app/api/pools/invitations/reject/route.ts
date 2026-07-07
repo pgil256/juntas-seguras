@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { PoolInvitation } from '../../../../../lib/db/models/poolInvitation';
+import { getCurrentUser } from '../../../../../lib/auth';
 
 /**
  * POST /api/pools/invitations/reject - Reject a pool invitation
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
     const body = await request.json();
     const { invitationCode, reason } = body;
-    
-    if (!session?.user?.id) {
+
+    if (userResult.error) {
       return NextResponse.json(
         { error: 'You must be logged in to reject an invitation' },
         { status: 401 }
       );
     }
+    const user = userResult.user;
     
     if (!invitationCode) {
       return NextResponse.json(
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: session.user.id,
+          userId: user._id.toString(),
           type: 'pool_invitation_rejected',
           metadata: {
             poolId: invitation.poolId,

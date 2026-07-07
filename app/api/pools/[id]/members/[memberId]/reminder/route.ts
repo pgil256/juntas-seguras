@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../../auth/[...nextauth]/options';
 import connectToDatabase from '../../../../../../../lib/db/connect';
 import { getPoolModel } from '../../../../../../../lib/db/models/pool';
+import { getCurrentUser } from '../../../../../../../lib/auth';
 import nodemailer from 'nodemailer';
 
 const Pool = getPoolModel();
@@ -31,14 +30,15 @@ export async function POST(
 ) {
   try {
     const { id: poolId, memberId } = await context.params;
-    const session = await getServerSession(authOptions);
+    const userResult = await getCurrentUser();
 
-    if (!session?.user?.id) {
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     if (!poolId || !memberId) {
       return NextResponse.json(
@@ -61,8 +61,8 @@ export async function POST(
     // Check if sender is admin
     const isAdmin = pool.members.some(
       (m: any) => (
-        (m.userId && m.userId.toString() === session.user.id) ||
-        (session.user.email && m.email === session.user.email)
+        (m.userId && m.userId.toString() === user._id.toString()) ||
+        (user.email && m.email === user.email)
       ) && (m.role === 'admin' || m.role === 'creator')
     );
 
@@ -110,7 +110,7 @@ export async function POST(
       );
     }
 
-    const senderName = session.user.name || session.user.email || 'Pool Admin';
+    const senderName = user.name || user.email || 'Pool Admin';
     const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const poolUrl = `${appUrl}/pools/${poolId}`;
 

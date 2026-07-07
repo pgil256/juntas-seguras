@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getCurrentUser } from "../../../../lib/auth";
 import { getUserModel } from "../../../../lib/db/models/user";
-import connect from "../../../../lib/db/connect";
-import { authOptions } from "../../../../app/api/auth/[...nextauth]/options";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,21 +8,15 @@ export const runtime = 'nodejs';
 // GET /api/users/settings - Get user settings
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
-    await connect();
-    const UserModel = getUserModel();
-    
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
+    const user = userResult.user;
+
     // Get user settings or return defaults
     const userAny = user as unknown as Record<string, unknown>;
     return NextResponse.json({
@@ -62,37 +54,33 @@ export async function GET(req: NextRequest) {
 // PUT /api/users/settings - Update user settings
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
+      return NextResponse.json(
+        { error: userResult.error.message },
+        { status: userResult.error.status }
+      );
     }
-    
+    const user = userResult.user;
+
     const data = await req.json();
-    
-    await connect();
+
     const UserModel = getUserModel();
-    
-    const user = await UserModel.findOne({ email: session.user.email });
-    
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
+
     // Update settings based on what was passed
     const updateData: any = {};
-    
+
     if (data.language) updateData.language = data.language;
     if (data.timezone) updateData.timezone = data.timezone;
     if (data.notificationPreferences) updateData.notificationPreferences = data.notificationPreferences;
-    
+
     // Update the user settings
     const updatedUser = await UserModel.findOneAndUpdate(
-      { email: session.user.email },
+      { _id: user._id },
       updateData,
       { new: true }
     );
-    
+
     if (!updatedUser) {
       return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
     }

@@ -18,12 +18,9 @@ import {
 import { createTestUser, testUsers } from '@/__tests__/fixtures/users';
 import { createTestPool, createPoolWithMembers } from '@/__tests__/fixtures/pools';
 
-// Mock the API handler
-jest.mock('@/lib/api', () => ({
-  handleApiRequest: jest.fn((request, handler, options) => {
-    // Simulate the handleApiRequest function
-    return handler({ userId: 'test-user-id' });
-  }),
+// Mock auth: the search route resolves the current user via getCurrentUser.
+jest.mock('@/lib/auth', () => ({
+  getCurrentUser: jest.fn(),
 }));
 
 describe('Search API Tests', () => {
@@ -187,18 +184,9 @@ describe('Search API Tests', () => {
       ],
     });
 
-    // Update the mock to use the real user ID
-    const { handleApiRequest } = require('@/lib/api');
-    handleApiRequest.mockImplementation(
-      (request: any, handler: any, options: any) => {
-        return handler({ userId: testUser.id }).then((result: any) => {
-          return new Response(JSON.stringify(result), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        });
-      }
-    );
+    // Resolve the current user to the seeded test user for the search route.
+    const { getCurrentUser } = require('@/lib/auth');
+    getCurrentUser.mockResolvedValue({ user: testUser, error: null });
   });
 
   describe('GET /api/search - Basic Search', () => {
@@ -658,17 +646,8 @@ describe('Search API Tests', () => {
         pools: [],
       });
 
-      const { handleApiRequest } = require('@/lib/api');
-      handleApiRequest.mockImplementation(
-        (request: any, handler: any, options: any) => {
-          return handler({ userId: emptyUser.id }).then((result: any) => {
-            return new Response(JSON.stringify(result), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          });
-        }
-      );
+      const { getCurrentUser } = require('@/lib/auth');
+      getCurrentUser.mockResolvedValue({ user: emptyUser, error: null });
 
       const request = createMockRequest('/api/search', {
         searchParams: { q: 'test', category: 'all' },

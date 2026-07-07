@@ -95,8 +95,7 @@ export async function POST(request: NextRequest) {
 ```typescript
 // app/api/pools/[id]/contributions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 import connectDB from '@/lib/db/connect';
 import Pool from '@/lib/db/models/Pool';
 import Payment from '@/lib/db/models/Payment';
@@ -112,13 +111,14 @@ export async function POST(
 ) {
   try {
     // 1. Authenticate
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     // 2. Parse and validate body
     const body = await request.json();
@@ -144,7 +144,7 @@ export async function POST(
     }
 
     const isMember = pool.members.some(
-      (m: any) => m.userId.toString() === session.user.id
+      (m: any) => m.userId.toString() === user._id.toString()
     );
     if (!isMember) {
       return NextResponse.json(
@@ -156,7 +156,7 @@ export async function POST(
     // 5. Create payment record
     const payment = await Payment.create({
       poolId: params.id,
-      userId: session.user.id,
+      userId: user._id.toString(),
       amount,
       type: 'contribution',
       status: 'pending',
@@ -184,13 +184,14 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userResult = await getCurrentUser();
+    if (userResult.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: userResult.error.message },
+        { status: userResult.error.status }
       );
     }
+    const user = userResult.user;
 
     await connectDB();
 
@@ -236,7 +237,7 @@ import AuditLog from '@/lib/db/models/AuditLog';
 
 // After important operations
 await AuditLog.create({
-  userId: session.user.id,
+  userId: user._id.toString(),
   action: 'POOL_CREATED',
   resourceType: 'pool',
   resourceId: pool._id,
