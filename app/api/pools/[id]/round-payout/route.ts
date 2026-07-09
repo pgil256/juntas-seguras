@@ -5,6 +5,11 @@ import { User } from '../../../../../lib/db/models/user';
 import { PoolMemberRole, TransactionType, PoolMember, RoundPayment } from '../../../../../types/pool';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { ApiErrors, successResponse, errorResponse } from '../../../../../lib/api';
+import { generatePaymentId } from '../../../../../lib/db/models/payment';
+import { getPaymentProvider } from '../../../../../lib/payments/providers/stripe';
+import { isStripeConfigured } from '../../../../../lib/stripe/client';
+import { writeServerAuditLog } from '../../../../../lib/audit-server';
+import { AuditLogType } from '../../../../../types/audit';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       return ApiErrors.badRequest('Payment method is required');
     }
 
-    const validMethods = ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other'];
+    const validMethods = ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other', 'stripe'];
     if (!validMethods.includes(method)) {
       return ApiErrors.badRequest('Invalid payment method');
     }
@@ -154,6 +159,35 @@ export async function POST(request: NextRequest, { params }: Params) {
     const potAmount = pool.contributionAmount * pool.members.length;
     const now = new Date();
 
+    // For card/Stripe payouts, release funds through the payment provider before
+    // marking the round paid. In this PoC the transfer is simulated (no Stripe
+    // Connect onboarding); the returned id is clearly labeled as simulated.
+    let stripeTransferId: string | undefined;
+    let payoutSimulated = false;
+    if (method === 'stripe') {
+      if (!isStripeConfigured()) {
+        return ApiErrors.badRequest('Stripe payouts are unavailable: Stripe is not configured.');
+      }
+      try {
+        const provider = getPaymentProvider();
+        const payout = await provider.releasePayout({
+          poolId: pool.id || id,
+          round: currentRound,
+          recipientMemberId: winner.id,
+          recipientName: winner.name,
+          amount: potAmount,
+          currency: 'usd',
+          reference: generatePaymentId(),
+          // destination omitted → simulated transfer (see provider PRODUCTION SEAM)
+        });
+        stripeTransferId = payout.transferId;
+        payoutSimulated = payout.simulated;
+      } catch (stripeError) {
+        console.error('Stripe payout release failed:', stripeError);
+        return ApiErrors.internalError('Failed to release payout via Stripe');
+      }
+    }
+
     // Create payout transaction
     const transaction = {
       id: (pool.transactions?.length || 0) + 1,
@@ -165,6 +199,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       round: currentRound,
       actualPayoutDate: now.toISOString(),
       wasEarlyPayout: false,
+      ...(stripeTransferId ? { stripeTransferId } : {}),
     };
 
     // Find winner index for update
@@ -192,11 +227,32 @@ export async function POST(request: NextRequest, { params }: Params) {
       { new: true }
     );
 
+    // Audit the money-out event (payout release).
+    await writeServerAuditLog({
+      userId: user._id.toString(),
+      userEmail: user.email,
+      type: AuditLogType.PAYMENT_PAYOUT,
+      action: 'Round payout confirmed',
+      metadata: {
+        round: currentRound,
+        amount: potAmount,
+        method,
+        recipient: winner.name,
+        recipientMemberId: winner.id,
+        stripeTransferId,
+        simulated: method === 'stripe' ? payoutSimulated : undefined,
+      },
+      poolId: pool.id || id,
+      success: true,
+    });
+
     return successResponse({
       payoutStatus: 'paid',
       payoutCompletedAt: now,
       payoutMethod: method,
       transaction,
+      stripeTransferId,
+      simulated: method === 'stripe' ? payoutSimulated : undefined,
     });
   } catch (error) {
     console.error('Error confirming payout:', error);

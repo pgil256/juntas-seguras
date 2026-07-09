@@ -93,10 +93,16 @@ describe('PaymentProcessingModal Component', () => {
       expect(screen.getByText(/Feb 15, 2024/)).toBeInTheDocument();
     });
 
-    it('shows Pay with Stripe button', () => {
+    it('shows Pay with card button', () => {
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /pay with stripe/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /pay with card/i })).toBeInTheDocument();
+    });
+
+    it('shows a TEST MODE badge', () => {
+      render(<PaymentProcessingModal {...defaultProps} />);
+
+      expect(screen.getByText(/TEST MODE/i)).toBeInTheDocument();
     });
 
     it('shows Cancel button', () => {
@@ -130,7 +136,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       expect(screen.getByText('Preparing Checkout')).toBeInTheDocument();
       expect(screen.getByText(/Please wait while we set up your payment/)).toBeInTheDocument();
@@ -141,11 +147,11 @@ describe('PaymentProcessingModal Component', () => {
 
       mockFetch.mockImplementation(() => new Promise(() => {}));
 
-      const { container } = render(<PaymentProcessingModal {...defaultProps} />);
+      render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
-      expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /preparing checkout/i })).toBeInTheDocument();
     });
 
     it('redirects to Stripe checkout on successful response', async () => {
@@ -159,7 +165,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(mockLocationHref).toHaveBeenCalledWith(approvalUrl);
@@ -176,7 +182,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/pools/pool456/contributions',
@@ -200,7 +206,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Payment Failed')).toBeInTheDocument();
@@ -218,7 +224,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Payment Failed')).toBeInTheDocument();
@@ -233,7 +239,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Payment Failed')).toBeInTheDocument();
@@ -251,7 +257,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
@@ -268,7 +274,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
@@ -276,7 +282,7 @@ describe('PaymentProcessingModal Component', () => {
 
       await user.click(screen.getByRole('button', { name: /try again/i }));
 
-      expect(screen.getByRole('button', { name: /pay with stripe/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /pay with card/i })).toBeInTheDocument();
       expect(screen.getByText('$100.00')).toBeInTheDocument();
     });
 
@@ -290,7 +296,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
@@ -321,7 +327,7 @@ describe('PaymentProcessingModal Component', () => {
 
       render(<PaymentProcessingModal {...defaultProps} onClose={onClose} />);
 
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Payment Failed')).toBeInTheDocument();
@@ -344,7 +350,7 @@ describe('PaymentProcessingModal Component', () => {
       render(<PaymentProcessingModal {...defaultProps} onClose={onClose} />);
 
       // Trigger error state
-      await user.click(screen.getByRole('button', { name: /pay with stripe/i }));
+      await user.click(screen.getByRole('button', { name: /pay with card/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Payment Failed')).toBeInTheDocument();

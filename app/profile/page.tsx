@@ -261,7 +261,7 @@ export default function ProfilePage() {
                       <>
                         <div className="flex items-center">
                           <Mail className="h-5 w-5 text-gray-400 mr-3" />
-                          <span className="text-sm text-gray-700">
+                          <span data-testid="user-email" className="text-sm text-gray-700">
                             {profile?.email}
                           </span>
                         </div>

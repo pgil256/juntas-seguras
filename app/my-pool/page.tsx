@@ -351,7 +351,7 @@ export default function MyPoolPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">My Pool</h2>
-              <p className="mt-1 text-gray-500">{selectedPool.name}</p>
+              <p className="mt-1 text-gray-500" data-testid="pool-name">{selectedPool.name}</p>
             </div>
             <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               <Button

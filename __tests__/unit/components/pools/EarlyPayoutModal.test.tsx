@@ -156,9 +156,9 @@ describe('EarlyPayoutModal Component', () => {
         initiateEarlyPayout: jest.fn(),
       });
 
-      const { container } = render(<EarlyPayoutModal {...defaultProps} />);
+      render(<EarlyPayoutModal {...defaultProps} />);
 
-      expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /checking early payout status/i })).toBeInTheDocument();
     });
 
     it('does not show content when loading', () => {

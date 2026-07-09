@@ -33,6 +33,7 @@ const DashboardHeader = ({ title, subtitle }: DashboardHeaderProps) => {
           <SearchInput />
 
           <Button
+            data-testid="create-pool-btn"
             onClick={() => setIsCreatePoolModalOpen(true)}
             className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 shadow-sm"
           >

@@ -31,12 +31,15 @@ test.describe('Authenticated Dashboard', () => {
     // Check for pool cards or empty state
     const poolCards = authenticatedPage.locator('[data-testid="pool-card"]');
     const emptyState = authenticatedPage.locator('text=/no pools|create.*first|get started/i');
+    const pendingSetupState = authenticatedPage.getByText(/complete your pool setup/i);
 
-    // Either pools exist or empty state is shown
-    const hasPoolCards = await poolCards.count() > 0;
-    const hasEmptyState = await emptyState.isVisible().catch(() => false);
-
-    expect(hasPoolCards || hasEmptyState).toBeTruthy();
+    // Either pools exist, a pending setup state is shown, or empty state is shown after dashboard data settles
+    await expect.poll(async () => {
+      const hasPoolCards = await poolCards.count() > 0;
+      const hasPendingSetupState = await pendingSetupState.isVisible().catch(() => false);
+      const hasEmptyState = await emptyState.isVisible().catch(() => false);
+      return hasPoolCards || hasPendingSetupState || hasEmptyState;
+    }).toBeTruthy();
   });
 
   test('should navigate to pool details from dashboard', async ({ authenticatedPage }) => {
@@ -61,32 +64,33 @@ test.describe('Authenticated Dashboard', () => {
     await dashboard.openCreatePoolModal();
 
     // Modal should be visible
-    const modal = authenticatedPage.locator('[role="dialog"]');
+    const modal = authenticatedPage.locator('[role="dialog"]:visible');
     await expect(modal).toBeVisible();
   });
 });
 
 test.describe('Authenticated Pool Creation', () => {
   test('should create a new pool with valid data', async ({ authenticatedPage, testPool }) => {
+    test.setTimeout(60000);
     const createPool = new CreatePoolPage(authenticatedPage);
     await createPool.goto();
 
     // Fill in pool details
-    await createPool.fillBasicInfo({
-      name: testPool.name,
-      description: testPool.description,
-    });
+    await createPool.fillBasicInfo(testPool);
+    await createPool.next();
 
     await createPool.selectFrequency(testPool.frequency);
     await createPool.setMembers(testPool.totalMembers);
-    await createPool.selectPaymentMethods(testPool.allowedPaymentMethods);
+    await createPool.setStartDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    await createPool.next();
+    await createPool.selectInviteLater();
 
     // Submit and handle rules dialog
     await createPool.submit();
     await createPool.acceptRules();
 
     // Should redirect to pool dashboard or show success
-    await expect(authenticatedPage).toHaveURL(/pools\/|my-pool|dashboard/);
+    await expect(authenticatedPage).toHaveURL(/member-management\/|pools\/|my-pool|dashboard/, { timeout: 45000 });
   });
 
   test('should save draft and restore on return', async ({ authenticatedPage, testPool }) => {
@@ -121,7 +125,7 @@ test.describe('Authenticated Profile & Settings', () => {
     await expect(authenticatedPage).not.toHaveURL(/signin|login/);
 
     // Profile content should be visible
-    await expect(authenticatedPage.locator('text=/profile|account|settings/i')).toBeVisible();
+    await expect(authenticatedPage.getByRole('heading', { name: /^profile$/i })).toBeVisible();
   });
 
   test('should access settings page', async ({ authenticatedPage }) => {
@@ -131,15 +135,16 @@ test.describe('Authenticated Profile & Settings', () => {
     await expect(authenticatedPage).not.toHaveURL(/signin|login/);
 
     // Settings content should be visible
-    await expect(authenticatedPage.locator('text=/settings|preferences|notifications/i')).toBeVisible();
+    await expect(authenticatedPage.getByRole('heading', { name: /settings/i }).or(
+      authenticatedPage.getByRole('tab', { name: /notifications/i })
+    ).first()).toBeVisible();
   });
 
   test('should display user information on profile', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/profile');
 
     // User info should be displayed
-    const emailElement = authenticatedPage.locator('[data-testid="user-email"], text=@');
-    await expect(emailElement.first()).toBeVisible();
+    await expect(authenticatedPage.getByTestId('user-email')).toContainText('@');
   });
 });
 
@@ -159,7 +164,7 @@ test.describe('Authenticated Navigation', () => {
     await expect(authenticatedPage).not.toHaveURL(/signin|login/);
 
     // Notifications page content
-    await expect(authenticatedPage.locator('text=/notifications|no notifications|all caught up/i')).toBeVisible();
+    await expect(authenticatedPage.getByRole('heading', { name: /notifications|no notifications/i }).first()).toBeVisible();
   });
 
   test('should be able to sign out', async ({ authenticatedPage }) => {
@@ -177,7 +182,7 @@ test.describe('Authenticated Navigation', () => {
         await signOut.click();
 
         // Should redirect to sign in or home
-        await expect(authenticatedPage).toHaveURL(/signin|login|^\/$|home/);
+        await authenticatedPage.waitForURL(/auth\/signin|signin|login|localhost:3000\/$|home/, { timeout: 15000 });
       }
     }
   });

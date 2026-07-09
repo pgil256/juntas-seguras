@@ -27,6 +27,7 @@ export const test = base.extend<{
       storageState: USER_AUTH_FILE,
     });
     const page = await context.newPage();
+    installAuthenticatedGotoWait(page);
     await use(page);
     await context.close();
   },
@@ -37,6 +38,7 @@ export const test = base.extend<{
       storageState: ADMIN_AUTH_FILE,
     });
     const page = await context.newPage();
+    installAuthenticatedGotoWait(page);
     await use(page);
     await context.close();
   },
@@ -91,6 +93,57 @@ export function generateTestUser(overrides?: Partial<TestUser>): TestUser {
   };
 }
 
+const protectedRoutePrefixes = [
+  '/analytics',
+  '/create-pool',
+  '/dashboard',
+  '/member-management',
+  '/my-pool',
+  '/notifications',
+  '/payments',
+  '/pools',
+  '/profile',
+  '/search',
+  '/settings',
+];
+
+function shouldWaitForAuthenticatedRoute(url: Parameters<Page['goto']>[0]) {
+  const urlText = url.toString();
+
+  if (urlText.startsWith('http')) {
+    const parsed = new URL(urlText);
+    return protectedRoutePrefixes.some(prefix => parsed.pathname === prefix || parsed.pathname.startsWith(`${prefix}/`));
+  }
+
+  return protectedRoutePrefixes.some(prefix => urlText === prefix || urlText.startsWith(`${prefix}/`));
+}
+
+function installAuthenticatedGotoWait(page: Page) {
+  const originalGoto = page.goto.bind(page);
+
+  page.goto = (async (url, options) => {
+    const response = await originalGoto(url, options);
+
+    if (shouldWaitForAuthenticatedRoute(url)) {
+      await waitForAuthenticatedShell(page);
+    }
+
+    return response;
+  }) as Page['goto'];
+}
+
+export async function waitForAuthenticatedShell(page: Page) {
+  await page.waitForFunction(async () => {
+    const response = await fetch('/api/auth/session', { cache: 'no-store' });
+    if (!response.ok) return false;
+
+    const session = await response.json().catch(() => null);
+    return Boolean(session?.user?.email);
+  }, undefined, { timeout: 15000 });
+
+  await expect(page.getByTestId('user-menu')).toBeVisible({ timeout: 15000 });
+}
+
 // Page object helpers
 export class PoolPage {
   constructor(private page: Page) {}
@@ -132,7 +185,7 @@ export class DashboardPage {
 
   async openCreatePoolModal() {
     await this.page.click('[data-testid="create-pool-btn"], button:has-text("Create Pool")');
-    await expect(this.page.locator('[role="dialog"]')).toBeVisible();
+    await expect(this.page.locator('[role="dialog"]:visible')).toBeVisible();
   }
 }
 
@@ -151,26 +204,49 @@ export class CreatePoolPage {
       await this.page.fill('[name="description"], [data-testid="description"]', pool.description);
     }
     if (pool.contributionAmount) {
-      await this.page.click(`[data-value="${pool.contributionAmount}"], option[value="${pool.contributionAmount}"]`);
+      await this.selectComboboxOption(0, new RegExp(`^\\$${pool.contributionAmount}$`));
     }
   }
 
   async selectFrequency(frequency: string) {
-    await this.page.click(`[data-testid="frequency-${frequency}"], label:has-text("${frequency}")`);
+    const labelByFrequency: Record<string, string> = {
+      weekly: 'Weekly',
+      biweekly: 'Bi-weekly',
+      monthly: 'Monthly',
+    };
+    const label = labelByFrequency[frequency] ?? frequency;
+    await this.page.getByRole('radio', { name: label, exact: true }).click();
   }
 
   async setMembers(count: number) {
-    await this.page.fill('[name="totalMembers"], [data-testid="total-members"]', count.toString());
+    await this.selectComboboxOption(0, new RegExp(`^${count} members$`, 'i'));
+  }
+
+  async setStartDate(date: string) {
+    await this.page.fill('[name="startDate"]', date);
   }
 
   async selectPaymentMethods(methods: string[]) {
     for (const method of methods) {
-      await this.page.click(`[data-testid="payment-${method}"], label:has-text("${method}")`);
+      const input = this.page.getByLabel(new RegExp(method, 'i'));
+      if (await input.isVisible().catch(() => false)) {
+        await input.click();
+      }
     }
   }
 
+  async selectInviteLater() {
+    await this.page.getByRole('radio', { name: /invite members later/i }).click();
+  }
+
+  async next() {
+    await this.page.getByRole('button', { name: /^next$/i }).click();
+  }
+
   async submit() {
-    await this.page.click('button[type="submit"]');
+    const submitButton = this.page.locator('button[type="submit"]:visible');
+    await submitButton.scrollIntoViewIfNeeded();
+    await submitButton.evaluate((button: HTMLButtonElement) => button.click());
   }
 
   async acceptRules() {
@@ -178,6 +254,13 @@ export class CreatePoolPage {
     if (await dialog.isVisible()) {
       await this.page.click('[data-testid="accept-rules"], button:has-text("Accept")');
     }
+  }
+
+  private async selectComboboxOption(index: number, optionName: RegExp | string) {
+    await this.page.getByRole('combobox').nth(index).click();
+    const option = this.page.getByRole('option', { name: optionName });
+    await expect(option).toBeVisible();
+    await option.click();
   }
 }
 

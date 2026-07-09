@@ -5,6 +5,10 @@ import { getCurrentUser } from '../../../../../lib/auth';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getPaymentModel, generatePaymentId } from '../../../../../lib/db/models/payment';
 import { getPoolModel } from '../../../../../lib/db/models/pool';
+import { getPaymentProvider } from '../../../../../lib/payments/providers/stripe';
+import { isStripeConfigured } from '../../../../../lib/stripe/client';
+import { writeServerAuditLog } from '../../../../../lib/audit-server';
+import { AuditLogType } from '../../../../../types/audit';
 
 interface EscrowReleaseRequest {
   paymentId: string;
@@ -110,21 +114,48 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Release the payment (manual payment system - no Stripe capture needed)
+    // Release the payment through the payment provider (simulated transfer in the PoC).
     try {
-      // Update payment record
+      const releasePaymentId = generatePaymentId();
+
+      // Route the payout through the provider so a (simulated) Stripe transfer id
+      // is recorded. Falls back gracefully when Stripe is not configured.
+      let stripeTransferId: string | undefined;
+      let simulated = false;
+      if (isStripeConfigured()) {
+        try {
+          const provider = getPaymentProvider();
+          const recipientMember = pool.members.find((m: any) => m.name === payment.member);
+          const release = await provider.releasePayout({
+            poolId,
+            round: payment.round || pool.currentRound || 0,
+            recipientMemberId: recipientMember?.id ?? 0,
+            recipientName: payment.member || 'recipient',
+            amount: payment.amount,
+            currency: (payment.currency || 'usd').toLowerCase(),
+            reference: releasePaymentId,
+          });
+          stripeTransferId = release.transferId;
+          simulated = release.simulated;
+        } catch (providerError) {
+          console.error('Provider transfer during escrow release failed:', providerError);
+          // Non-fatal: the escrow release still completes below.
+        }
+      }
+
+      // Update the escrowed payment record
       payment.status = TransactionStatus.RELEASED;
       payment.processedAt = new Date();
       payment.releasedAt = new Date();
       payment.releasedBy = requestingUser._id;
+      if (stripeTransferId) payment.stripeTransferId = stripeTransferId;
       await payment.save();
 
       // Update pool balance now that funds are released
       pool.totalAmount = (pool.totalAmount || 0) + payment.amount;
       await pool.save();
 
-      // Create new transaction record for the release
-      const releasePaymentId = generatePaymentId();
+      // Create a new transaction record for the release
       const releaseRecord = new Payment({
         paymentId: releasePaymentId,
         userId: payment.userId,
@@ -136,18 +167,29 @@ export async function POST(request: NextRequest) {
         description: `Release of escrowed funds for payment ${paymentId}`,
         member: payment.member,
         relatedPaymentId: paymentId,
+        stripeTransferId,
         processedAt: new Date(),
         releasedBy: requestingUser._id,
       });
 
       await releaseRecord.save();
 
-      // Log activity
-      await logActivity(requestingUser._id.toString(), 'payment_escrow_released', {
+      // Audit the money-out event.
+      await writeServerAuditLog({
+        userId: requestingUser._id.toString(),
+        userEmail: requestingUser.email,
+        type: AuditLogType.PAYMENT_ESCROW_RELEASE,
+        action: 'Escrow funds released',
+        metadata: {
+          poolId,
+          amount: payment.amount,
+          paymentId,
+          releasePaymentId,
+          stripeTransferId,
+          simulated,
+        },
         poolId,
-        amount: payment.amount,
-        paymentId,
-        releasePaymentId,
+        success: true,
       });
 
       return NextResponse.json({
@@ -159,6 +201,8 @@ export async function POST(request: NextRequest) {
           type: releaseRecord.type,
           processedAt: releaseRecord.processedAt,
         },
+        stripeTransferId,
+        simulated,
         message: 'Payment successfully released from escrow',
       });
 
@@ -182,23 +226,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to release payment from escrow' },
       { status: 500 }
     );
-  }
-}
-
-// Helper function to log activity
-async function logActivity(userId: string, type: string, metadata: Record<string, unknown>) {
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-    await fetch(`${baseUrl}/api/security/activity-log`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        type,
-        metadata
-      })
-    });
-  } catch (error) {
-    console.error('Failed to log activity:', error);
   }
 }

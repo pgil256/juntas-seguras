@@ -84,8 +84,9 @@ async function globalSetup(config: FullConfig) {
   );
 
   try {
-    await seedTestUser(TEST_USERS.regular);
-    await seedTestUser(TEST_USERS.admin);
+    const regularUser = await seedTestUser(TEST_USERS.regular);
+    const adminUser = await seedTestUser(TEST_USERS.admin);
+    await seedTestPool(regularUser, adminUser);
 
     // Set up regular user auth state
     await setupUserAuth(browser, baseURL, TEST_USERS.regular, USER_AUTH_FILE);
@@ -98,10 +99,7 @@ async function globalSetup(config: FullConfig) {
     }
   } catch (error) {
     console.error('Error during auth setup:', error);
-    // Create empty auth files to prevent test failures
-    fs.writeFileSync(USER_AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }));
-    fs.writeFileSync(ADMIN_AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }));
-    console.log('Created empty auth state files');
+    throw error;
   } finally {
     await browser.close();
   }
@@ -120,7 +118,7 @@ async function seedTestUser(user: { email: string; password: string; name: strin
   const hashedPassword = await bcrypt.hash(user.password, 10);
   const now = new Date();
 
-  await UserModel.findOneAndUpdate(
+  return await UserModel.findOneAndUpdate(
     { email: user.email.toLowerCase() },
     {
       $set: {
@@ -156,6 +154,278 @@ async function seedTestUser(user: { email: string; password: string; name: strin
   );
 }
 
+async function seedTestPool(regularUser: any, adminUser: any) {
+  const { getUserModel } = require('../lib/db/models/user');
+  const { getPoolModel } = require('../lib/db/models/pool');
+  const UserModel = getUserModel();
+  const PoolModel = getPoolModel();
+
+  const poolId = 'e2e-pool-0001';
+  const e2eUserIds = [regularUser._id, adminUser._id];
+  const e2eUserEmails = [regularUser.email, adminUser.email];
+  const stalePools = await PoolModel.find({
+    $and: [
+      {
+        $or: [
+          { id: poolId },
+          { name: /^Test Pool \d+$/ },
+          { description: 'A test pool for E2E testing' },
+          { description: 'Seeded pool for authenticated E2E portfolio checks' },
+        ],
+      },
+      {
+        $or: [
+          { id: poolId },
+          { creatorId: { $in: e2eUserIds } },
+          { 'members.email': { $in: e2eUserEmails } },
+        ],
+      },
+    ],
+  }).select('id');
+  const stalePoolIds = stalePools.map((pool: any) => pool.id).filter(Boolean);
+
+  if (stalePoolIds.length > 0) {
+    await PoolModel.deleteMany({ id: { $in: stalePoolIds } });
+    await UserModel.updateMany(
+      { _id: { $in: e2eUserIds } },
+      { $pull: { pools: { $in: stalePoolIds } } }
+    );
+  }
+
+  const now = new Date();
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const contributionAmount = 20;
+  const members = [
+    {
+      id: 1,
+      userId: adminUser._id,
+      name: adminUser.name,
+      email: adminUser.email,
+      joinDate: daysAgo(35).toISOString(),
+      joinedDate: daysAgo(35),
+      role: 'admin',
+      position: 1,
+      status: 'active',
+      paymentsOnTime: 2,
+      paymentsMissed: 0,
+      missedPayments: 0,
+      totalContributed: contributionAmount * 2,
+      payoutReceived: true,
+      hasReceivedPayout: true,
+      payoutDate: daysAgo(21).toISOString(),
+      contributionAmount,
+      payoutMethods: { venmo: '@e2e-admin', preferred: 'venmo' },
+    },
+    {
+      id: 2,
+      userId: regularUser._id,
+      name: regularUser.name,
+      email: regularUser.email,
+      joinDate: daysAgo(35).toISOString(),
+      joinedDate: daysAgo(35),
+      role: 'member',
+      position: 2,
+      status: 'active',
+      paymentsOnTime: 1,
+      paymentsMissed: 0,
+      missedPayments: 0,
+      totalContributed: contributionAmount,
+      payoutReceived: false,
+      hasReceivedPayout: false,
+      payoutDate: '',
+      contributionAmount,
+      payoutMethods: { venmo: '@e2e-user', preferred: 'venmo' },
+    },
+    {
+      id: 3,
+      name: 'E2E Member Three',
+      email: 'e2e-member-three@example.com',
+      joinDate: daysAgo(35).toISOString(),
+      joinedDate: daysAgo(35),
+      role: 'member',
+      position: 3,
+      status: 'active',
+      paymentsOnTime: 2,
+      paymentsMissed: 0,
+      missedPayments: 0,
+      totalContributed: contributionAmount * 2,
+      payoutReceived: false,
+      hasReceivedPayout: false,
+      payoutDate: '',
+      contributionAmount,
+      payoutMethods: { venmo: '@e2e-three', preferred: 'venmo' },
+    },
+    {
+      id: 4,
+      name: 'E2E Member Four',
+      email: 'e2e-member-four@example.com',
+      joinDate: daysAgo(35).toISOString(),
+      joinedDate: daysAgo(35),
+      role: 'member',
+      position: 4,
+      status: 'active',
+      paymentsOnTime: 1,
+      paymentsMissed: 0,
+      missedPayments: 0,
+      totalContributed: contributionAmount,
+      payoutReceived: false,
+      hasReceivedPayout: false,
+      payoutDate: '',
+      contributionAmount,
+      payoutMethods: { venmo: '@e2e-four', preferred: 'venmo' },
+    },
+  ];
+
+  await PoolModel.create({
+    id: poolId,
+    name: 'E2E Savings Circle',
+    description: 'Seeded pool for authenticated E2E portfolio checks',
+    createdAt: daysAgo(35).toISOString(),
+    creatorId: adminUser._id,
+    status: 'active',
+    totalAmount: contributionAmount * members.length,
+    contributionAmount,
+    frequency: 'weekly',
+    startDate: daysAgo(35),
+    currentRound: 2,
+    currentCycle: 1,
+    totalRounds: members.length,
+    totalCycles: 1,
+    nextPayoutDate: daysFromNow(5).toISOString(),
+    memberCount: members.length,
+    maxMembers: 8,
+    members,
+    transactions: [
+      ...members.map((member, index) => ({
+        id: index + 1,
+        type: 'contribution',
+        amount: contributionAmount,
+        date: daysAgo(28).toISOString(),
+        member: member.name,
+        status: 'completed',
+        round: 1,
+      })),
+      {
+        id: members.length + 1,
+        type: 'payout',
+        amount: contributionAmount * members.length,
+        date: daysAgo(21).toISOString(),
+        member: adminUser.name,
+        status: 'completed',
+        round: 1,
+      },
+      {
+        id: members.length + 2,
+        type: 'contribution',
+        amount: contributionAmount,
+        date: daysAgo(2).toISOString(),
+        member: adminUser.name,
+        status: 'completed',
+        round: 2,
+      },
+      {
+        id: members.length + 3,
+        type: 'contribution',
+        amount: contributionAmount,
+        date: daysAgo(2).toISOString(),
+        member: 'E2E Member Three',
+        status: 'completed',
+        round: 2,
+      },
+    ],
+    messages: [
+      {
+        id: 1,
+        author: adminUser.name,
+        content: 'Welcome to the E2E savings circle.',
+        date: daysAgo(35).toISOString(),
+      },
+    ],
+    allowedPaymentMethods: ['venmo', 'paypal', 'zelle'],
+    adminPaymentMethods: {
+      venmo: '@e2e-admin',
+      paypal: 'e2e-admin',
+      zelle: adminUser.email,
+      preferred: 'venmo',
+      updatedAt: now,
+    },
+    currentRoundPayments: [
+      {
+        memberId: 1,
+        memberName: adminUser.name,
+        memberEmail: adminUser.email,
+        amount: contributionAmount,
+        status: 'admin_verified',
+        memberConfirmedAt: daysAgo(2),
+        memberConfirmedVia: 'venmo',
+        adminVerifiedAt: daysAgo(1),
+        adminVerifiedBy: adminUser._id,
+        dueDate: daysFromNow(4),
+        reminderCount: 0,
+        createdAt: daysAgo(7),
+        updatedAt: now,
+      },
+      {
+        memberId: 2,
+        memberName: regularUser.name,
+        memberEmail: regularUser.email,
+        amount: contributionAmount,
+        status: 'pending',
+        dueDate: daysFromNow(4),
+        reminderCount: 0,
+        createdAt: daysAgo(7),
+        updatedAt: now,
+      },
+      {
+        memberId: 3,
+        memberName: 'E2E Member Three',
+        memberEmail: 'e2e-member-three@example.com',
+        amount: contributionAmount,
+        status: 'admin_verified',
+        memberConfirmedAt: daysAgo(2),
+        memberConfirmedVia: 'paypal',
+        adminVerifiedAt: daysAgo(1),
+        adminVerifiedBy: adminUser._id,
+        dueDate: daysFromNow(4),
+        reminderCount: 0,
+        createdAt: daysAgo(7),
+        updatedAt: now,
+      },
+      {
+        memberId: 4,
+        memberName: 'E2E Member Four',
+        memberEmail: 'e2e-member-four@example.com',
+        amount: contributionAmount,
+        status: 'member_confirmed',
+        memberConfirmedAt: daysAgo(1),
+        memberConfirmedVia: 'zelle',
+        dueDate: daysFromNow(4),
+        reminderCount: 0,
+        createdAt: daysAgo(7),
+        updatedAt: now,
+      },
+    ],
+    currentRoundPayoutStatus: 'pending_collection',
+  });
+
+  await UserModel.updateMany(
+    { _id: { $in: [regularUser._id, adminUser._id] } },
+    {
+      $addToSet: { pools: poolId },
+      $set: {
+        payoutMethods: {
+          venmo: '@e2e-user',
+          paypal: 'e2e-user',
+          zelle: regularUser.email,
+          preferred: 'venmo',
+          updatedAt: now,
+        },
+      },
+    }
+  );
+}
+
 async function setupUserAuth(
   browser: ReturnType<typeof chromium.launch> extends Promise<infer T> ? T : never,
   baseURL: string,
@@ -177,16 +447,23 @@ async function setupUserAuth(
     await page.click('button[type="submit"]');
 
     // Wait for navigation - could go to MFA or dashboard
-    await page.waitForURL(/\/(mfa\/verify|dashboard|pools)/, { timeout: 10000 });
+    await page.waitForURL(/\/(mfa\/verify|dashboard|pools)/, { timeout: 30000 });
 
     // Handle MFA if required
     if (page.url().includes('/mfa/verify')) {
+      const codeInput = page.locator('#code');
+      await codeInput.waitFor({ state: 'visible', timeout: 30000 });
+      await page.waitForFunction(() => {
+        const input = document.querySelector<HTMLInputElement>('#code');
+        return Boolean(input && !input.disabled);
+      }, undefined, { timeout: 30000 });
+
       // Fill in MFA code
-      await page.fill('input[name="code"], input[type="text"]', getTestMfaCode());
+      await codeInput.fill(getTestMfaCode());
       await page.click('button[type="submit"]');
 
       // Wait for redirect to dashboard
-      await page.waitForURL(/\/(dashboard|pools)/, { timeout: 10000 });
+      await page.waitForURL(/\/(dashboard|pools)/, { timeout: 30000 });
     }
 
     // Save authentication state

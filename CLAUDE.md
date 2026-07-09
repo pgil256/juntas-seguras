@@ -74,6 +74,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **QR Code Support**: Generate and decode Zelle QR codes
 - **Payment Deep Links**: Open payment apps directly
 - **Escrow System**: Funds tracked until all contributions received
+- **Stripe (TEST MODE only)**: Optional card contributions + payouts. Additive — the manual methods above remain the default.
+
+#### Stripe test-mode flow (proof-of-concept)
+- **Provider abstraction**: `lib/payments/provider.ts` (`PaymentProvider` interface) implemented by `StripeTestProvider` in `lib/payments/providers/stripe.ts`. API routes never call the Stripe SDK directly — they go through `getPaymentProvider()`. The SDK lives only in `lib/stripe/client.ts` and the provider.
+- **Test mode enforced**: `STRIPE_SECRET_KEY` must start with `sk_test_`; `lib/stripe/client.ts` and startup validation (`lib/validation.ts`) refuse live keys. A "TEST MODE — no real money" badge (`components/payments/StripeTestModeBadge.tsx`) appears on every Stripe surface.
+- **Contribute**: `POST /api/pools/[id]/contributions` with `{ action: 'initiate' }` opens a Stripe Checkout Session (test card `4242 4242 4242 4242`) and persists a pending `Payment` (reusing the model's `stripeSessionId`/`stripePaymentIntentId` fields).
+- **Webhook**: `POST /api/webhooks/stripe` (excluded from auth middleware; verifies the signed raw body) handles `checkout.session.completed` and `payment_intent.payment_failed` → updates the `Payment`, records the contribution on the pool, advances escrow to `ready_to_pay` once all contributions are in, writes an `AuditLog`, and sends a notification. DB logic lives in the testable `lib/payments/webhook.ts`.
+- **Payout**: `POST /api/pools/[id]/round-payout` and `POST /api/payments/escrow/release` release through the provider (`method: 'stripe'`), recording a simulated `stripeTransferId` (real Stripe Connect transfers slot in at a documented seam).
+- **Docs**: `docs/stripe-test-mode.md` (test keys, `stripe listen`, test cards, full demo script).
 
 ### Security Features
 - Multi-factor authentication (mandatory)
@@ -281,8 +290,9 @@ GET /api/user/zelle-qr                 # Zelle QR code
 GET /api/user/invitations              # Get pending pool invitations for current user
 ```
 
-### Other Routes (12 endpoints)
+### Other Routes (13 endpoints)
 ```
+POST /api/webhooks/stripe              # Stripe webhook (TEST MODE; no auth, signature-verified)
 POST /api/cron/reminders               # Send reminders (cron)
 POST /api/identity/verification        # Identity verification
 GET/POST /api/notifications            # Notifications
@@ -315,7 +325,7 @@ Optional / feature-gated:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
 - `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID` - Microsoft OAuth
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` - SMS MFA
-- `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` - Stripe Identity (KYC) — scaffolded/WIP; not required to run the app
+- `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` - Stripe **test-mode** card payments + payouts (optional; not required to run the app). Test keys only (`sk_test_`/`pk_test_`/`whsec_`); the app refuses to boot with live keys. See `docs/stripe-test-mode.md`
 - `CRON_SECRET` - Cron job authentication
 
 ## Common Tasks

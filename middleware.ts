@@ -41,6 +41,13 @@ export default async function middleware(request: NextRequest) {
   const secureResponse = (response: NextResponse) =>
     applySecurityHeaders(response, request);
 
+  // Webhooks (e.g. Stripe) authenticate via a signed payload, not a session.
+  // Bypass rate limiting and auth so provider events are never 401'd or dropped;
+  // the route itself verifies the signature before trusting anything.
+  if (pathname.startsWith('/api/webhooks/')) {
+    return secureResponse(NextResponse.next());
+  }
+
   if (pathname.startsWith('/api/')) {
     const limitedResponse = rateLimit(request);
     if (limitedResponse) {

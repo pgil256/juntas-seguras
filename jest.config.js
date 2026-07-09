@@ -15,6 +15,25 @@ const customJestConfig = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
     '<rootDir>/e2e/',
+    // Ignore any leftover git worktrees created under .claude (stale repo copies).
+    '<rootDir>/.claude/',
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/.agents/',
+    '<rootDir>/.claude/',
+    '<rootDir>/.codex/',
+    '<rootDir>/.next/',
+    '<rootDir>/e2e/.auth/',
+    '<rootDir>/playwright-report/',
+    '<rootDir>/test-results/',
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/.agents/',
+    '<rootDir>/.claude/',
+    '<rootDir>/.codex/',
+    '<rootDir>/.next/',
+    '<rootDir>/playwright-report/',
+    '<rootDir>/test-results/',
   ],
   collectCoverageFrom: [
     'app/**/*.{js,jsx,ts,tsx}',

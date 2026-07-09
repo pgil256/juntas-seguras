@@ -88,7 +88,7 @@ test.describe('User Login', () => {
       await page.getByRole('button', { name: /sign in|log in|login/i }).click();
 
       // Should show error message
-      await expect(page.getByText(/invalid.*credentials|incorrect.*email|incorrect.*password|failed/i)).toBeVisible();
+      await expect(page.getByText(/invalid.*credentials|invalid.*email.*password|incorrect.*email|incorrect.*password|failed/i)).toBeVisible();
     });
 
     test('should show error for unverified email', async ({ page }) => {
@@ -179,8 +179,10 @@ test.describe('User Login', () => {
 
     test('should navigate to forgot password page', async ({ page }) => {
       const forgotLink = page.getByRole('link', { name: /forgot.*password|reset.*password/i });
-      await forgotLink.click();
-
+      await Promise.all([
+        page.waitForURL(/forgot|reset|password/i),
+        forgotLink.click(),
+      ]);
       await expect(page).toHaveURL(/forgot|reset|password/i);
     });
   });

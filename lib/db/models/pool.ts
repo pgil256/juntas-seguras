@@ -164,7 +164,8 @@ const PoolSchema = new Schema({
     memberConfirmedAt: { type: Date },
     memberConfirmedVia: {
       type: String,
-      enum: ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other']
+      // 'stripe' = card contribution collected via Stripe Checkout (test mode)
+      enum: ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other', 'stripe']
     },
     adminVerifiedAt: { type: Date },
     adminVerifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -185,7 +186,8 @@ const PoolSchema = new Schema({
   currentRoundPayoutCompletedAt: { type: Date },
   currentRoundPayoutMethod: {
     type: String,
-    enum: ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other']
+    // 'stripe' = payout released via the Stripe provider (simulated transfer in the PoC)
+    enum: ['venmo', 'cashapp', 'paypal', 'zelle', 'cash', 'other', 'stripe']
   },
   currentRoundPayoutNotes: { type: String },
   currentRoundPayoutConfirmedBy: { type: Schema.Types.ObjectId, ref: 'User' }
