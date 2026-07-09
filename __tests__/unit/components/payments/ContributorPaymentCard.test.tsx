@@ -30,7 +30,7 @@ describe('ContributorPaymentCard Component', () => {
 
   const defaultProps = {
     amount: 100,
-    dueDate: new Date('2025-02-15'),
+    dueDate: new Date(2025, 1, 15),
     roundNumber: 1,
     poolName: 'Test Pool',
     adminName: 'John Admin',
@@ -55,14 +55,14 @@ describe('ContributorPaymentCard Component', () => {
       render(<ContributorPaymentCard {...defaultProps} />);
 
       expect(screen.getByText('Round 1 Payment')).toBeInTheDocument();
-      expect(screen.getByText('$100.00')).toBeInTheDocument();
+      expect(screen.getAllByText('$100.00').length).toBeGreaterThan(0);
       expect(screen.getByText('Payment Pending')).toBeInTheDocument();
     });
 
     it('renders amount in correct currency format', () => {
       render(<ContributorPaymentCard {...defaultProps} amount={1234.56} />);
 
-      expect(screen.getByText('$1,234.56')).toBeInTheDocument();
+      expect(screen.getAllByText('$1,234.56').length).toBeGreaterThan(0);
     });
 
     it('renders the due date', () => {

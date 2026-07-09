@@ -356,7 +356,7 @@ Optional / feature-gated:
 
 ## Testing
 
-Comprehensive suite: **92 Jest test files** (unit/integration/security/performance) + **16 Playwright E2E specs**.
+Comprehensive suite: **97 Jest test files** (unit/integration/security/performance) + **16 Playwright E2E specs**.
 
 | Layer | Tool | Directory |
 |-------|------|-----------|
