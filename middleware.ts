@@ -11,8 +11,10 @@ const publicRoutes = [
   '/auth/error',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/case-study',
   '/help',
   '/help/documentation',
+  '/opengraph-image',
   '/privacy',
   '/terms',
   '/api/auth', // Allow all NextAuth routes (signin, callback, session, providers, etc.)

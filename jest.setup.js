@@ -16,6 +16,23 @@ global.ReadableStream = ReadableStream;
 global.TransformStream = TransformStream;
 global.WritableStream = WritableStream;
 
+// Radix UI uses pointer-capture APIs that jsdom does not implement.
+// No-op shims keep interaction tests representative without changing runtime code.
+if (typeof Element !== 'undefined') {
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+  }
+}
+
 // Polyfill Request/Response if not available (needed for some tests)
 // Use getter for url to be compatible with NextRequest
 if (typeof global.Request === 'undefined') {

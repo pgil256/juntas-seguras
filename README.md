@@ -2,7 +2,7 @@
 
 A secure, transparent platform for managing community savings pools (juntas / ROSCAs). Juntas Seguras digitizes traditional rotating savings and credit associations, adding modern security, automation, and transparency for community-based savings groups.
 
-**[Live demo →](https://juntas-seguras.vercel.app)**
+**[Live demo →](https://juntas-seguras.vercel.app)** · **[Engineering case study →](https://juntas-seguras.vercel.app/case-study)** · **[Source →](https://github.com/pgil256/juntas-seguras)**
 
 [![CI](https://github.com/pgil256/juntas-seguras/actions/workflows/ci.yml/badge.svg)](https://github.com/pgil256/juntas-seguras/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
@@ -10,6 +10,8 @@ A secure, transparent platform for managing community savings pools (juntas / RO
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-Jest%20%2B%20Playwright-C21325?logo=jest&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+![Juntas Seguras portfolio landing page](docs/screenshots/portfolio-home.png)
 
 ## Overview
 
@@ -31,12 +33,6 @@ Try it against the deployed app with the seeded demo account (read/write; please
 | Password | `DemoPass123!` |
 
 The demo account is pre-verified and MFA-exempt so you can sign in without email/TOTP setup. It comes pre-populated (via `npm run seed`) with a pool mid-cycle: multiple members, a history of confirmed contributions, and a completed payout.
-
-<!-- TODO(screenshots): add dashboard.png, pool-detail.png, and a create-pool.gif to docs/screenshots/ and embed them here. -->
-<!--
-![Dashboard](docs/screenshots/dashboard.png)
-![Pool detail](docs/screenshots/pool-detail.png)
--->
 
 ## Key Features
 
@@ -123,7 +119,7 @@ The demo account is pre-verified and MFA-exempt so you can sign in without email
 
 ## Testing
 
-Juntas Seguras has a comprehensive test suite (92 Jest test files + 16 Playwright E2E specs) organized by type. See the **[Testing section of the Setup Guide](SETUP_GUIDE.md#testing)** for details.
+Juntas Seguras has a comprehensive test suite (97 Jest test files + 16 Playwright E2E specs) organized by type. See the **[Testing section of the Setup Guide](SETUP_GUIDE.md#testing)** for details.
 
 ### Test Strategy
 

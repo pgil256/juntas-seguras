@@ -16,12 +16,18 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://juntas-seguras.vercel.app"),
+  applicationName: "Juntas Seguras",
   title: {
-    default: "Juntas Seguras - Secure Community Savings Pools",
+    default: "Juntas Seguras — Transparent Community Savings",
     template: "%s | Juntas Seguras",
   },
   description:
-    "Create and manage secure, transparent savings pools with friends, family, and community members. Track contributions, manage payouts, and build wealth together.",
+    "A full-stack platform for secure, transparent community savings pools, with MFA, audit logging, contribution tracking, and coordinated payouts.",
+  authors: [{ name: "Patrick Gilhooley", url: "https://github.com/pgil256" }],
+  creator: "Patrick Gilhooley",
+  category: "technology",
+  alternates: { canonical: "/" },
   keywords: [
     "savings pool",
     "community savings",
@@ -32,9 +38,9 @@ export const metadata: Metadata = {
     "financial management",
   ],
   openGraph: {
-    title: "Juntas Seguras - Secure Community Savings Pools",
+    title: "Juntas Seguras — Transparent Community Savings",
     description:
-      "Save together, build wealth as a community. Create transparent savings pools with friends and family.",
+      "A full-stack fintech case study for secure, auditable community savings pools.",
     url: "https://juntas-seguras.vercel.app",
     siteName: "Juntas Seguras",
     type: "website",
@@ -42,9 +48,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Juntas Seguras - Secure Community Savings Pools",
+    title: "Juntas Seguras — Transparent Community Savings",
     description:
-      "Save together, build wealth as a community. Create transparent savings pools with friends and family.",
+      "A full-stack fintech case study for secure, auditable community savings pools.",
   },
   robots: {
     index: true,

@@ -1,538 +1,319 @@
-// app/page.tsx - Landing page
-"use client";
-
-import { useState } from "react";
+// app/page.tsx - Portfolio-ready product landing page
 import Link from "next/link";
-import Image from "next/image";
 import {
-  Shield,
-  Users,
-  Wallet,
-  CheckCircle,
-  Menu,
-  X,
   ArrowRight,
+  BadgeCheck,
+  CheckCircle2,
+  CircleDollarSign,
+  Code2,
+  Github,
+  KeyRound,
+  Layers3,
+  LockKeyhole,
+  MessageSquareText,
+  ScanLine,
+  ShieldCheck,
   TrendingUp,
-  Lock,
-  Globe,
-  ChevronRight,
+  Users,
+  WalletCards,
 } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Card, CardContent } from "../components/ui/card";
+
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+const repositoryUrl = "https://github.com/pgil256/juntas-seguras";
+
+const productSteps = [
+  {
+    step: "01",
+    title: "Create the pool",
+    description: "Set the contribution, cadence, payout order, and rules for a trusted savings group.",
+    icon: WalletCards,
+  },
+  {
+    step: "02",
+    title: "Coordinate members",
+    description: "Invite participants, discuss each round, send reminders, and keep responsibilities visible.",
+    icon: Users,
+  },
+  {
+    step: "03",
+    title: "Track every round",
+    description: "Confirm contributions, release payouts, and preserve a complete activity and audit history.",
+    icon: TrendingUp,
+  },
+];
+
+const productFeatures = [
+  {
+    title: "Identity and access",
+    description: "Mandatory email or TOTP MFA, OAuth support, protected routes, and rate-limited authentication flows.",
+    icon: KeyRound,
+  },
+  {
+    title: "Transparent payments",
+    description: "Manual payment tracking, QR codes, deep links, and an isolated Stripe test-mode provider flow.",
+    icon: CircleDollarSign,
+  },
+  {
+    title: "Community coordination",
+    description: "Invitations, reminders, threaded discussions, @mentions, read receipts, and direct messaging.",
+    icon: MessageSquareText,
+  },
+  {
+    title: "Traceable decisions",
+    description: "Role-aware actions, contribution history, payout status, notifications, and comprehensive audit logs.",
+    icon: ScanLine,
+  },
+];
+
+const engineeringSignals = [
+  { value: "113", label: "API handlers", detail: "Across 61 App Router route files" },
+  { value: "97", label: "Jest test files", detail: "Unit, integration, security, and performance" },
+  { value: "16", label: "Playwright specs", detail: "Journeys, mobile, payments, and accessibility" },
+  { value: "12", label: "Data models", detail: "Typed Mongoose domain model" },
+];
 
 export default function LandingPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <Link href="/" className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">JS</span>
-                  </div>
-                  <span className="text-xl font-bold text-gray-900">
-                    Juntas Seguras
-                  </span>
-                </Link>
-              </div>
-            </div>
-            {/* Desktop nav */}
-            <div className="hidden sm:flex items-center space-x-2">
-              <Link href="/help">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
-                  How it Works
-                </Button>
-              </Link>
-              <Link href="/help/documentation">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
-                  Documentation
-                </Button>
-              </Link>
-              <div className="w-px h-6 bg-gray-200 mx-2" />
-              <Link href="/auth/signin">
-                <Button variant="ghost" className="text-gray-700 font-medium">
-                  Log in
-                </Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
-                  Get Started
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="sm:hidden inline-flex items-center justify-center p-2 min-h-[44px] min-w-[44px] rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-              aria-controls="mobile-menu"
-              aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <span className="sr-only">
-                {mobileMenuOpen ? "Close menu" : "Open menu"}
-              </span>
-              {mobileMenuOpen ? (
-                <X className="block h-6 w-6" />
-              ) : (
-                <Menu className="block h-6 w-6" />
-              )}
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen overflow-x-hidden bg-white text-slate-950">
+      <MarketingHeader />
 
-      {/* Mobile menu */}
-      <div
-        className={`sm:hidden fixed inset-0 z-[60] overflow-hidden ${
-          mobileMenuOpen ? "" : "pointer-events-none"
-        }`}
-      >
-        <div
-          className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
-            mobileMenuOpen ? "opacity-100" : "opacity-0"
-          }`}
-          onClick={() => setMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-        <div
-          id="mobile-menu"
-          role="dialog"
-          aria-modal="true"
-          aria-hidden={!mobileMenuOpen}
-          aria-label="Mobile navigation"
-          className={`absolute inset-y-0 right-0 w-[80%] max-w-xs bg-white shadow-2xl transform transition-transform duration-300 ease-out ${
-            mobileMenuOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex h-full flex-col bg-white">
-            <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
-              <span className="text-lg font-semibold text-gray-900">Menu</span>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-                aria-label="Close menu"
-              >
-                <X className="h-6 w-6" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="py-3 px-4 space-y-2 bg-white">
-              <Link
-                href="/help"
-                className="block"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Button variant="ghost" className="w-full h-12 justify-start">
-                  Help
-                </Button>
-              </Link>
-              <Link
-                href="/auth/signin"
-                className="block"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Button variant="outline" className="w-full h-12">
-                  Log in
-                </Button>
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="block"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Button className="w-full h-12">Sign up</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <main>
+        <section className="relative isolate overflow-hidden border-b border-slate-200">
+          <div className="absolute inset-0 -z-20 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] opacity-35" />
+          <div className="absolute left-1/2 top-0 -z-10 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-blue-100/70 blur-3xl" />
 
-      {/* Hero section */}
-      <section className="relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-full blur-3xl opacity-60" />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-gradient-to-tl from-emerald-50 to-transparent rounded-full blur-3xl opacity-40" />
-        </div>
-
-        <div className="max-w-7xl mx-auto pt-16 sm:pt-24 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-            <div className="max-w-xl">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium mb-6">
-                <Lock className="h-3.5 w-3.5" />
-                Trusted by communities everywhere
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight leading-[1.1]">
-                Save together,{" "}
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  build wealth
-                </span>{" "}
-                as a community
+          <div className="mx-auto grid max-w-7xl gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:py-28">
+            <div className="max-w-2xl">
+              <Badge variant="info" className="mb-6 gap-2 px-3 py-1.5 text-sm">
+                <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Full-stack fintech portfolio project
+              </Badge>
+              <h1 className="text-4xl font-black tracking-[-0.04em] text-slate-950 sm:text-6xl lg:text-7xl lg:leading-[0.98]">
+                Community savings, made transparent.
               </h1>
-              <p className="mt-6 text-lg sm:text-xl text-gray-500 leading-relaxed">
-                Create secure, transparent savings pools with friends, family,
-                and community members. Track contributions, manage payouts, and
-                grow together.
+              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl">
+                Juntas Seguras turns rotating savings groups into a secure, auditable workflow for contributions,
+                payouts, member coordination, and shared accountability.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Link href="/auth/signup">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-base h-12 px-6 shadow-lg shadow-blue-600/25"
-                  >
-                    Start Your Pool
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/help/documentation">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full sm:w-auto text-base h-12 px-6 border-gray-200"
-                  >
-                    See How it Works
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Social proof */}
-              <div className="mt-10 flex items-center gap-6 text-sm text-gray-500">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-green-500" />
-                  <span>Bank-grade security</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-blue-500" />
-                  <span>Venmo, PayPal, Zelle</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hero visual */}
-            <div className="mt-12 lg:mt-0 hidden sm:block">
-              <div className="relative">
-                {/* Decorative cards behind main image */}
-                <div className="absolute -top-4 -right-4 w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl transform rotate-2" />
-                <div className="absolute -top-2 -right-2 w-full h-full bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl transform rotate-1" />
-
-                {/* Main card */}
-                <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <p className="text-sm text-gray-500">Family Savings Pool</p>
-                      <p className="text-2xl font-bold text-gray-900">$2,400.00</p>
-                    </div>
-                    <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="mb-6">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-500">Round 3 of 6</span>
-                      <span className="font-medium text-gray-700">50%</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full w-1/2 transition-all" />
-                    </div>
-                  </div>
-
-                  {/* Member avatars */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {["bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-purple-500", "bg-cyan-500"].map(
-                        (color, i) => (
-                          <div
-                            key={i}
-                            className={`w-8 h-8 rounded-full ${color} border-2 border-white flex items-center justify-center text-white text-xs font-medium`}
-                          >
-                            {["M", "S", "J", "A", "R", "L"][i]}
-                          </div>
-                        )
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-500">6 members</span>
-                  </div>
-
-                  {/* Recent activity */}
-                  <div className="mt-6 pt-6 border-t border-gray-100 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Maria paid</p>
-                          <p className="text-xs text-gray-500">2 hours ago</p>
-                        </div>
-                      </div>
-                      <span className="text-sm font-medium text-green-600">+$400</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Sofia paid</p>
-                          <p className="text-xs text-gray-500">5 hours ago</p>
-                        </div>
-                      </div>
-                      <span className="text-sm font-medium text-green-600">+$400</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works section */}
-      <section className="py-16 sm:py-24 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
-              How Juntas Seguras Works
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              Get your community savings pool running in three simple steps.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
-            {[
-              {
-                step: "01",
-                title: "Create Your Pool",
-                description:
-                  "Set up a new savings pool with your preferred contribution amount, frequency, and payout schedule.",
-                icon: Wallet,
-                color: "blue",
-              },
-              {
-                step: "02",
-                title: "Invite Members",
-                description:
-                  "Send invitations to trusted friends, family, or community members to join your pool.",
-                icon: Users,
-                color: "indigo",
-              },
-              {
-                step: "03",
-                title: "Track & Grow",
-                description:
-                  "Everyone contributes on schedule. Track payments, manage rounds, and watch your savings grow.",
-                icon: TrendingUp,
-                color: "emerald",
-              },
-            ].map((item) => (
-              <div key={item.step} className="relative">
-                <div className="text-6xl font-extrabold text-gray-500 mb-4">
-                  {item.step}
-                </div>
-                <div
-                  className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 ${
-                    item.color === "blue"
-                      ? "bg-blue-100 text-blue-600"
-                      : item.color === "indigo"
-                      ? "bg-indigo-100 text-indigo-600"
-                      : "bg-emerald-100 text-emerald-600"
-                  }`}
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/auth/signin"
+                  className={cn(buttonVariants({ size: "lg" }), "gap-2 bg-blue-700 shadow-lg shadow-blue-700/20 hover:bg-blue-800")}
                 >
-                  <item.icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-gray-500 leading-relaxed">
-                  {item.description}
-                </p>
+                  Explore the demo
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <Link
+                  href="/case-study"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-slate-300 bg-white/80")}
+                >
+                  Read the case study
+                </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
+                <span className="inline-flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  Mandatory MFA
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <BadgeCheck className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                  Audit-first workflows
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <Github className="h-4 w-4 text-slate-700" aria-hidden="true" />
+                  Open source
+                </span>
+              </div>
+            </div>
 
-      {/* Features section */}
-      <section className="py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
-              Built for Trust & Transparency
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              Every feature is designed to keep your community&apos;s money safe
-              and your pool running smoothly.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                icon: Shield,
-                title: "End-to-End Security",
-                description:
-                  "Multi-factor authentication, identity verification, and comprehensive audit logging protect every transaction.",
-                gradient: "from-blue-500 to-blue-600",
-                bg: "bg-blue-50",
-              },
-              {
-                icon: Users,
-                title: "Member Management",
-                description:
-                  "Invite members, set roles, track contributions, and send reminders to keep everyone on schedule.",
-                gradient: "from-emerald-500 to-emerald-600",
-                bg: "bg-emerald-50",
-              },
-              {
-                icon: Wallet,
-                title: "Flexible Payments",
-                description:
-                  "Support for Venmo, PayPal, Zelle, and Cash App. Generate QR codes and payment deep links.",
-                gradient: "from-purple-500 to-purple-600",
-                bg: "bg-purple-50",
-              },
-              {
-                icon: CheckCircle,
-                title: "Full Transparency",
-                description:
-                  "Real-time dashboards show payment schedules, contribution history, analytics, and upcoming payouts.",
-                gradient: "from-amber-500 to-amber-600",
-                bg: "bg-amber-50",
-              },
-            ].map((feature) => (
-              <Card
-                key={feature.title}
-                className="group border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
-              >
-                <CardContent className="pt-6 pb-6">
-                  <div
-                    className={`inline-flex items-center justify-center w-11 h-11 rounded-lg ${feature.bg} mb-4`}
-                  >
-                    <feature.icon
-                      className={`h-5 w-5 bg-gradient-to-br ${feature.gradient} bg-clip-text`}
-                      style={{
-                        color:
-                          feature.gradient.includes("blue")
-                            ? "#3b82f6"
-                            : feature.gradient.includes("emerald")
-                            ? "#10b981"
-                            : feature.gradient.includes("purple")
-                            ? "#8b5cf6"
-                            : "#f59e0b",
-                      }}
-                    />
+            <div className="relative mx-auto w-full max-w-xl">
+              <div className="absolute -inset-3 -z-10 rotate-2 rounded-[2rem] bg-blue-200/60" />
+              <div className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/15 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Family Savings Pool</p>
+                    <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">$2,400.00</p>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+                  <Badge variant="success" className="gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    On track
+                  </Badge>
+                </div>
 
-      {/* Stats section */}
-      <section className="py-16 sm:py-20 bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { label: "Payment Methods", value: "4+", detail: "Venmo, PayPal, Zelle, Cash App" },
-              { label: "Security Layers", value: "MFA", detail: "Multi-factor authentication" },
-              { label: "API Endpoints", value: "60", detail: "Full-featured REST API" },
-              { label: "Uptime", value: "99.9%", detail: "Hosted on Vercel" },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                  {stat.value}
+                <div className="mt-7">
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span className="text-slate-500">Round 3 of 6</span>
+                    <span className="font-semibold tabular-nums text-slate-700">50%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full w-1/2 rounded-full bg-blue-700" />
+                  </div>
                 </div>
-                <div className="mt-1 text-sm font-medium text-gray-300">
-                  {stat.label}
+
+                <div className="mt-7 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Next payout</p>
+                    <p className="mt-2 font-semibold text-slate-900">Maria Santos</p>
+                    <p className="mt-1 text-sm text-slate-500">Due August 1</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Contributed</p>
+                    <p className="mt-2 font-semibold tabular-nums text-slate-900">4 of 6</p>
+                    <p className="mt-1 text-sm text-slate-500">2 reminders sent</p>
+                  </div>
                 </div>
-                <div className="mt-0.5 text-xs text-gray-300">{stat.detail}</div>
+
+                <div className="mt-5 rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">S</span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Sofia contributed</p>
+                        <p className="text-xs text-slate-500">Confirmed by the pool admin</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold tabular-nums text-emerald-700">+$400</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-slate-800 bg-slate-950 py-10 text-white" aria-label="Engineering project statistics">
+          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-10 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
+            {engineeringSignals.map((signal) => (
+              <div key={signal.label}>
+                <p className="text-3xl font-black tracking-tight tabular-nums text-white sm:text-4xl">{signal.value}</p>
+                <p className="mt-1 text-sm font-semibold text-blue-300">{signal.label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{signal.detail}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA section */}
-      <section className="py-16 sm:py-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
-            Ready to start saving together?
-          </h2>
-          <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
-            Join communities who trust Juntas Seguras to manage their savings
-            pools securely and transparently.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/auth/signup">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-base h-12 px-8 shadow-lg shadow-blue-600/25"
-              >
-                Create Your Pool
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/auth/signin">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto text-base h-12 px-8 border-gray-200"
-              >
-                Sign In
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
+        <section id="how-it-works" className="scroll-mt-20 bg-slate-50 py-20 sm:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">The product</p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">A clear workflow for a trust-based tradition.</h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Every member sees the same schedule, contribution state, payout order, and conversation history.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              {productSteps.map((item) => (
+                <Card key={item.step} className="border-slate-200 shadow-sm">
+                  <CardContent className="p-6 sm:p-7">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-bold text-blue-700">{item.step}</span>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                        <item.icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <h3 className="mt-8 text-xl font-bold text-slate-950">{item.title}</h3>
+                    <p className="mt-3 leading-7 text-slate-600">{item.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-100 py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
-                <span className="text-white font-bold text-xs">JS</span>
+        <section id="features" className="scroll-mt-20 py-20 sm:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Built beyond the happy path</p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">Trust is a product feature.</h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                The system combines financial workflow clarity with the security and communication tools real groups need.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-6 sm:grid-cols-2">
+              {productFeatures.map((feature) => (
+                <div key={feature.title} className="flex gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+                    <feature.icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-950">{feature.title}</h3>
+                    <p className="mt-2 leading-7 text-slate-600">{feature.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-blue-700 py-20 text-white sm:py-24">
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-200">Engineering case study</p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">A production-shaped system, documented honestly.</h2>
+              <p className="mt-5 max-w-xl text-lg leading-8 text-blue-100">
+                Explore the domain model, security boundaries, payment-provider seam, testing strategy, and the tradeoffs behind the implementation.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/case-study"
+                  className={cn(buttonVariants({ size: "lg" }), "gap-2 bg-white text-blue-800 hover:bg-blue-50")}
+                >
+                  View the case study
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <Link
+                  href={repositoryUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }), "gap-2 border-blue-300 bg-transparent text-white hover:border-white hover:bg-blue-800 hover:text-white")}
+                >
+                  <Github className="h-4 w-4" aria-hidden="true" />
+                  Inspect the source
+                </Link>
               </div>
-              <span className="text-sm font-medium text-gray-900">
-                Juntas Seguras
-              </span>
             </div>
-            <div className="flex items-center gap-6 text-sm text-gray-500">
-              <Link href="/help" className="hover:text-gray-700 transition-colors">
-                Help
-              </Link>
-              <Link href="/privacy" className="hover:text-gray-700 transition-colors">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-gray-700 transition-colors">
-                Terms
-              </Link>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                { icon: Layers3, title: "Layered architecture", text: "App Router UI, typed route handlers, service boundaries, and Mongoose models." },
+                { icon: LockKeyhole, title: "Defense in depth", text: "MFA, authorization checks, validation, rate limits, headers, and audit events." },
+                { icon: ShieldCheck, title: "Safe payment scope", text: "Manual methods by default; Stripe is isolated and test-mode-only by design." },
+                { icon: Code2, title: "Automated confidence", text: "CI gates lint, types, Jest suites, and production builds; Playwright runs nightly." },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border border-blue-500 bg-blue-800/60 p-5">
+                  <item.icon className="h-5 w-5 text-blue-200" aria-hidden="true" />
+                  <h3 className="mt-4 font-bold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-blue-100">{item.text}</p>
+                </div>
+              ))}
             </div>
-            <p className="text-sm text-gray-600">
-              &copy; 2026 Juntas Seguras
+          </div>
+        </section>
+
+        <section className="py-20 sm:py-24">
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">See it in context</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">Follow a complete savings round.</h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+              The demo account is preloaded with members, confirmed contributions, discussion activity, and a completed payout—no signup required.
             </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/auth/signin" className={cn(buttonVariants({ size: "lg" }), "gap-2 bg-blue-700 hover:bg-blue-800")}>Try the demo <ArrowRight className="h-4 w-4" /></Link>
+              <Link href="/help/documentation" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-slate-300")}>Browse documentation</Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </section>
+      </main>
+
+      <MarketingFooter />
     </div>
   );
 }
