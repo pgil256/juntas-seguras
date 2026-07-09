@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { useEarlyPayout } from '../../lib/hooks/useEarlyPayout';
+import { formatCalendarDate } from '../../lib/utils';
 import {
   DollarSign,
   Loader2,
@@ -88,7 +89,7 @@ export function EarlyPayoutModal({
   // Format date
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatCalendarDate(dateString, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -148,7 +149,12 @@ export function EarlyPayoutModal({
         <div className="space-y-4 py-4">
           {/* Loading state */}
           {isLoading && !earlyPayoutStatus && (
-            <div className="flex justify-center items-center py-8">
+            <div
+              className="flex justify-center items-center py-8"
+              role="status"
+              aria-live="polite"
+              aria-label="Checking early payout status"
+            >
               <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
             </div>
           )}

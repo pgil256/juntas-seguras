@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Check, AlertCircle, Loader2, Calendar } from "lucide-react";
+import { Clock, Check, AlertCircle, Loader2, Calendar, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
@@ -14,6 +14,7 @@ import {
 } from "../ui/select";
 import { PaymentLinkButton } from "./PaymentLinkButton";
 import { ZelleCopyButton, ZelleInstructionsCard } from "./ZelleCopyButton";
+import { StripeTestModeBadge } from "./StripeTestModeBadge";
 import { cn } from "../../lib/utils";
 import {
   generatePayoutLink,
@@ -44,6 +45,10 @@ interface ContributorPaymentCardProps {
 
   // Callbacks
   onConfirmPayment: (method: ManualPaymentMethod) => Promise<void>;
+
+  // Optional Stripe card option (TEST MODE). Additive — manual methods still work.
+  cardPaymentEnabled?: boolean;
+  onPayWithCard?: () => void | Promise<void>;
 
   className?: string;
 }
@@ -104,11 +109,15 @@ export function ContributorPaymentCard({
   memberConfirmedVia,
   adminVerifiedAt,
   onConfirmPayment,
+  cardPaymentEnabled = false,
+  onPayWithCard,
   className,
 }: ContributorPaymentCardProps) {
   const [selectedMethod, setSelectedMethod] = useState<ManualPaymentMethod | ''>('');
   const [confirming, setConfirming] = useState(false);
   const [showConfirmSection, setShowConfirmSection] = useState(false);
+  const [payingWithCard, setPayingWithCard] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const formattedAmount = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -158,6 +167,22 @@ export function ContributorPaymentCard({
       console.error('Failed to confirm payment:', error);
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handlePayWithCard = async () => {
+    if (!onPayWithCard) return;
+
+    setPayingWithCard(true);
+    setCardError(null);
+    try {
+      await onPayWithCard();
+    } catch (error) {
+      setCardError(
+        error instanceof Error ? error.message : 'Could not start card payment. Please try again.'
+      );
+    } finally {
+      setPayingWithCard(false);
     }
   };
 
@@ -226,6 +251,39 @@ export function ContributorPaymentCard({
                 timeStyle: 'short',
               }).format(new Date(adminVerifiedAt))}
             </p>
+          </div>
+        )}
+
+        {/* Card payment option (Stripe, TEST MODE) — additive to manual methods */}
+        {canConfirm && cardPaymentEnabled && (
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-900">Pay by card</h4>
+              <StripeTestModeBadge />
+            </div>
+            <Button
+              onClick={handlePayWithCard}
+              disabled={payingWithCard}
+              variant="outline"
+              className="w-full"
+            >
+              {payingWithCard ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Starting checkout&hellip;
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pay with card (Stripe test)
+                </>
+              )}
+            </Button>
+            {cardError && (
+              <p className="text-sm text-red-600 mt-2" role="alert">
+                {cardError}
+              </p>
+            )}
           </div>
         )}
 

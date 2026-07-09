@@ -24,7 +24,7 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen overflow-x-hidden bg-white">
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -69,7 +69,9 @@ export default function LandingPage() {
             {/* Mobile menu button */}
             <button
               type="button"
-              className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              className="sm:hidden inline-flex items-center justify-center p-2 min-h-[44px] min-w-[44px] rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              aria-controls="mobile-menu"
+              aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               <span className="sr-only">
@@ -83,37 +85,73 @@ export default function LandingPage() {
             </button>
           </div>
         </div>
-        {/* Mobile menu */}
-        <div className={`sm:hidden ${mobileMenuOpen ? "block" : "hidden"}`}>
-          <div className="py-3 px-4 space-y-2 bg-white border-t border-gray-100">
-            <Link
-              href="/help"
-              className="block"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Button variant="ghost" className="w-full justify-start">
-                How it Works
-              </Button>
-            </Link>
-            <Link
-              href="/auth/signin"
-              className="block"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Button variant="outline" className="w-full">
-                Log in
-              </Button>
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="block"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Button className="w-full">Get Started</Button>
-            </Link>
+      </nav>
+
+      {/* Mobile menu */}
+      <div
+        className={`sm:hidden fixed inset-0 z-[60] overflow-hidden ${
+          mobileMenuOpen ? "" : "pointer-events-none"
+        }`}
+      >
+        <div
+          className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+            mobileMenuOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+        <div
+          id="mobile-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-hidden={!mobileMenuOpen}
+          aria-label="Mobile navigation"
+          className={`absolute inset-y-0 right-0 w-[80%] max-w-xs bg-white shadow-2xl transform transition-transform duration-300 ease-out ${
+            mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="flex h-full flex-col bg-white">
+            <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
+              <span className="text-lg font-semibold text-gray-900">Menu</span>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                aria-label="Close menu"
+              >
+                <X className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="py-3 px-4 space-y-2 bg-white">
+              <Link
+                href="/help"
+                className="block"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Button variant="ghost" className="w-full h-12 justify-start">
+                  Help
+                </Button>
+              </Link>
+              <Link
+                href="/auth/signin"
+                className="block"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Button variant="outline" className="w-full h-12">
+                  Log in
+                </Button>
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="block"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Button className="w-full h-12">Sign up</Button>
+              </Link>
+            </div>
           </div>
         </div>
-      </nav>
+      </div>
 
       {/* Hero section */}
       <section className="relative overflow-hidden">

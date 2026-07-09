@@ -47,19 +47,30 @@ const ENV_VAR_CONFIG: EnvVarConfig[] = [
     name: 'EMAIL_FROM',
     required: 'production',
   },
-  // Stripe — Identity / KYC verification (scaffolded, work in progress).
-  // Optional: the app runs fine without these. If set, use test-mode keys.
+  // Stripe — TEST MODE ONLY (proof-of-concept card contributions + payouts).
+  // All three are optional: the app runs fine without them and falls back to
+  // the manual payment methods. If they ARE set, they MUST be test-mode keys —
+  // we refuse to boot with a live key so no real money can ever move.
   {
     name: 'STRIPE_SECRET_KEY',
     required: false,
+    validate: (v) => v.startsWith('sk_test_'),
+    errorMessage:
+      'STRIPE_SECRET_KEY must be a Stripe TEST-mode secret key (starts with "sk_test_"). This app supports Stripe test mode only — live keys are rejected.',
   },
   {
     name: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
     required: false,
+    validate: (v) => v.startsWith('pk_test_'),
+    errorMessage:
+      'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must be a Stripe TEST-mode publishable key (starts with "pk_test_").',
   },
   {
     name: 'STRIPE_WEBHOOK_SECRET',
     required: false,
+    validate: (v) => v.startsWith('whsec_'),
+    errorMessage:
+      'STRIPE_WEBHOOK_SECRET must be a Stripe webhook signing secret (starts with "whsec_"). Get it from `stripe listen` or the Dashboard webhook endpoint.',
   },
   // App URL
   {
@@ -172,8 +183,11 @@ export function validateFeatureEnvVars(feature: 'email' | 'stripe') {
       }
       break;
     case 'stripe':
-      if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PUBLISHABLE_KEY) {
-        throw new Error('Stripe feature requires STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY environment variables');
+      if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        throw new Error('Stripe feature requires STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variables');
+      }
+      if (!process.env.STRIPE_SECRET_KEY.startsWith('sk_test_')) {
+        throw new Error('Stripe feature requires a TEST-mode secret key (sk_test_…). This app supports Stripe test mode only.');
       }
       break;
     default:

@@ -132,7 +132,8 @@ export interface PoolMessage {
 }
 
 export type PaymentMethodType = 'venmo' | 'cashapp' | 'paypal' | 'zelle';
-export type ManualPaymentMethod = 'venmo' | 'cashapp' | 'paypal' | 'zelle' | 'cash' | 'other';
+// 'stripe' is the card option (Stripe Checkout, test mode); the rest are manual P2P.
+export type ManualPaymentMethod = 'venmo' | 'cashapp' | 'paypal' | 'zelle' | 'cash' | 'other' | 'stripe';
 export type RoundPaymentStatus = 'pending' | 'member_confirmed' | 'admin_verified' | 'late' | 'missed' | 'excused';
 export type PayoutStatus = 'pending_collection' | 'ready_to_pay' | 'paid' | 'completed';
 

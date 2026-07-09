@@ -11,6 +11,8 @@ import {
 } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { PaymentDetails } from '../../types/payment';
+import { StripeTestModeBadge } from './StripeTestModeBadge';
+import { formatCalendarDate } from '../../lib/utils';
 
 // Type definitions
 interface PaymentProcessingModalProps {
@@ -45,12 +47,11 @@ export function PaymentProcessingModal({
   };
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
+    return formatCalendarDate(dateString, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    });
   };
 
   const handlePayWithStripe = async () => {
@@ -101,6 +102,10 @@ export function PaymentProcessingModal({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex justify-center">
+          <StripeTestModeBadge />
+        </div>
+
         {processingState === 'initial' && (
           <div className="py-4 space-y-6">
             <div className="bg-gray-50 p-4 rounded-md">
@@ -119,8 +124,13 @@ export function PaymentProcessingModal({
             </div>
 
             <div className="border-t pt-4">
-              <p className="text-sm text-gray-600 mb-4 text-center">
+              <p className="text-sm text-gray-600 mb-2 text-center">
                 Click the button below to pay securely with Stripe
+              </p>
+              <p className="text-xs text-gray-500 mb-4 text-center">
+                You&apos;ll be redirected to Stripe Checkout. Use test card{' '}
+                <span className="font-mono font-medium">4242 4242 4242 4242</span>, any
+                future expiry, and any CVC.
               </p>
 
               <Button
@@ -129,7 +139,7 @@ export function PaymentProcessingModal({
                 size="lg"
               >
                 <CreditCard className="mr-2 h-5 w-5" />
-                Pay with Stripe
+                Pay with card (Stripe test)
               </Button>
             </div>
 
@@ -142,7 +152,12 @@ export function PaymentProcessingModal({
         )}
 
         {processingState === 'processing' && (
-          <div className="py-8 flex flex-col items-center justify-center">
+          <div
+            className="py-8 flex flex-col items-center justify-center"
+            role="status"
+            aria-live="polite"
+            aria-label="Preparing checkout"
+          >
             <Loader2 className="h-16 w-16 text-blue-500 animate-spin mb-4" />
             <p className="text-xl font-medium text-gray-900">Preparing Checkout</p>
             <p className="text-gray-500 mt-2">Please wait while we set up your payment...</p>

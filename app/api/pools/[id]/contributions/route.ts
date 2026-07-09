@@ -4,6 +4,9 @@ import { getPoolModel } from '../../../../../lib/db/models/pool';
 import { TransactionType, TransactionStatus } from '../../../../../types/payment';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { createNotification, notifyPoolMembers, NotificationTemplates } from '../../../../../lib/services/notifications';
+import { getPaymentModel, generatePaymentId } from '../../../../../lib/db/models/payment';
+import { getPaymentProvider } from '../../../../../lib/payments/providers/stripe';
+import { isStripeConfigured } from '../../../../../lib/stripe/client';
 
 const Pool = getPoolModel();
 
@@ -238,6 +241,103 @@ export async function POST(
 
     const currentRound = pool.currentRound;
     const userMemberEmailLower = userMember.email?.toLowerCase();
+
+    // Handle initiate action - start a Stripe Checkout session to pay by card (TEST MODE).
+    // This is additive: manual methods (confirm_manual) remain fully supported.
+    if (action === 'initiate') {
+      if (!isStripeConfigured()) {
+        return NextResponse.json(
+          { error: 'Card payments are unavailable: Stripe is not configured in this environment.' },
+          { status: 503 }
+        );
+      }
+
+      // Block if this member already contributed for the current round.
+      const existingContribution = pool.transactions.find(
+        (t: PoolTransactionLite) =>
+          t.member === userMember.name &&
+          t.type === TransactionType.CONTRIBUTION &&
+          t.round === currentRound
+      );
+      if (existingContribution) {
+        return NextResponse.json(
+          { error: 'You have already contributed for this round' },
+          { status: 400 }
+        );
+      }
+      const verifiedPayment = pool.currentRoundPayments?.find(
+        (p: RoundPaymentLite) =>
+          (p.memberId === userMember.id || p.memberEmail?.toLowerCase() === userMemberEmailLower) &&
+          p.status === 'admin_verified'
+      );
+      if (verifiedPayment) {
+        return NextResponse.json(
+          { error: 'Your contribution for this round is already recorded' },
+          { status: 400 }
+        );
+      }
+
+      const amount = pool.contributionAmount;
+      const paymentId = generatePaymentId();
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      // Stripe substitutes {CHECKOUT_SESSION_ID} into the success URL on redirect.
+      const successUrl = `${appUrl}/payments/complete?success=true&session_id={CHECKOUT_SESSION_ID}&poolId=${encodeURIComponent(poolId)}`;
+      const cancelUrl = `${appUrl}/payments/complete?canceled=true&poolId=${encodeURIComponent(poolId)}`;
+
+      try {
+        const provider = getPaymentProvider();
+        const checkout = await provider.createCheckout({
+          poolId,
+          poolName: pool.name,
+          memberId: userMember.id,
+          round: currentRound,
+          amount,
+          currency: 'usd',
+          paymentRef: paymentId,
+          customerEmail: user.email,
+          successUrl,
+          cancelUrl,
+        });
+
+        // Persist a PENDING Payment now; the webhook flips it to COMPLETED.
+        const Payment = getPaymentModel();
+        await Payment.create({
+          paymentId,
+          userId: user._id,
+          poolId,
+          amount,
+          currency: 'USD',
+          type: TransactionType.CONTRIBUTION,
+          status: TransactionStatus.PENDING,
+          description: `Card contribution (Stripe test) — ${pool.name}, round ${currentRound}`,
+          member: userMember.name,
+          round: currentRound,
+          stripeSessionId: checkout.reference,
+          failureCount: 0,
+        });
+
+        return NextResponse.json({
+          success: true,
+          action: 'initiate',
+          approvalUrl: checkout.checkoutUrl,
+          sessionId: checkout.reference,
+          paymentId,
+          testMode: checkout.testMode,
+        });
+      } catch (stripeError) {
+        console.error('Error creating Stripe checkout session:', stripeError);
+        return NextResponse.json(
+          {
+            error:
+              stripeError instanceof Error
+                ? stripeError.message
+                : 'Failed to start card payment',
+          },
+          { status: 502 }
+        );
+      }
+    }
 
     // Handle confirm_manual action - member confirms they've paid via manual method
     if (action === 'confirm_manual') {

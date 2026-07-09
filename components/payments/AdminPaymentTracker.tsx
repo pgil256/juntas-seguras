@@ -106,6 +106,7 @@ const methodLabels: Record<ManualPaymentMethod, string> = {
   zelle: 'Zelle',
   cash: 'Cash',
   other: 'Other',
+  stripe: 'Card (Stripe test)',
 };
 
 interface PaymentRowProps {

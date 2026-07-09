@@ -216,6 +216,7 @@ test.describe('Touch Targets', () => {
 
       // Skip hidden elements
       if (!(await element.isVisible())) continue;
+      if ((await element.getAttribute('data-nextjs-dev-tools-button')) === 'true') continue;
 
       const box = await element.boundingBox();
       if (!box) continue;
@@ -293,6 +294,7 @@ test.describe('Touch Targets', () => {
     for (let i = 0; i < count; i++) {
       const button = buttons.nth(i);
       if (!(await button.isVisible())) continue;
+      if ((await button.getAttribute('data-nextjs-dev-tools-button')) === 'true') continue;
 
       const box = await button.boundingBox();
       if (!box) continue;
@@ -400,7 +402,7 @@ test.describe('Mobile Viewport Content Layout', () => {
 
       if (firstBox && secondBox) {
         // Cards should be stacked (second card's top should be below first card's bottom)
-        expect(secondBox.top).toBeGreaterThanOrEqual(firstBox.bottom - 10); // Allow small overlap for margins
+        expect(secondBox.y).toBeGreaterThanOrEqual(firstBox.y + firstBox.height - 10); // Allow small overlap for margins
       }
     }
   });

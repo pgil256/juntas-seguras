@@ -103,6 +103,7 @@ export function PoolCard({
   if (variant === 'compact') {
     return (
       <div
+        data-testid="pool-card"
         onClick={handleClick}
         className={cn(
           'p-4 rounded-lg border bg-white card-interactive btn-press',
@@ -177,6 +178,7 @@ export function PoolCard({
   // Default full card
   return (
     <Card
+      data-testid="pool-card"
       className={cn(
         'cursor-pointer hover-glow btn-press overflow-hidden',
         userIsRecipient && 'ring-2 ring-emerald-200',

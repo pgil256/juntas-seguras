@@ -166,14 +166,20 @@ export function InviteMembersDialog({
     }
   };
   
-  const copyInviteLink = () => {
-    if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink);
+  const copyInviteLink = async () => {
+    if (!inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setError(null);
       setLinkCopied(true);
 
       setTimeout(() => {
         setLinkCopied(false);
       }, 2000);
+    } catch (err) {
+      console.error('Error copying invite link:', err);
+      setError('Unable to copy invite link. Please copy it manually.');
     }
   };
 
@@ -244,6 +250,7 @@ export function InviteMembersDialog({
                     size="sm"
                     onClick={() => removeEmailField(index)}
                     disabled={emails.length === 1}
+                    aria-label={`Remove email ${index + 1}`}
                     className="h-8 w-8 p-1"
                   >
                     <X className="h-4 w-4" />
@@ -298,6 +305,7 @@ export function InviteMembersDialog({
                       variant="outline"
                       size="sm"
                       onClick={copyInviteLink}
+                      aria-label={linkCopied ? 'Invite link copied' : 'Copy invite link'}
                       title="Copy link"
                     >
                       {linkCopied ? (
@@ -312,6 +320,7 @@ export function InviteMembersDialog({
                         variant="outline"
                         size="sm"
                         onClick={handleNativeShare}
+                        aria-label="Share invite link"
                         title="Share"
                         className="bg-blue-50 hover:bg-blue-100 border-blue-200"
                       >

@@ -26,31 +26,28 @@ test.describe('Pool Details View', () => {
     await expect(poolName).toBeVisible();
 
     // Contribution amount should be visible
-    await expect(authenticatedPage.locator('text=/\\$\\d+|contribution|amount/i')).toBeVisible();
+    await expect(authenticatedPage.locator('text=/\\$\\d+|contribution|amount/i').first()).toBeVisible();
   });
 
   test('should display current round information', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/my-pool');
 
     // Round info should be displayed
-    const roundInfo = authenticatedPage.locator('[data-testid="current-round"], text=/round|week/i');
-    await expect(roundInfo.first()).toBeVisible();
+    await expect(authenticatedPage.getByText(/round|week/i).first()).toBeVisible();
   });
 
   test('should display member list', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/my-pool');
 
     // Member list or section should exist
-    const memberSection = authenticatedPage.locator('[data-testid="members"], text=/members|participants/i');
-    await expect(memberSection.first()).toBeVisible();
+    await expect(authenticatedPage.getByText(/members|participants/i).first()).toBeVisible();
   });
 
   test('should display payout recipient for current round', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/my-pool');
 
     // Current recipient info
-    const recipientInfo = authenticatedPage.locator('[data-testid="recipient"], text=/recipient|receives|payout/i');
-    await expect(recipientInfo.first()).toBeVisible();
+    await expect(authenticatedPage.getByText(/recipient|receives|payout/i).first()).toBeVisible();
   });
 });
 
@@ -59,8 +56,7 @@ test.describe('Payment Confirmation Flow', () => {
     await authenticatedPage.goto('/my-pool');
 
     // Payment status badges should be visible
-    const statusBadges = authenticatedPage.locator('[data-testid*="status"], .badge, [class*="badge"]');
-    await expect(statusBadges.first()).toBeVisible();
+    await expect(authenticatedPage.getByText(/status|pending|verified|confirmed|in progress/i).first()).toBeVisible();
   });
 
   test('should show confirm payment button when payment due', async ({ authenticatedPage }) => {
@@ -149,15 +145,16 @@ test.describe('Pool Member Management (Admin)', () => {
     await adminPage.goto('/my-pool');
 
     // Admin badge or controls should be visible for admin user
-    const adminControls = adminPage.locator('[data-testid="admin-controls"], text=/admin|manage|settings/i');
-    await expect(adminControls.first()).toBeVisible();
+    await expect(adminPage.getByRole('button', { name: /invite members|delete pool/i }).first()).toBeVisible();
   });
 
   test('should access member management for admin', async ({ adminPage }) => {
     await adminPage.goto('/my-pool');
 
     // Look for member management link
-    const manageMembers = adminPage.locator('text=/manage members|member management/i, [data-testid="manage-members"]');
+    const manageMembers = adminPage.getByRole('button', { name: /invite members/i }).or(
+      adminPage.getByText(/manage members|member management/i)
+    );
 
     if (await manageMembers.first().isVisible()) {
       await manageMembers.first().click();
@@ -200,10 +197,11 @@ test.describe('Payment History', () => {
     const paymentRecords = authenticatedPage.locator('[data-testid="payment-record"], tr, [data-testid="payment-item"]');
     const emptyState = authenticatedPage.locator('text=/no payments|no transactions/i');
 
-    const hasRecords = await paymentRecords.count() > 0;
-    const hasEmptyState = await emptyState.isVisible().catch(() => false);
-
-    expect(hasRecords || hasEmptyState).toBeTruthy();
+    await expect.poll(async () => {
+      const hasRecords = await paymentRecords.count() > 0;
+      const hasEmptyState = await emptyState.isVisible().catch(() => false);
+      return hasRecords || hasEmptyState;
+    }).toBeTruthy();
   });
 
   test('should show upcoming payments section', async ({ authenticatedPage }) => {

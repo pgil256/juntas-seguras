@@ -35,6 +35,9 @@ export {
 // Contributor payment card
 export { ContributorPaymentCard } from './ContributorPaymentCard';
 
+// Stripe (test mode) shared UI
+export { StripeTestModeBadge } from './StripeTestModeBadge';
+
 // Admin components
 export { AdminPaymentTracker } from './AdminPaymentTracker';
 export { AdminPayoutCard } from './AdminPayoutCard';

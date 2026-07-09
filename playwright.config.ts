@@ -10,6 +10,10 @@ import path from 'path';
 const AUTH_DIR = path.join(__dirname, 'e2e', '.auth');
 const USER_AUTH_FILE = path.join(AUTH_DIR, 'user.json');
 const USE_SYSTEM_CHROME = process.env.PLAYWRIGHT_USE_SYSTEM_CHROME === '1';
+const configuredWorkers = process.env.PLAYWRIGHT_WORKERS
+  ? Number(process.env.PLAYWRIGHT_WORKERS)
+  : undefined;
+const workers = process.env.CI ? 1 : configuredWorkers ?? (USE_SYSTEM_CHROME ? 1 : undefined);
 const desktopChrome = {
   ...devices['Desktop Chrome'],
   ...(USE_SYSTEM_CHROME ? { channel: 'chrome' as const } : {}),
@@ -114,7 +118,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI */
-  workers: process.env.CI ? 1 : undefined,
+  workers,
   /* Reporter to use */
   reporter: [
     ['html', { open: 'never' }],
