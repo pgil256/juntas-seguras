@@ -204,7 +204,6 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for system diagrams (request flow, au
 
 - **[Setup Guide](SETUP_GUIDE.md)** — end-to-end local setup, environment variables, and testing
 - **[Architecture](ARCHITECTURE.md)** — system design, data models, and key flows
-- **[CLAUDE.md](CLAUDE.md)** / **[AGENTS.md](AGENTS.md)** — repository guide for AI coding assistants
 
 ## Environment Variables
 
