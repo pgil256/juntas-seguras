@@ -71,7 +71,7 @@ export function ScheduleStep({
             value={poolData.totalMembers}
             onValueChange={(value) => onSelectChange("totalMembers", value)}
           >
-            <SelectTrigger className="pl-10">
+            <SelectTrigger id="totalMembers" className="pl-10">
               <SelectValue placeholder="Select number of members" />
             </SelectTrigger>
             <SelectContent>
@@ -93,7 +93,7 @@ export function ScheduleStep({
             value={poolData.duration}
             onValueChange={(value) => onSelectChange("duration", value)}
           >
-            <SelectTrigger className="pl-10">
+            <SelectTrigger id="duration" className="pl-10">
               <SelectValue placeholder="Select duration" />
             </SelectTrigger>
             <SelectContent>

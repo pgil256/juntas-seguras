@@ -192,7 +192,7 @@ describe('ZelleQrDisplay Component', () => {
       const copyButton = screen.getByText('test@email.com').closest('button');
       if (copyButton) {
         await user.click(copyButton);
-        expect(mockWriteText).toHaveBeenCalledWith('test@email.com');
+        expect(await navigator.clipboard.readText()).toBe('test@email.com');
       }
     });
 
@@ -219,14 +219,8 @@ describe('ZelleQrDisplay Component', () => {
         />
       );
 
-      // Find any copy button and click it
-      const buttons = screen.getAllByRole('button');
-      const copyButton = buttons.find(btn => btn.querySelector('svg'));
-      if (copyButton) {
-        await user.click(copyButton);
-        // Should copy rawContent from zelleQR
-        expect(mockWriteText).toHaveBeenCalled();
-      }
+      await user.click(screen.getByRole('button', { name: 'Copy QR contents' }));
+      expect(await navigator.clipboard.readText()).toBe(zelleQRData.rawContent);
     });
   });
 
@@ -246,19 +240,7 @@ describe('ZelleQrDisplay Component', () => {
     it('downloads QR code when download button is clicked', async () => {
       const user = userEvent.setup();
 
-      // Mock createElement and click
-      const mockClick = jest.fn();
-      const mockRemove = jest.fn();
-      const originalCreateElement = document.createElement.bind(document);
-      jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
-        const element = originalCreateElement(tagName);
-        if (tagName === 'a') {
-          element.click = mockClick;
-        }
-        return element;
-      });
-      jest.spyOn(document.body, 'appendChild').mockImplementation(() => document.body);
-      jest.spyOn(document.body, 'removeChild').mockImplementation(() => document.body);
+      const mockClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
       render(<ZelleQrDisplay {...defaultProps} />);
 
@@ -532,7 +514,7 @@ describe('ZelleQrCard Component', () => {
 
       await user.click(screen.getByRole('button', { name: /Copy ID/i }));
 
-      expect(mockWriteText).toHaveBeenCalledWith('test@email.com');
+      expect(await navigator.clipboard.readText()).toBe('test@email.com');
     });
 
     it('shows "Copied!" after copying', async () => {

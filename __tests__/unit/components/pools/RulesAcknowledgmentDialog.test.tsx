@@ -317,22 +317,22 @@ describe('RulesAcknowledgmentDialog Component', () => {
 
   describe('Scrolling Content', () => {
     it('applies overflow-y-auto for scrollable content', () => {
-      const { container } = render(<RulesAcknowledgmentDialog {...defaultProps} />);
+      render(<RulesAcknowledgmentDialog {...defaultProps} />);
 
-      expect(container.querySelector('.overflow-y-auto')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toHaveClass('overflow-y-auto');
     });
 
     it('sets max-height for dialog content', () => {
-      const { container } = render(<RulesAcknowledgmentDialog {...defaultProps} />);
+      render(<RulesAcknowledgmentDialog {...defaultProps} />);
 
       // The dialog content should have max-h-[90vh]
-      expect(container.querySelector('.max-h-\\[90vh\\]')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toHaveClass('max-h-[90vh]');
     });
   });
 
   describe('Icons', () => {
     it('displays ScrollText icon in title', () => {
-      const { container } = render(<RulesAcknowledgmentDialog {...defaultProps} />);
+      render(<RulesAcknowledgmentDialog {...defaultProps} />);
 
       // Icon should be present in the title area
       const titleArea = screen.getByText('Pool Rules & Agreement').closest('div');
@@ -340,10 +340,10 @@ describe('RulesAcknowledgmentDialog Component', () => {
     });
 
     it('displays AlertCircle icon in info banner', () => {
-      const { container } = render(<RulesAcknowledgmentDialog {...defaultProps} />);
+      render(<RulesAcknowledgmentDialog {...defaultProps} />);
 
       // Multiple SVG icons should be present
-      const svgs = container.querySelectorAll('svg');
+      const svgs = screen.getByRole('dialog').querySelectorAll('svg');
       expect(svgs.length).toBeGreaterThan(0);
     });
   });

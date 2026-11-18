@@ -67,9 +67,9 @@ export function usePools(): UsePoolsReturn {
   }
 
   return {
-    pools: data?.pools ?? [],
+    pools: Array.isArray(data?.pools) ? data.pools : [],
     isLoading,
-    error: error?.message ?? null,
+    error: error?.status === 404 ? null : error?.message ?? null,
     refreshPools: async () => {
       await mutate();
     },

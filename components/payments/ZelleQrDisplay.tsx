@@ -14,6 +14,7 @@ import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogClose,
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
@@ -258,6 +259,11 @@ export function ZelleQrDisplay({
         </div>
 
         {/* Fallback Identifier (if available) */}
+        {!zelleIdentifier && zelleQR?.rawContent && (
+          <Button variant="ghost" onClick={handleCopyIdentifier}>
+            Copy QR contents
+          </Button>
+        )}
         {zelleIdentifier && (
           <div className="mt-3 flex items-center gap-2">
             <span className="text-xs text-gray-500">or send to</span>
@@ -415,6 +421,9 @@ export function ZelleQrBadge({
               showExpand={false}
             />
           </div>
+          <DialogClose asChild>
+            <Button variant="outline">Close</Button>
+          </DialogClose>
         </DialogContent>
       </Dialog>
     </>

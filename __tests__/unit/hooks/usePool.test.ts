@@ -3,7 +3,8 @@
  * Tests the usePool hook that fetches pool data with session authentication
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderSWRHook as renderHook } from '../../helpers/render-swr-hook';
+import { act, waitFor } from '@testing-library/react';
 import { useSession } from 'next-auth/react';
 import { usePool } from '@/lib/hooks/usePool';
 
@@ -239,7 +240,7 @@ describe('usePool', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.error).toBe('Failed to fetch pool');
+    expect(result.current.error).toBe('An error occurred while fetching data');
     expect(result.current.pool).toBeNull();
   });
 

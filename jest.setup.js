@@ -121,3 +121,29 @@ afterAll(() => {
 
 // Global test timeout
 jest.setTimeout(30000);
+
+// jsdom does not implement the observer used by Radix positioning.
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+if (typeof Element !== 'undefined' && !Element.prototype.hasPointerCapture) {
+  const captures = new WeakMap();
+  Element.prototype.setPointerCapture = function (id) {
+    if (!captures.has(this)) captures.set(this, new Set());
+    captures.get(this).add(id);
+  };
+  Element.prototype.hasPointerCapture = function (id) {
+    return captures.get(this)?.has(id) ?? false;
+  };
+  Element.prototype.releasePointerCapture = function (id) {
+    captures.get(this)?.delete(id);
+  };
+}
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {};
+}

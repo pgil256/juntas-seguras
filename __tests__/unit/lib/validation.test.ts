@@ -717,34 +717,34 @@ describe('Environment Variable Validation', () => {
     describe('stripe feature validation', () => {
       it('should throw when STRIPE_SECRET_KEY is missing', () => {
         delete process.env.STRIPE_SECRET_KEY;
-        process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
+        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
 
         expect(() => validateFeatureEnvVars('stripe')).toThrow(
-          'Stripe feature requires STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY environment variables'
+          'Stripe feature requires STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variables'
         );
       });
 
-      it('should throw when STRIPE_PUBLISHABLE_KEY is missing', () => {
+      it('should throw when NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is missing', () => {
         process.env.STRIPE_SECRET_KEY = 'sk_test_123';
-        delete process.env.STRIPE_PUBLISHABLE_KEY;
+        delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
         expect(() => validateFeatureEnvVars('stripe')).toThrow(
-          'Stripe feature requires STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY environment variables'
+          'Stripe feature requires STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variables'
         );
       });
 
       it('should throw when both Stripe keys are missing', () => {
         delete process.env.STRIPE_SECRET_KEY;
-        delete process.env.STRIPE_PUBLISHABLE_KEY;
+        delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
         expect(() => validateFeatureEnvVars('stripe')).toThrow(
-          'Stripe feature requires STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY environment variables'
+          'Stripe feature requires STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variables'
         );
       });
 
       it('should return true when stripe env vars are set', () => {
         process.env.STRIPE_SECRET_KEY = 'sk_test_123';
-        process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
+        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
 
         const result = validateFeatureEnvVars('stripe');
 
