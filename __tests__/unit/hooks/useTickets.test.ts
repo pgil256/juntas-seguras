@@ -282,7 +282,6 @@ describe('useTickets', () => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': 'admin-secret',
         },
         body: JSON.stringify({
           ticketId: 'ticket-123',
@@ -363,7 +362,7 @@ describe('useTickets', () => {
         json: async () => ({ ticket: ticketWithResponse }),
       } as Response);
 
-      const { result } = renderHook(() => useTickets({ userId: 'user-123' }));
+      const { result } = renderHook(() => useTickets({ userId: 'user-123', initialData: [] }));
 
       let responseResult: { success: boolean; ticket?: SupportTicket; error?: string };
       await act(async () => {
@@ -381,13 +380,12 @@ describe('useTickets', () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'user-id': 'user-123',
         },
         body: expect.any(String),
       });
     });
 
-    it('should add admin key for support responses', async () => {
+    it('should send support responses using the signed-in session', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ticket: mockTicket }),
@@ -408,7 +406,6 @@ describe('useTickets', () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': 'admin-secret',
         },
         body: expect.any(String),
       });
@@ -444,7 +441,7 @@ describe('useTickets', () => {
         json: async () => ({ ticket: mockTicket }),
       } as Response);
 
-      const { result } = renderHook(() => useTickets({ userId: 'user-123' }));
+      const { result } = renderHook(() => useTickets({ userId: 'user-123', initialData: [] }));
 
       let getResult: { success: boolean; ticket?: SupportTicket; error?: string };
       await act(async () => {
@@ -489,9 +486,7 @@ describe('useTickets', () => {
 
       expect(result.current.stats).toEqual(mockStats);
       expect(mockFetch).toHaveBeenCalledWith('/api/support/tickets?stats=true', {
-        headers: {
-          'x-admin-key': 'admin-secret',
-        },
+        credentials: 'same-origin',
       });
     });
 

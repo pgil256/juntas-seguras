@@ -275,6 +275,7 @@ export function ZelleInstructionsCard({
                 <span className="font-semibold text-gray-900">Zelle Payment</span>
               </div>
               <button
+                aria-label="Close QR code"
                 onClick={() => setShowFullQR(false)}
                 className="text-gray-400 hover:text-gray-600"
               >

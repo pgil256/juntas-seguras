@@ -794,7 +794,7 @@ describe('MFA Service', () => {
 
       await enableTOTP(user._id.toString(), newSecret);
       const afterReEnable = await UserModel.findById(user._id);
-      expect(afterReEnable.twoFactorAuth.method).toBe('totp');
+      expect(afterReEnable.twoFactorAuth.method).toBe('app');
       expect(afterReEnable.twoFactorAuth.totpSecret).toBe(newSecret);
       expect(afterReEnable.twoFactorAuth.enabled).toBe(true);
     });

@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
+import { formatCalendarDate } from '../../lib/utils';
 import { Transaction } from '../../types/payment';
 import { usePayments } from '../../lib/hooks/usePayments';
 
@@ -45,16 +46,7 @@ export function EscrowReleaseDialog({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Not set';
-    
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
+
 
   const isReleaseEligible = () => {
     // Check if release date has passed
@@ -135,11 +127,11 @@ export function EscrowReleaseDialog({
                 </div>
                 <div className="flex justify-between items-center border-b pb-2">
                   <span className="text-sm text-gray-500">Payment Date</span>
-                  <span className="font-medium">{formatDate(payment.date)}</span>
+                  <span className="font-medium">{formatCalendarDate(payment.date) || 'Not set'}</span>
                 </div>
                 <div className="flex justify-between items-center border-b pb-2">
                   <span className="text-sm text-gray-500">Scheduled Release</span>
-                  <span className="font-medium">{formatDate(payment.releaseDate || '')}</span>
+                  <span className="font-medium">{formatCalendarDate(payment.releaseDate) || 'Not set'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Payment ID</span>

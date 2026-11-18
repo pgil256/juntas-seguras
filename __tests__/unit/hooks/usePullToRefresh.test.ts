@@ -414,6 +414,7 @@ describe('usePullToRefresh', () => {
     });
 
     it('should reset state after refresh completes', async () => {
+      jest.useFakeTimers();
       const onRefresh = jest.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
@@ -436,6 +437,9 @@ describe('usePullToRefresh', () => {
         document.dispatchEvent(createTouchEvent('touchend', 100));
       });
 
+      expect(result.current.showSuccess).toBe(true);
+      act(() => jest.advanceTimersByTime(1000));
+      jest.useRealTimers();
       expect(result.current.isPulling).toBe(false);
       expect(result.current.pullDistance).toBe(0);
       expect(result.current.isRefreshing).toBe(false);
@@ -796,9 +800,7 @@ describe('usePullToRefresh', () => {
       expect(onRefresh).toHaveBeenCalled();
     });
 
-    it('should handle touch cancel like touch end', async () => {
-      // Note: The implementation only listens to touchend
-      // This test documents current behavior
+    it('should cancel the gesture without triggering a refresh', async () => {
       const onRefresh = jest.fn().mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
@@ -814,10 +816,13 @@ describe('usePullToRefresh', () => {
         document.dispatchEvent(createTouchEvent('touchmove', 100));
       });
 
-      // Touch cancel would not trigger refresh in current implementation
-      // This test just verifies the state remains valid
-      expect(result.current.isPulling).toBe(true);
       expect(result.current.canRefresh).toBe(true);
+      act(() => {
+        document.dispatchEvent(createTouchEvent('touchcancel', 100));
+      });
+      expect(result.current.isPulling).toBe(false);
+      expect(result.current.canRefresh).toBe(false);
+      expect(onRefresh).not.toHaveBeenCalled();
     });
 
     it('should handle multiple consecutive pulls', async () => {

@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { PayoutCountdown, PayoutCountdownCompact } from '@/components/pools/PayoutCountdown';
 
@@ -30,10 +31,8 @@ describe('PayoutCountdown Component', () => {
 
   describe('Loading State', () => {
     it('shows loading skeleton before mount', () => {
-      const { container } = render(<PayoutCountdown {...defaultProps} />);
-
-      // Initial render shows loading skeleton
-      expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+      const html = renderToString(<PayoutCountdown {...defaultProps} />);
+      expect(html).toContain('animate-pulse');
     });
 
     it('renders content after mount', async () => {
@@ -403,10 +402,7 @@ describe('PayoutCountdownCompact Component', () => {
 
   describe('Rendering', () => {
     it('renders null before mount', () => {
-      const { container } = render(<PayoutCountdownCompact {...defaultProps} />);
-
-      // Before mount, should be empty
-      expect(container.firstChild).toBeNull();
+      expect(renderToString(<PayoutCountdownCompact {...defaultProps} />)).toBe('');
     });
 
     it('renders countdown after mount', async () => {

@@ -65,6 +65,7 @@ window.open = mockWindowOpen;
 // Import the mock so we can change its implementation
 import { usePoolContributions } from '@/lib/hooks/usePoolContributions';
 const mockUsePoolContributions = usePoolContributions as jest.Mock;
+const defaultContributionHook = mockUsePoolContributions.getMockImplementation()!;
 
 // Mock ZelleInstructionsCard
 jest.mock('@/components/payments/ZelleCopyButton', () => ({
@@ -87,6 +88,8 @@ describe('ContributionModal Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUsePoolContributions.mockImplementation(defaultContributionHook);
+    mockFetch.mockReset();
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -114,8 +117,7 @@ describe('ContributionModal Component', () => {
       render(<ContributionModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Family Savings Pool/)).toBeInTheDocument();
-        expect(screen.getByText(/Round 2/)).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toHaveAccessibleDescription(/Family Savings Pool for Round 2/);
       });
     });
 
@@ -156,7 +158,7 @@ describe('ContributionModal Component', () => {
 
   describe('Loading State', () => {
     it('shows loading spinner when loading', async () => {
-      mockUsePoolContributions.mockReturnValueOnce({
+      mockUsePoolContributions.mockReturnValue({
         isLoading: true,
         error: null,
         contributionStatus: null,
@@ -174,7 +176,7 @@ describe('ContributionModal Component', () => {
 
   describe('Error State', () => {
     it('displays error message when there is an error', async () => {
-      mockUsePoolContributions.mockReturnValueOnce({
+      mockUsePoolContributions.mockReturnValue({
         isLoading: false,
         error: 'Failed to load contribution status',
         contributionStatus: null,
@@ -192,7 +194,7 @@ describe('ContributionModal Component', () => {
 
   describe('User States', () => {
     it('shows already contributed message when user has contributed', async () => {
-      mockUsePoolContributions.mockReturnValueOnce({
+      mockUsePoolContributions.mockReturnValue({
         isLoading: false,
         error: null,
         contributionStatus: {
@@ -220,7 +222,7 @@ describe('ContributionModal Component', () => {
     });
 
     it('shows recipient message when user is recipient', async () => {
-      mockUsePoolContributions.mockReturnValueOnce({
+      mockUsePoolContributions.mockReturnValue({
         isLoading: false,
         error: null,
         contributionStatus: {
@@ -244,12 +246,12 @@ describe('ContributionModal Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText("You're the Recipient!")).toBeInTheDocument();
-        expect(screen.getByText(/You will receive the payout this round/)).toBeInTheDocument();
+        expect(screen.getByText(/Total payout:/)).toBeInTheDocument();
       });
     });
 
     it('shows undo button when user has contributed', async () => {
-      mockUsePoolContributions.mockReturnValueOnce({
+      mockUsePoolContributions.mockReturnValue({
         isLoading: false,
         error: null,
         contributionStatus: {
@@ -546,7 +548,7 @@ describe('ContributionModal Component', () => {
       const copyButtons = screen.getAllByTitle('Copy handle');
       await user.click(copyButtons[0]);
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('admin-venmo');
+      expect(await navigator.clipboard.readText()).toBe('admin-venmo');
     });
   });
 

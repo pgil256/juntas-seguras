@@ -101,10 +101,10 @@ describe('PoolOnboardingModal Component', () => {
     });
 
     it('shows Wallet icon on payout step', () => {
-      const { container } = render(<PoolOnboardingModal {...defaultProps} />);
+      render(<PoolOnboardingModal {...defaultProps} />);
 
       // Wallet icon should be present in the header
-      expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByRole('dialog').querySelector('svg')).toBeInTheDocument();
     });
   });
 
@@ -182,7 +182,8 @@ describe('PoolOnboardingModal Component', () => {
       render(<PoolOnboardingModal {...defaultProps} />);
 
       const progressBar = screen.getByRole('progressbar');
-      expect(progressBar).toHaveAttribute('aria-valuenow', '50');
+      expect(progressBar).toHaveAttribute('aria-valuenow', '1');
+      expect(progressBar).toHaveAttribute('aria-valuemax', '2');
     });
 
     it('shows 100% progress on complete step', async () => {
@@ -193,7 +194,8 @@ describe('PoolOnboardingModal Component', () => {
       await user.click(screen.getByTestId('payout-save'));
 
       const progressBar = screen.getByRole('progressbar');
-      expect(progressBar).toHaveAttribute('aria-valuenow', '100');
+      expect(progressBar).toHaveAttribute('aria-valuenow', '2');
+      expect(progressBar).toHaveAttribute('aria-valuemax', '2');
     });
   });
 
@@ -286,12 +288,12 @@ describe('PoolOnboardingModal Component', () => {
   describe('Complete Step Display', () => {
     it('shows CheckCircle icon on complete step', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-      const { container } = render(<PoolOnboardingModal {...defaultProps} />);
+      render(<PoolOnboardingModal {...defaultProps} />);
 
       await user.click(screen.getByTestId('payout-save'));
 
       // Should have green checkmark icon
-      const svgs = container.querySelectorAll('svg');
+      const svgs = screen.getByRole('dialog').querySelectorAll('svg');
       expect(svgs.length).toBeGreaterThan(0);
     });
 
