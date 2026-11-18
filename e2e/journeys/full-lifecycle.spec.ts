@@ -8,6 +8,7 @@
  */
 
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import speakeasy from 'speakeasy';
 import { generateTestUser, generateTestPool } from '../fixtures/test-fixtures';
 
 // Mailpit runs on the same disposable runner as the app and only receives test mail.
@@ -130,6 +131,34 @@ test.describe.serial('Full User Lifecycle', () => {
     await page.getByRole('tab', { name: 'Payouts' }).click();
     await expect(page.getByRole('heading', { name: 'Current Recipient' })).toBeVisible();
     await expect(page.getByRole('tabpanel').getByText(testUser.email, { exact: true })).toBeVisible();
+  });
+  test('Step 7: Enroll an authenticator in Settings and use it for a new sign-in', async ({ browser, baseURL }) => {
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: 'Security', exact: true }).click();
+    await page.getByRole('button', { name: 'Set up authenticator' }).click();
+    await page.getByRole('button', { name: 'Generate setup code' }).click();
+    await expect(page.getByRole('img', { name: 'TOTP QR Code' })).toBeVisible();
+    const key = await page.getByLabel('Manual setup key').innerText();
+    const nextCode = () => speakeasy.totp({ secret: key.trim(), encoding: 'base32' });
+    await page.getByPlaceholder('Enter 6-digit code from your app').fill(nextCode());
+    await page.getByRole('button', { name: 'Verify and Enable TOTP' }).click();
+    await expect(page.getByText(/TOTP setup successful/)).toBeVisible();
+
+    const fresh = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+    try {
+      const signIn = await fresh.newPage();
+      await signIn.goto('/auth/signin');
+      await signIn.getByLabel(/email address/i).fill(testUser.email);
+      await signIn.getByLabel('Password', { exact: true }).fill(testUser.password);
+      await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(signIn).toHaveURL(/\/mfa\/verify/);
+      await expect(signIn.getByText('Enter the code from your authenticator app')).toBeVisible();
+      await signIn.getByLabel('Verification Code').fill(nextCode());
+      await signIn.getByRole('button', { name: 'Verify Code' }).click();
+      await expect(signIn).toHaveURL(/\/dashboard/);
+    } finally {
+      await fresh.close();
+    }
   });
 });
 

@@ -9,6 +9,7 @@
  * @jest-environment node
  */
 
+import speakeasy from 'speakeasy';
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import {
@@ -152,8 +153,22 @@ describe('Two-Factor Authentication API', () => {
       const UserModel = getUserModel();
       const updatedUser = await UserModel.findById(user._id);
       expect(updatedUser.twoFactorAuth.enabled).toBe(true);
-      expect(updatedUser.twoFactorAuth.method).toBe('app');
+      expect(updatedUser.twoFactorAuth.method).toBe('email');
+      expect(updatedUser.twoFactorAuth.pendingTotpSecret).toBe(data.secret);
+      expect(updatedUser.twoFactorAuth.pendingBackupCodes).toEqual(data.backupCodes);
+      expect(updatedUser.twoFactorAuth.backupCodes).toHaveLength(0);
       expect(updatedUser.twoFactorAuth.verified).toBe(false);
+
+      const code = speakeasy.totp({ secret: data.secret, encoding: 'base32' });
+      const confirmation = await verifyPOST(new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
+        method: 'POST', body: JSON.stringify({ code, confirmEnrollment: true }),
+      }));
+      expect(confirmation.status).toBe(200);
+      const confirmed = await UserModel.findById(user._id);
+      expect(confirmed.twoFactorAuth.method).toBe('app');
+      expect(confirmed.twoFactorAuth.verified).toBe(true);
+      expect(confirmed.twoFactorAuth.backupCodes).toEqual(data.backupCodes);
+      expect(confirmed.twoFactorAuth.pendingTotpSecret).toBeUndefined();
     });
 
     it('should return success message for email method setup', async () => {

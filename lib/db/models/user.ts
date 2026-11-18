@@ -9,6 +9,7 @@ const TwoFactorSchema = new Schema({
   secret: { type: String },
   totpSecret: { type: String }, // For TOTP authenticator apps
   pendingTotpSecret: { type: String }, // Temporary secret during TOTP setup
+  pendingBackupCodes: { type: [String], default: undefined },
   backupCodes: [{ type: String }],
   email: { type: String },
   lastUpdated: { type: String },
@@ -190,6 +191,7 @@ export interface UserDocument extends Document {
     secret?: string;
     totpSecret?: string;
     pendingTotpSecret?: string;
+    pendingBackupCodes?: string[];
     backupCodes?: string[];
     email?: string;
     lastUpdated?: string;

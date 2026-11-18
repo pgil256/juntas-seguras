@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       hashedPassword,
       verificationCode: code,
       verificationExpiry: expiry,
-      verificationMethod,
+      verificationMethod: 'email',
       isVerified: false,
       isTemporary: true,
       createdAt: new Date(),
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       // Store the verification code in twoFactorAuth object too
       twoFactorAuth: {
         enabled: true,
-        method: verificationMethod,
+        method: 'email',
         verified: false,
         temporaryCode: code,
         codeGeneratedAt: new Date().toISOString(),
@@ -111,31 +111,24 @@ export async function POST(request: NextRequest) {
     
     const user = await UserModel.create(userData);
 
-    // Send verification email if using email method
-    if (verificationMethod === 'email') {
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM,
-          to: trimmedEmail,
-          subject: 'Verify your account',
-          text: `Your verification code is: ${code}`,
-          html: `<p>Your verification code is: <strong>${code}</strong></p>`
-        });
-      } catch (emailError) {
-        // Delete the temporary user since email failed
-        await UserModel.deleteOne({ _id: user._id });
-        return NextResponse.json(
-          { error: 'Failed to send verification email' },
-          { status: 500 }
-        );
-      }
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: trimmedEmail,
+        subject: 'Verify your account',
+        text: `Your verification code is: ${code}`,
+        html: `<p>Your verification code is: <strong>${code}</strong></p>`
+      });
+    } catch {
+      await UserModel.deleteOne({ _id: user._id, isTemporary: true });
+      return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 });
     }
 
     return NextResponse.json({ 
       success: true, 
       user: {
         userId: user._id.toString(),
-        mfaMethod: verificationMethod,
+        mfaMethod: 'email',
         isTemporary: true // Indicate this is a temporary user
       },
       mfaSetup: null
