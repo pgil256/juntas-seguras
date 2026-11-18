@@ -22,6 +22,7 @@ jobs:
       MONGODB_URI: mongodb://localhost:27017/juntas-e2e
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-nextauth-secret-0000000000000000000
+      SMTP_URL: smtp://127.0.0.1:1025
       EMAIL_USER: ci@example.com
       EMAIL_PASSWORD: ci-password
       EMAIL_FROM: ci@example.com
@@ -29,6 +30,11 @@ jobs:
       DEMO_ACCOUNT_PASSWORD: DemoPass123!
 
     services:
+      mailpit:
+        image: axllent/mailpit:v1.27.4
+        ports:
+          - '127.0.0.1:1025:1025'
+          - '127.0.0.1:8025:8025'
       mongodb:
         image: mongo:6
         ports:

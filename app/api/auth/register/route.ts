@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';
 import { generateVerificationCode } from '../../../../lib/utils/verification';
 
 // Email configuration
-const transporter = nodemailer.createTransport({
+const transporter = process.env.SMTP_URL ? nodemailer.createTransport(process.env.SMTP_URL) : nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER || '***REMOVED***',
