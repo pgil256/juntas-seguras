@@ -36,7 +36,7 @@ test.describe.serial('Full User Lifecycle', () => {
     // Fill registration form
     await page.getByLabel(/name/i).fill(testUser.name);
     await page.getByLabel(/email/i).fill(testUser.email);
-    await page.getByLabel(/password/i).fill(testUser.password);
+    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
 
     // Select email MFA method
     const emailOption = page.getByText(/email/i).first();
