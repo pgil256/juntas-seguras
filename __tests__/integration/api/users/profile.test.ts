@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * User Profile API Tests
  *
@@ -363,7 +364,7 @@ describe('User Profile API Tests', () => {
       expect(updatedUser.avatar).toBe('https://example.com/patched-avatar.jpg');
     });
 
-    it('updates MFA setup complete status', async () => {
+    it('directs MFA enrollment to the verification endpoint', async () => {
       // First set mfaSetupComplete to false
       await UserModel.updateOne(
         { email: testUser.email },
@@ -380,12 +381,13 @@ describe('User Profile API Tests', () => {
       const response = await PATCH(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.mfaSetupComplete).toBe(true);
+      expect(status).toBe(400);
+      expect(data.error).toMatch(/verification endpoint/i);
+      const member = await UserModel.findById(testUser._id);
+      expect(member.mfaSetupComplete).toBe(false);
     });
 
-    it('allows userId query parameter for setup flows', async () => {
+    it('requires a signed-in user for profile changes', async () => {
       const request = createMockRequest('/api/users/profile', {
         method: 'PATCH',
         searchParams: { userId: testUser.id },
@@ -394,16 +396,15 @@ describe('User Profile API Tests', () => {
         },
       });
 
-      // Don't require session for userId flow
       (getServerSession as jest.Mock).mockResolvedValue(null);
 
       const response = await PATCH(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(200);
-
-      const updatedUser = await UserModel.findOne({ id: testUser.id });
-      expect(updatedUser.name).toBe('Setup Flow Name Update');
+      expect(status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
+      const updatedUser = await UserModel.findById(testUser._id);
+      expect(updatedUser.name).toBe(testUser.name);
     });
 
     it('returns 401 when neither userId nor session provided', async () => {
@@ -423,7 +424,7 @@ describe('User Profile API Tests', () => {
       expect(data.error).toBe('Unauthorized');
     });
 
-    it('returns 404 for non-existent userId', async () => {
+    it('returns the same unsigned-in response for an unknown account', async () => {
       (getServerSession as jest.Mock).mockResolvedValue(null);
 
       const request = createMockRequest('/api/users/profile', {
@@ -437,11 +438,11 @@ describe('User Profile API Tests', () => {
       const response = await PATCH(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(404);
-      expect(data.error).toBe('User not found');
+      expect(status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
     });
 
-    it('sets 2FA verified when MFA setup completes', async () => {
+    it('preserves pending verification during profile edits', async () => {
       await UserModel.updateOne(
         { email: testUser.email },
         {
@@ -462,12 +463,11 @@ describe('User Profile API Tests', () => {
       const response = await PATCH(request);
       const { data, status } = await parseResponse(response);
 
-      expect(status).toBe(200);
-
-      const updatedUser = await UserModel.findOne({ email: testUser.email });
-      expect(updatedUser.mfaSetupComplete).toBe(true);
-      expect(updatedUser.pendingMfaVerification).toBe(false);
-      expect(updatedUser.twoFactorAuth?.verified).toBe(true);
+      expect(status).toBe(400);
+      const updatedUser = await UserModel.findById(testUser._id);
+      expect(updatedUser.mfaSetupComplete).toBe(false);
+      expect(updatedUser.pendingMfaVerification).toBe(true);
+      expect(updatedUser.twoFactorAuth?.verified).toBe(false);
       expect(updatedUser.twoFactorAuth?.enabled).toBe(true);
     });
   });

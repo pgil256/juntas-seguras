@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * MFA Verification API Integration Tests
  *

@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     const ticketId = `TKT-${Date.now().toString(36).toUpperCase()}`;
     const newTicket: SupportTicket = {
       id: ticketId,
-      userId: sessionUser.id || body.userId || undefined,
+      userId: sessionUser.id || undefined,
       userName: name,
       userEmail: email.trim().toLowerCase(),
       subject: subject || 'Support Request',

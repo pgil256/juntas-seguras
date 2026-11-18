@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Registration API Integration Tests
  *
@@ -304,6 +305,7 @@ describe('POST /api/auth/register', () => {
 
       // Create existing verified user
       await UserModel.create({
+        verificationMethod: 'email',
         name: 'Existing User',
         email: 'existing@example.com',
         hashedPassword: await bcrypt.hash('password123', 10),
@@ -340,6 +342,7 @@ describe('POST /api/auth/register', () => {
 
       // Create existing temporary user
       await UserModel.create({
+        verificationMethod: 'email',
         name: 'Temp User',
         email: 'cleanup@example.com',
         hashedPassword: await bcrypt.hash('password123', 10),

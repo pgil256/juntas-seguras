@@ -111,7 +111,7 @@ describe('Search API Tests', () => {
           name: 'Bob Wilson',
           email: 'bob@example.com',
           position: 3,
-          status: 'pending',
+          status: 'upcoming',
         },
       ],
       transactions: [

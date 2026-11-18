@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Notification API Tests
  *
