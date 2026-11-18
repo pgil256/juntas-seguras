@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectToDatabase from '../../../../lib/db/connect';
-import { getUserModel } from '../../../../lib/db/models/user';
 import { getCurrentUser } from '../../../../lib/auth';
 
 /**
- * API route to clear MFA flags in the session
- * This is used after successful MFA verification to update the session
+ * Clients may refresh their session after the verification service records success.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -17,16 +14,12 @@ export async function POST(req: NextRequest) {
         { status: userResult.error.status }
       );
     }
-    const user = userResult.user;
-
-    await connectToDatabase();
-    const UserModel = getUserModel();
-
-    // Update user to clear MFA flags
-    await UserModel.findByIdAndUpdate(
-      user._id,
-      { $set: { pendingMfaVerification: false } }
-    );
+    if (userResult.user.pendingMfaVerification) {
+      return NextResponse.json(
+        { error: 'Verification is still pending' },
+        { status: 403 }
+      );
+    }
 
     // Return success
     return NextResponse.json({
