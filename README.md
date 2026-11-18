@@ -2,7 +2,7 @@
 
 A secure, transparent platform for managing community savings pools (juntas / ROSCAs). Juntas Seguras digitizes traditional rotating savings and credit associations, adding modern security, automation, and transparency for community-based savings groups.
 
-**[Live demo →](https://juntas-seguras.vercel.app)**
+**[Live demo →](https://juntasseguras.patbuilds.dev)**
 
 [![CI](https://github.com/pgil256/juntas-seguras/actions/workflows/ci.yml/badge.svg)](https://github.com/pgil256/juntas-seguras/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
@@ -26,7 +26,7 @@ Try it against the deployed app with the seeded demo account (read/write; please
 
 | Field | Value |
 |-------|-------|
-| URL | https://juntas-seguras.vercel.app |
+| URL | https://juntasseguras.patbuilds.dev |
 | Email | `demo@juntas-seguras.app` |
 | Password | `DemoPass123!` |
 
