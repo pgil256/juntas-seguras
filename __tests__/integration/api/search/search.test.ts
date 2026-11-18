@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Search API Tests
  *
@@ -20,6 +21,7 @@ import { createTestPool, createPoolWithMembers } from '@/__tests__/fixtures/pool
 
 // Mock the API handler
 jest.mock('@/lib/api', () => ({
+  findUserById: (id: string) => getUserModel().findById(id),
   handleApiRequest: jest.fn((request, handler, options) => {
     // Simulate the handleApiRequest function
     return handler({ userId: 'test-user-id' });
@@ -59,6 +61,7 @@ describe('Search API Tests', () => {
     const pool2Id = generateMockUuid();
 
     testUser = await UserModel.create({
+      verificationMethod: 'email',
       id: userId,
       email: testUsers.admin.email,
       name: testUsers.admin.name,
@@ -73,7 +76,7 @@ describe('Search API Tests', () => {
       name: 'Family Savings Pool',
       description: 'Monthly family savings circle for vacations',
       admin: testUser._id,
-      contributionAmount: 100,
+      contributionAmount: 20,
       totalMembers: 5,
       totalAmount: 500,
       memberCount: 5,
@@ -144,7 +147,7 @@ describe('Search API Tests', () => {
       name: 'Friends Weekly Junta',
       description: 'Weekly savings group with friends',
       admin: testUser._id,
-      contributionAmount: 50,
+      contributionAmount: 10,
       totalMembers: 4,
       totalAmount: 200,
       memberCount: 4,
@@ -191,7 +194,7 @@ describe('Search API Tests', () => {
     const { handleApiRequest } = require('@/lib/api');
     handleApiRequest.mockImplementation(
       (request: any, handler: any, options: any) => {
-        return handler({ userId: testUser.id }).then((result: any) => {
+        return handler({ userId: testUser._id.toString() }).then((result: any) => {
           return new Response(JSON.stringify(result), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -650,6 +653,7 @@ describe('Search API Tests', () => {
     it('returns empty results when user has no pools', async () => {
       // Create user with no pools
       const emptyUser = await UserModel.create({
+        verificationMethod: 'email',
         id: generateMockUuid(),
         email: 'empty@test.com',
         name: 'Empty User',
@@ -661,7 +665,7 @@ describe('Search API Tests', () => {
       const { handleApiRequest } = require('@/lib/api');
       handleApiRequest.mockImplementation(
         (request: any, handler: any, options: any) => {
-          return handler({ userId: emptyUser.id }).then((result: any) => {
+          return handler({ userId: emptyUser._id.toString() }).then((result: any) => {
             return new Response(JSON.stringify(result), {
               status: 200,
               headers: { 'Content-Type': 'application/json' },

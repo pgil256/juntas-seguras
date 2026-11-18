@@ -81,6 +81,7 @@ describe('Discussion API Tests', () => {
 
     // Create test users
     testAdmin = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.admin.email,
       name: testUsers.admin.name,
@@ -89,6 +90,7 @@ describe('Discussion API Tests', () => {
     });
 
     testMember1 = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.member1.email,
       name: testUsers.member1.name,
@@ -97,6 +99,7 @@ describe('Discussion API Tests', () => {
     });
 
     testMember2 = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.member2.email,
       name: testUsers.member2.name,
@@ -110,7 +113,7 @@ describe('Discussion API Tests', () => {
       name: 'Test Discussion Pool',
       description: 'Pool for testing discussions',
       admin: testAdmin._id,
-      contributionAmount: 50,
+      contributionAmount: 10,
       totalMembers: 3,
       frequency: 'weekly',
       status: 'ACTIVE',
@@ -517,6 +520,7 @@ describe('Discussion API Tests', () => {
     it('rejects non-member posting', async () => {
       // Create non-member user
       const nonMember = await UserModel.create({
+        verificationMethod: 'email',
         id: generateMockUuid(),
         email: 'nonmember@test.com',
         name: 'Non Member',

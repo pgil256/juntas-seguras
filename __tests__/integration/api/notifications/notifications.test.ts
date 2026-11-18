@@ -75,6 +75,7 @@ describe('Notification API Tests', () => {
 
     // Create test users
     testUser = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.admin.email,
       name: testUsers.admin.name,
@@ -84,6 +85,7 @@ describe('Notification API Tests', () => {
     });
 
     testUser2 = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.member1.email,
       name: testUsers.member1.name,
@@ -219,6 +221,7 @@ describe('Notification API Tests', () => {
     it('returns default preferences if user has none', async () => {
       // Create user without preferences
       const userWithoutPrefs = await UserModel.create({
+        verificationMethod: 'email',
         id: generateMockUuid(),
         email: 'noprefs@test.com',
         name: 'No Prefs User',

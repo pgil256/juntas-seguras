@@ -54,6 +54,7 @@ describe('User Profile API Tests', () => {
 
     // Create test user
     testUser = await UserModel.create({
+      verificationMethod: 'email',
       id: generateMockUuid(),
       email: testUsers.admin.email,
       name: testUsers.admin.name,
@@ -157,6 +158,7 @@ describe('User Profile API Tests', () => {
     it('returns empty string for missing optional fields', async () => {
       // Create user without optional fields
       const userWithoutOptionals = await UserModel.create({
+        verificationMethod: 'email',
         id: generateMockUuid(),
         email: 'minimal@test.com',
         name: 'Minimal User',

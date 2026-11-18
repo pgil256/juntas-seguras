@@ -25,7 +25,7 @@ async function deliveredCode(request: APIRequestContext, email: string, subject:
   const response = await request.get(inbox + '/message/' + id);
   expect(response.ok()).toBe(true);
   const message: { Text: string } = await response.json();
-  const code = message.Text.match(/code[^:\\n]*:\\s*(\\d{6})\\b/i)?.[1];
+  const code = message.Text.match(/code[^:\n]*:\s*(\d{6})\b/i)?.[1];
   if (!code) throw new Error('The test email did not contain the expected verification message.');
   return code;
 }
@@ -70,16 +70,16 @@ test.describe.serial('Full User Lifecycle', () => {
     const verification = await deliveredCode(request, testUser.email, 'Verify your account');
     await page.getByPlaceholder('Enter 6-digit code').fill(verification);
     await page.getByRole('button', { name: 'Verify', exact: true }).click();
-    await expect(page).toHaveURL(/\\/auth\\/signin/);
+    await expect(page).toHaveURL(/\/auth\/signin/);
 
     await page.getByLabel(/email address/i).fill(testUser.email);
     await page.getByLabel('Password', { exact: true }).fill(testUser.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(page).toHaveURL(/\\/mfa\\/verify/);
+    await expect(page).toHaveURL(/\/mfa\/verify/);
     const mfa = await deliveredCode(request, testUser.email, 'Your Verification Code');
     await page.getByLabel('Verification Code').fill(mfa);
     await page.getByRole('button', { name: 'Verify Code' }).click();
-    await expect(page).toHaveURL(/\\/dashboard/);
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('Step 3: Create a savings pool', async () => {
@@ -95,7 +95,7 @@ test.describe.serial('Full User Lifecycle', () => {
     await page.getByRole('button', { name: 'Next', exact: true }).click();
     await expect(page.getByText(testPool.name, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Create Pool', exact: true }).click();
-    await expect(page).toHaveURL(/\\/member-management\\/[^/]+/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/member-management\/[^/]+/, { timeout: 15000 });
   });
 
   test('Step 4: Invite a member to the pool', async () => {
@@ -107,57 +107,29 @@ test.describe.serial('Full User Lifecycle', () => {
   });
 
   test('Step 5: Record a payment contribution', async () => {
-    // Navigate to pool detail or payment page
-    const payBtn = page.locator(
-      'button:has-text("Pay"), button:has-text("Contribute"), [data-testid="confirm-payment-btn"]'
-    );
+    const poolId = new URL(page.url()).pathname.split('/').pop();
+    expect(poolId).toBeTruthy();
 
-    if (await payBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await payBtn.first().click();
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: 'Payment', exact: true }).click();
+    await page.getByRole('button', { name: 'Add Payment Methods' }).click();
+    await page.getByLabel('Venmo', { exact: true }).fill('juntas-e2e');
+    await page.getByRole('button', { name: 'Save Payment Methods' }).click();
+    await expect(page.getByRole('button', { name: 'Edit Payment Methods' })).toBeVisible();
 
-      // Select payment method
-      const venmoOption = page.locator(
-        '[data-testid="method-venmo"], label:has-text("Venmo"), button:has-text("Venmo")'
-      );
-      if (await venmoOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await venmoOption.click();
-      }
-
-      // Confirm payment
-      const confirmBtn = page.locator(
-        '[data-testid="submit-confirmation"], button:has-text("Confirm")'
-      );
-      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await confirmBtn.click();
-      }
-    }
-
-    // Verify payment recorded
-    const paymentStatus = page.locator(
-      '[data-testid="payment-status"], text=/paid|confirmed|recorded/i'
-    );
-    await paymentStatus.isVisible({ timeout: 5000 }).catch(() => {});
+    await page.goto('/pools/' + poolId);
+    await page.getByRole('tab', { name: 'Contributions' }).click();
+    await page.getByRole('button', { name: 'Make Contribution' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: "I've Paid via Venmo" }).click();
+    await expect(dialog.getByText('Payment recorded successfully!')).toBeVisible();
   });
 
   test('Step 6: View payout status', async () => {
-    // Navigate to payout section
-    const payoutSection = page.locator(
-      '[data-testid="payout-section"], text=/payout|round/i'
-    );
-
-    if (await payoutSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Verify payout information is displayed
-      const payoutInfo = page.locator(
-        '[data-testid="payout-amount"], [data-testid="payout-recipient"]'
-      );
-      await expect(payoutInfo.first()).toBeVisible({ timeout: 5000 }).catch(() => {});
-    }
-
-    // Verify pool dashboard shows round information
-    const roundInfo = page.locator(
-      '[data-testid="current-round"], text=/round/i'
-    );
-    await roundInfo.isVisible({ timeout: 5000 }).catch(() => {});
+    await page.reload();
+    await page.getByRole('tab', { name: 'Payouts' }).click();
+    await expect(page.getByRole('heading', { name: 'Current Recipient' })).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByText(testUser.email, { exact: true })).toBeVisible();
   });
 });
 
