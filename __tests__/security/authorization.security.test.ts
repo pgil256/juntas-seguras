@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Authorization Security Tests
  * Tests for access control, pool permissions, and data isolation
@@ -5,10 +6,10 @@
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 
 // Mock next-auth before importing modules that use it
-jest.mock('next-auth', () => ({
+jest.mock('next-auth/next', () => ({
   getServerSession: jest.fn(),
 }));
 jest.mock('next-auth/react');
@@ -64,7 +65,7 @@ describe('Authorization Security', () => {
       // Create admin user
       adminUser = await UserModel.create({
         email: 'admin@example.com',
-        password: 'AdminPassword123!',
+        verificationMethod: 'email',
         name: 'Admin User',
         emailVerified: true,
         pools: ['test-pool-123'],
@@ -78,7 +79,7 @@ describe('Authorization Security', () => {
       // Create member user
       memberUser = await UserModel.create({
         email: 'member@example.com',
-        password: 'MemberPassword123!',
+        verificationMethod: 'email',
         name: 'Member User',
         emailVerified: true,
         pools: ['test-pool-123'],
@@ -92,7 +93,7 @@ describe('Authorization Security', () => {
       // Create non-member user
       nonMemberUser = await UserModel.create({
         email: 'nonmember@example.com',
-        password: 'NonMemberPassword123!',
+        verificationMethod: 'email',
         name: 'Non-Member User',
         emailVerified: true,
         pools: [],
@@ -240,12 +241,10 @@ describe('Authorization Security', () => {
 
       userA = await UserModel.create({
         email: 'usera@example.com',
-        password: 'UserAPassword123!',
+        verificationMethod: 'email',
         name: 'User A',
         emailVerified: true,
-        payoutMethods: [
-          { type: 'venmo', value: '@usera', isPrimary: true },
-        ],
+        payoutMethods: { venmo: '@usera', preferred: 'venmo' },
         twoFactorAuth: {
           enabled: true,
           method: 'email',
@@ -255,12 +254,10 @@ describe('Authorization Security', () => {
 
       userB = await UserModel.create({
         email: 'userb@example.com',
-        password: 'UserBPassword123!',
+        verificationMethod: 'email',
         name: 'User B',
         emailVerified: true,
-        payoutMethods: [
-          { type: 'paypal', value: 'userb@paypal.com', isPrimary: true },
-        ],
+        payoutMethods: { paypal: 'userb-test', preferred: 'paypal' },
         twoFactorAuth: {
           enabled: true,
           method: 'email',
@@ -276,15 +273,13 @@ describe('Authorization Security', () => {
       const userADoc = await UserModel.findById(userA._id);
       const userBDoc = await UserModel.findById(userB._id);
 
-      expect(userADoc.payoutMethods).toHaveLength(1);
-      expect(userADoc.payoutMethods[0].value).toBe('@usera');
+      expect(userADoc.payoutMethods.venmo).toBe('@usera');
+      expect(userADoc.payoutMethods.preferred).toBe('venmo');
+      expect(userADoc.payoutMethods.paypal).toBeUndefined();
 
-      expect(userBDoc.payoutMethods).toHaveLength(1);
-      expect(userBDoc.payoutMethods[0].value).toBe('userb@paypal.com');
-
-      // Verify they don't have access to each other's data
-      expect(userADoc.payoutMethods[0].value).not.toBe('userb@paypal.com');
-      expect(userBDoc.payoutMethods[0].value).not.toBe('@usera');
+      expect(userBDoc.payoutMethods.paypal).toBe('userb-test');
+      expect(userBDoc.payoutMethods.preferred).toBe('paypal');
+      expect(userBDoc.payoutMethods.venmo).toBeUndefined();
     });
 
     it('should isolate user pools data', async () => {
@@ -295,7 +290,7 @@ describe('Authorization Security', () => {
       await PoolModel.create({
         id: 'pool-user-a',
         name: 'User A Pool',
-        members: [{ userId: userA._id, role: PoolMemberRole.ADMIN }],
+        members: [{ userId: userA._id, name: userA.name, email: userA.email, position: 1, role: PoolMemberRole.ADMIN }],
         status: PoolStatus.ACTIVE,
         contributionAmount: 10,
         frequency: 'weekly',
@@ -310,7 +305,7 @@ describe('Authorization Security', () => {
       await PoolModel.create({
         id: 'pool-user-b',
         name: 'User B Pool',
-        members: [{ userId: userB._id, role: PoolMemberRole.ADMIN }],
+        members: [{ userId: userB._id, name: userB.name, email: userB.email, position: 1, role: PoolMemberRole.ADMIN }],
         status: PoolStatus.ACTIVE,
         contributionAmount: 10,
         frequency: 'weekly',

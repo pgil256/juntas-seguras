@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "Juntas Seguras - Secure Community Savings Pools",
     description:
       "Save together, build wealth as a community. Create transparent savings pools with friends and family.",
-    url: "https://juntas-seguras.vercel.app",
+    url: "https://juntasseguras.patbuilds.dev",
     siteName: "Juntas Seguras",
     type: "website",
     locale: "en_US",
