@@ -250,8 +250,8 @@ describe('ZelleInstructionsCard Component', () => {
 
       expect(screen.getByText('Pay via Zelle')).toBeInTheDocument();
       expect(screen.getByText('Send to:').parentElement).toHaveTextContent('test@email.com');
-      expect(screen.getByText('John Doe')).toBeInTheDocument();
-      expect(screen.getByText('$100.00')).toBeInTheDocument();
+      expect(screen.getByText('Recipient:').parentElement).toHaveTextContent('John Doe');
+      expect(screen.getByText('Amount:').parentElement).toHaveTextContent('$100.00');
     });
 
     it('shows email icon for email identifier', () => {
