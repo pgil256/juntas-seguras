@@ -17,13 +17,22 @@ const transporter = process.env.SMTP_URL ? nodemailer.createTransport(process.en
 // POST /api/auth/register - Register a new user
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, verificationMethod } = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Expected a registration form' }, { status: 400 });
+    }
+    const { name, email, password, verificationMethod } = body;
 
     if (!name || !email || !password || !verificationMethod) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string' ||
+        !['email', 'app'].includes(verificationMethod)) {
+      return NextResponse.json({ error: 'Invalid registration fields' }, { status: 400 });
     }
 
     // Sanitize and validate inputs
@@ -130,7 +139,7 @@ export async function POST(request: NextRequest) {
         isTemporary: true // Indicate this is a temporary user
       },
       mfaSetup: null
-    });
+    }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(

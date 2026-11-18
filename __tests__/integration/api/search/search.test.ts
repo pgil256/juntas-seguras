@@ -28,6 +28,12 @@ jest.mock('@/lib/api', () => ({
   }),
 }));
 
+// The suite already connected Mongoose to its disposable database in beforeAll.
+jest.mock('@/lib/db/connect', () => ({
+  __esModule: true,
+  default: async () => mongoose,
+}));
+
 describe('Search API Tests', () => {
   let mongoServer: MongoMemoryServer;
   let testUser: any;
@@ -81,7 +87,7 @@ describe('Search API Tests', () => {
       totalAmount: 500,
       memberCount: 5,
       frequency: 'monthly',
-      status: 'ACTIVE',
+      status: 'active',
       currentRound: 1,
       members: [
         {
@@ -152,7 +158,7 @@ describe('Search API Tests', () => {
       totalAmount: 200,
       memberCount: 4,
       frequency: 'weekly',
-      status: 'ACTIVE',
+      status: 'active',
       currentRound: 3,
       members: [
         {

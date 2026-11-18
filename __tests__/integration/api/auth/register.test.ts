@@ -252,7 +252,7 @@ describe('POST /api/auth/register', () => {
       expect(mockSendMail).toHaveBeenCalled();
       const emailCall = mockSendMail.mock.calls[0][0];
       expect(emailCall.to).toBe('verify@example.com');
-      expect(emailCall.subject).toContain('Verification');
+      expect(emailCall.subject).toBe('Verify your account');
     });
 
     it('should not return password in response', async () => {

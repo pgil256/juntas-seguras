@@ -31,6 +31,12 @@ jest.mock('@/lib/utils', () => ({
   logServerActivity: jest.fn(),
 }));
 
+// The suite already connected Mongoose to its disposable database in beforeAll.
+jest.mock('@/lib/db/connect', () => ({
+  __esModule: true,
+  default: async () => mongoose,
+}));
+
 describe('User Profile API Tests', () => {
   let mongoServer: MongoMemoryServer;
   let testUser: any;
