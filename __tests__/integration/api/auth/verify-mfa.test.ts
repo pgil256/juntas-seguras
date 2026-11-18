@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { resetRateLimit } from '@/lib/utils/rate-limiter';
 import speakeasy from 'speakeasy';
 import {
   setupTestDb,
@@ -51,6 +52,8 @@ describe('POST /api/auth/verify-mfa', () => {
   });
 
   beforeEach(async () => {
+    // Each test owns its synthetic request history; the limiter stays active during the test.
+    resetRateLimit('unknown', 'mfa');
     await clearTestDb();
     jest.clearAllMocks();
 
@@ -508,7 +511,7 @@ describe('POST /api/auth/verify-mfa', () => {
         verificationMethod: 'email',
         twoFactorAuth: {
           enabled: true,
-          method: 'invalid',
+          method: 'email',
         },
       });
 

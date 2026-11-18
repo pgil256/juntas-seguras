@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { getServerSession } from 'next-auth/next';
 import {
   setupTestDb,
   teardownTestDb,
@@ -28,9 +29,9 @@ jest.mock('@/lib/utils', () => ({
   logServerActivity: jest.fn(),
 }));
 
-// Mock generateVerificationCode
-jest.mock('@/lib/utils/verification', () => ({
-  generateVerificationCode: jest.fn().mockReturnValue('987654'),
+jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
+jest.mock('nodemailer', () => ({
+  createTransport: () => ({ sendMail: jest.fn().mockResolvedValue({ messageId: 'local-mail' }) }),
 }));
 
 describe('Two-Factor Authentication API', () => {
@@ -49,6 +50,7 @@ describe('Two-Factor Authentication API', () => {
 
   beforeEach(async () => {
     await clearTestDb();
+    jest.mocked(getServerSession).mockResolvedValue(null);
     jest.clearAllMocks();
 
     // Dynamically import route handlers after mocks are in place
@@ -68,7 +70,7 @@ describe('Two-Factor Authentication API', () => {
   /** Helper to create a test user with required fields */
   async function createTestUser(overrides: Record<string, unknown> = {}) {
     const UserModel = getUserModel();
-    return UserModel.create({
+    const user = await UserModel.create({
       name: 'Test User',
       email: `test-${Date.now()}@example.com`,
       hashedPassword: 'hashed',
@@ -78,12 +80,14 @@ describe('Two-Factor Authentication API', () => {
       verificationMethod: 'email',
       ...overrides,
     });
+    jest.mocked(getServerSession).mockResolvedValue({ user: { id: user._id.toString(), email: user.email } });
+    return user;
   }
 
   // -- Setup Tests --
 
   describe('POST /api/security/two-factor/setup', () => {
-    it('should require userId and method', async () => {
+    it('requires a signed-in user', async () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,17 +95,18 @@ describe('Two-Factor Authentication API', () => {
       });
 
       const response = await setupPOST(request);
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(401);
 
       const data = await response.json();
-      expect(data.error).toContain('required');
+      expect(data.error).toBe('Not authenticated');
     });
 
     it('should reject invalid authentication method', async () => {
+      await createTestUser();
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId(), method: 'sms' }),
+        body: JSON.stringify({ method: 'sms' }),
       });
 
       const response = await setupPOST(request);
@@ -111,15 +116,16 @@ describe('Two-Factor Authentication API', () => {
       expect(data.error).toContain('Invalid authentication method');
     });
 
-    it('should return 404 when user not found', async () => {
+    it('requires the session account to exist', async () => {
+      jest.mocked(getServerSession).mockResolvedValue({ user: { id: generateObjectId(), email: 'missing@example.test' } });
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId(), method: 'email' }),
+        body: JSON.stringify({ method: 'email' }),
       });
 
       const response = await setupPOST(request);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(401);
     });
 
     it('should return QR code and secret for app (TOTP) setup', async () => {
@@ -128,7 +134,7 @@ describe('Two-Factor Authentication API', () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), method: 'app' }),
+        body: JSON.stringify({ method: 'app' }),
       });
 
       const response = await setupPOST(request);
@@ -137,11 +143,10 @@ describe('Two-Factor Authentication API', () => {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.secret).toBeDefined();
-      expect(data.secret).toHaveLength(16);
-      expect(data.qrCodeUrl).toContain('otpauth://totp/');
-      expect(data.qrCodeUrl).toContain('totp@example.com');
+      expect(data.secret).toMatch(/^[A-Z2-7]+$/);
+      expect(data.qrCodeUrl).toMatch(/^data:image\/png;base64,/);
       expect(data.backupCodes).toBeDefined();
-      expect(data.backupCodes).toHaveLength(8);
+      expect(data.backupCodes).toHaveLength(10);
 
       // Verify user was updated in the database
       const UserModel = getUserModel();
@@ -152,12 +157,12 @@ describe('Two-Factor Authentication API', () => {
     });
 
     it('should return success message for email method setup', async () => {
-      const user = await createTestUser({ email: 'email2fa@example.com' });
+      await createTestUser({ email: 'email2fa@example.com' });
 
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), method: 'email' }),
+        body: JSON.stringify({ method: 'email' }),
       });
 
       const response = await setupPOST(request);
@@ -167,7 +172,7 @@ describe('Two-Factor Authentication API', () => {
       expect(data.success).toBe(true);
       expect(data.message).toContain('email');
       expect(data.backupCodes).toBeDefined();
-      expect(data.backupCodes).toHaveLength(8);
+      expect(data.backupCodes).toHaveLength(10);
       // Should not expose QR code URL for email method
       expect(data.qrCodeUrl).toBeUndefined();
     });
@@ -176,7 +181,7 @@ describe('Two-Factor Authentication API', () => {
   // -- Verify Tests --
 
   describe('POST /api/security/two-factor/verify', () => {
-    it('should require userId', async () => {
+    it('requires a signed-in user', async () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -184,17 +189,18 @@ describe('Two-Factor Authentication API', () => {
       });
 
       const response = await verifyPOST(request);
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(401);
 
       const data = await response.json();
-      expect(data.error).toContain('User ID is required');
+      expect(data.error).toBe('Not authenticated');
     });
 
     it('should require code or recovery code', async () => {
+      await createTestUser();
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId() }),
+        body: JSON.stringify({}),
       });
 
       const response = await verifyPOST(request);
@@ -204,19 +210,20 @@ describe('Two-Factor Authentication API', () => {
       expect(data.error).toContain('code');
     });
 
-    it('should return 404 when user not found', async () => {
+    it('requires the session account to exist', async () => {
+      jest.mocked(getServerSession).mockResolvedValue({ user: { id: generateObjectId(), email: 'missing@example.test' } });
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId(), code: '123456' }),
+        body: JSON.stringify({ code: '123456' }),
       });
 
       const response = await verifyPOST(request);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(401);
     });
 
     it('should reject invalid code', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'verify-invalid@example.com',
         pendingMfaVerification: true,
         twoFactorAuth: {
@@ -230,7 +237,7 @@ describe('Two-Factor Authentication API', () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), code: '000000' }),
+        body: JSON.stringify({ code: '000000' }),
       });
 
       const response = await verifyPOST(request);
@@ -253,7 +260,7 @@ describe('Two-Factor Authentication API', () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), code: validCode }),
+        body: JSON.stringify({ code: validCode }),
       });
 
       const response = await verifyPOST(request);
@@ -274,7 +281,7 @@ describe('Two-Factor Authentication API', () => {
   // -- Resend Tests --
 
   describe('POST /api/security/two-factor/resend', () => {
-    it('should require userId', async () => {
+    it('requires a signed-in user', async () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,35 +289,37 @@ describe('Two-Factor Authentication API', () => {
       });
 
       const response = await resendPOST(request);
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(401);
 
       const data = await response.json();
-      expect(data.error).toContain('User ID is required');
+      expect(data.error).toBe('Not authenticated');
     });
 
-    it('should require valid method', async () => {
+    it('explains that an authenticator code is generated by the app', async () => {
+      await createTestUser({ twoFactorAuth: { method: 'app', enabled: true } });
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId(), method: 'sms' }),
+        body: JSON.stringify({ method: 'sms' }),
       });
 
       const response = await resendPOST(request);
       expect(response.status).toBe(400);
 
       const data = await response.json();
-      expect(data.error).toContain('authentication method');
+      expect(data.error).toContain('cannot be resent');
     });
 
-    it('should return 404 when user not found', async () => {
+    it('requires the session account to exist', async () => {
+      jest.mocked(getServerSession).mockResolvedValue({ user: { id: generateObjectId(), email: 'missing@example.test' } });
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: generateObjectId(), method: 'email' }),
+        body: JSON.stringify({ method: 'email' }),
       });
 
       const response = await resendPOST(request);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(401);
     });
 
     it('should send new verification code successfully', async () => {
@@ -327,7 +336,7 @@ describe('Two-Factor Authentication API', () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), method: 'email' }),
+        body: JSON.stringify({ method: 'email' }),
       });
 
       const response = await resendPOST(request);
@@ -351,7 +360,7 @@ describe('Two-Factor Authentication API', () => {
       const request = new NextRequest('http://localhost:3000/api/security/two-factor/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id.toString(), method: 'email' }),
+        body: JSON.stringify({ method: 'email' }),
       });
 
       const response = await resendPOST(request);

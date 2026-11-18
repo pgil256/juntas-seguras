@@ -91,6 +91,7 @@ export async function PUT(req: NextRequest) {
       email: updatedUser.email,
       phone: updatedUser.phone || '',
       createdAt: updatedUser.createdAt,
+      lastLogin: updatedUser.lastLogin,
       avatar: updatedUser.avatar || '',
     });
   } catch (error) {

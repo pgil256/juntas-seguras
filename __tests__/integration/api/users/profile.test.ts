@@ -65,7 +65,7 @@ describe('User Profile API Tests', () => {
       id: generateMockUuid(),
       email: testUsers.admin.email,
       name: testUsers.admin.name,
-      password: 'hashedPassword',
+      hashedPassword: 'hashedPassword',
       phone: '555-123-4567',
       avatar: 'https://example.com/avatar.jpg',
       mfaSetupComplete: true,
@@ -169,7 +169,7 @@ describe('User Profile API Tests', () => {
         id: generateMockUuid(),
         email: 'minimal@test.com',
         name: 'Minimal User',
-        password: 'hashedPassword',
+        hashedPassword: 'hashedPassword',
         mfaSetupComplete: true,
         createdAt: new Date(),
       });
@@ -303,7 +303,7 @@ describe('User Profile API Tests', () => {
 
       // Verify password and mfaSetupComplete were not changed
       const updatedUser = await UserModel.findOne({ email: testUser.email });
-      expect(updatedUser.password).toBe('hashedPassword');
+      expect(updatedUser.hashedPassword).toBe('hashedPassword');
       expect(updatedUser.mfaSetupComplete).toBe(true);
     });
   });

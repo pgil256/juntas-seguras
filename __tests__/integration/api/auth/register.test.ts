@@ -403,7 +403,7 @@ describe('POST /api/auth/register', () => {
   });
 
   describe('MFA Setup', () => {
-    it('should set pendingMfaVerification to true', async () => {
+    it('keeps a newly registered account unverified', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,7 +419,9 @@ describe('POST /api/auth/register', () => {
 
       const UserModel = getUserModel();
       const user = await UserModel.findOne({ email: 'mfa@example.com' });
-      expect(user.pendingMfaVerification).toBe(true);
+      expect(user.isVerified).toBe(false);
+      expect(user.isTemporary).toBe(true);
+      expect(user.twoFactorAuth.verified).toBe(false);
       expect(user.mfaSetupComplete).toBe(false);
     });
 
