@@ -249,7 +249,7 @@ describe('ZelleInstructionsCard Component', () => {
       render(<ZelleInstructionsCard {...defaultProps} />);
 
       expect(screen.getByText('Pay via Zelle')).toBeInTheDocument();
-      expect(screen.getByText('test@email.com', { selector: 'span.font-medium' })).toBeInTheDocument();
+      expect(screen.getByText('Send to:').parentElement).toHaveTextContent('test@email.com');
       expect(screen.getByText('John Doe')).toBeInTheDocument();
       expect(screen.getByText('$100.00')).toBeInTheDocument();
     });
