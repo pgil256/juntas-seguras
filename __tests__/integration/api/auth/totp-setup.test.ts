@@ -186,7 +186,8 @@ describe('POST /api/auth/totp-setup', () => {
       const updatedUser = await UserModel.findById(testUser._id);
 
       expect(updatedUser.twoFactorAuth.pendingTotpSecret).toBe(data.secret);
-      expect(updatedUser.twoFactorAuth.method).toBe('totp');
+      expect(updatedUser.twoFactorAuth.method).toBe('email');
+      expect(updatedUser.twoFactorAuth.totpSecret).toBeUndefined();
     });
   });
 });

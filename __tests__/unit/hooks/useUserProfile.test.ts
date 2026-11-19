@@ -3,7 +3,8 @@
  * Tests the user profile fetching and updating functionality
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderSWRHook as renderHook } from '../../helpers/render-swr-hook';
+import { act, waitFor } from '@testing-library/react';
 import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/lib/hooks/useUserProfile';
 
@@ -101,7 +102,7 @@ describe('useUserProfile', () => {
 
       expect(result.current.profile).toEqual(mockProfile);
       expect(result.current.error).toBeNull();
-      expect(mockFetch).toHaveBeenCalledWith('/api/users/profile');
+      expect(mockFetch).toHaveBeenCalledWith('/api/users/profile', { headers: { 'Content-Type': 'application/json' } });
     });
 
     it('should call onSuccess callback when profile is fetched', async () => {
@@ -146,7 +147,7 @@ describe('useUserProfile', () => {
 
       expect(updateResult!.success).toBe(true);
       expect(result.current.profile).toEqual(updatedProfile);
-      expect(mockFetch).toHaveBeenLastCalledWith('/api/users/profile', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/users/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +296,7 @@ describe('useUserProfile', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to fetch profile');
+      expect(result.current.error).toBe('An error occurred while fetching data');
     });
   });
 

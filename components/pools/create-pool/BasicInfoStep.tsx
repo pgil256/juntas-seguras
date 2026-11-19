@@ -67,6 +67,7 @@ export function BasicInfoStep({
             onValueChange={(value) => onSelectChange("contributionAmount", value)}
           >
             <SelectTrigger
+              id="contributionAmount"
               className={`pl-10 ${touchedFields.contributionAmount && fieldErrors.contributionAmount ? 'border-destructive' : ''}`}
             >
               <SelectValue placeholder="Select amount" />

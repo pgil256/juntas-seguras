@@ -66,7 +66,7 @@ export function getStripeClient(): Stripe {
   cachedClient = new Stripe(secretKey, {
     appInfo: {
       name: 'juntas-seguras (Stripe test-mode PoC)',
-      url: 'https://juntas-seguras.vercel.app',
+      url: 'https://juntasseguras.patbuilds.dev',
     },
     maxNetworkRetries: 2,
     timeout: 20_000,

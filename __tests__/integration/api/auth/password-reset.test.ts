@@ -12,6 +12,7 @@
 
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import {
   setupTestDb,
   teardownTestDb,
@@ -36,27 +37,6 @@ jest.mock('@/lib/db/connect', () => ({
   default: jest.fn().mockResolvedValue(undefined),
 }));
 
-// Mock mongodb MongoClient (used by forgot-password route which uses native driver)
-const mockCollection = {
-  findOne: jest.fn(),
-  updateOne: jest.fn(),
-};
-
-const mockDb = {
-  collection: jest.fn().mockReturnValue(mockCollection),
-};
-
-const mockClient = {
-  connect: jest.fn().mockResolvedValue(undefined),
-  db: jest.fn().mockReturnValue(mockDb),
-  close: jest.fn().mockResolvedValue(undefined),
-};
-
-jest.mock('mongodb', () => ({
-  MongoClient: jest.fn(() => mockClient),
-  ObjectId: jest.requireActual('mongoose').Types.ObjectId,
-}));
-
 describe('Password Reset Flow', () => {
   let forgotPasswordPOST: (req: Request) => Promise<Response>;
   let resetPasswordPOST: (req: Request) => Promise<Response>;
@@ -73,10 +53,6 @@ describe('Password Reset Flow', () => {
   beforeEach(async () => {
     await clearTestDb();
     jest.clearAllMocks();
-
-    // Reset mock collection responses
-    mockCollection.findOne.mockReset();
-    mockCollection.updateOne.mockReset();
 
     // Dynamically import route handlers
     const forgotModule = await import(
@@ -114,9 +90,6 @@ describe('Password Reset Flow', () => {
     });
 
     it('should return success even for non-existent email (prevent enumeration)', async () => {
-      // MongoClient findOne returns null for unknown email
-      mockCollection.findOne.mockResolvedValueOnce(null);
-
       const request = new Request(
         'http://localhost:3000/api/auth/forgot-password',
         {
@@ -136,23 +109,11 @@ describe('Password Reset Flow', () => {
     });
 
     it('should generate a reset token and return success for valid email', async () => {
-      const fakeUser = {
-        _id: 'user-object-id-123',
+      const UserModel = getUserModel();
+      const user = await UserModel.create({
+        name: 'Test User',
         email: 'valid@example.com',
-      };
-
-      // First findOne: locate the user
-      mockCollection.findOne
-        .mockResolvedValueOnce(fakeUser)
-        // Second findOne: verify update (return user with token)
-        .mockResolvedValueOnce({
-          ...fakeUser,
-          resetToken: 'mocked-uuid-token',
-          resetTokenExpiry: new Date(Date.now() + 3600000),
-        });
-
-      mockCollection.updateOne.mockResolvedValueOnce({
-        modifiedCount: 1,
+        verificationMethod: 'email',
       });
 
       const request = new Request(
@@ -170,16 +131,9 @@ describe('Password Reset Flow', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
 
-      // Verify updateOne was called with a token and expiry
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: fakeUser._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            resetToken: expect.any(String),
-            resetTokenExpiry: expect.any(Date),
-          }),
-        })
-      );
+      const updated = await UserModel.findById(user._id);
+      expect(updated.resetToken).toMatch(/^[0-9a-f]{64}$/);
+      expect(updated.resetTokenExpiry.getTime()).toBeGreaterThan(Date.now());
 
       // Verify email was sent
       expect(mockSendMail).toHaveBeenCalledTimes(1);
@@ -251,7 +205,7 @@ describe('Password Reset Flow', () => {
         hashedPassword: await bcrypt.hash('OldPassword123!', 10),
         provider: 'credentials',
         verificationMethod: 'email',
-        resetToken: 'expired-token-uuid',
+        resetToken: createHash('sha256').update('expired-token-uuid').digest('hex'),
         resetTokenExpiry: expiredDate,
         twoFactorAuth: { enabled: true, method: 'email' },
       });
@@ -289,7 +243,7 @@ describe('Password Reset Flow', () => {
         hashedPassword: await bcrypt.hash(oldPassword, 10),
         provider: 'credentials',
         verificationMethod: 'email',
-        resetToken: 'valid-token-uuid',
+        resetToken: createHash('sha256').update('valid-token-uuid').digest('hex'),
         resetTokenExpiry: futureDate,
         twoFactorAuth: { enabled: true, method: 'email' },
       });
@@ -333,7 +287,7 @@ describe('Password Reset Flow', () => {
         hashedPassword: await bcrypt.hash('OldPassword123!', 10),
         provider: 'credentials',
         verificationMethod: 'email',
-        resetToken: 'one-time-token-uuid',
+        resetToken: createHash('sha256').update('one-time-token-uuid').digest('hex'),
         resetTokenExpiry: futureDate,
         twoFactorAuth: { enabled: true, method: 'email' },
       });

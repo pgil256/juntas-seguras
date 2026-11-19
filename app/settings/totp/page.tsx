@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 export default function TotpSetup() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [qrCode, setQrCode] = useState<string>('');
   const [secret, setSecret] = useState<string>('');
@@ -21,38 +21,21 @@ export default function TotpSetup() {
     }
   }, [status, router]);
 
-  useEffect(() => {
-    const setupTotp = async () => {
-      if (status === 'authenticated') {
-        try {
-          setIsLoading(true);
-          // Call the API route instead of directly using the function
-          const response = await fetch('/api/auth/totp-setup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to set up TOTP');
-          }
-          
-          const data = await response.json();
-          setSecret(data.secret);
-          setQrCode(data.qrCode);
-        } catch (error) {
-          setError('Failed to generate TOTP setup. Please try again.');
-          console.error('TOTP setup error:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    setupTotp();
-  }, [status, session]);
+  const startSetup = async () => {
+    setError('');
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/totp-setup', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not start setup.');
+      setSecret(data.secret);
+      setQrCode(data.qrCode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start setup. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +71,7 @@ export default function TotpSetup() {
     }
   };
 
-  if (status === 'loading' || isLoading) {
+  if (status !== 'authenticated' || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -103,7 +86,7 @@ export default function TotpSetup() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Set up TOTP Authentication
+          Set up an authenticator app
         </h2>
       </div>
 
@@ -120,6 +103,12 @@ export default function TotpSetup() {
             </div>
           )}
 
+          {!secret && (
+            <button type="button" onClick={startSetup} className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white">
+              Generate setup code
+            </button>
+          )}
+          {secret && !success && <>
           <div className="mb-6">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Step 1: Scan QR Code</h3>
             <p className="text-sm text-gray-500 mb-4">
@@ -143,9 +132,9 @@ export default function TotpSetup() {
             <p className="text-sm text-gray-500 mb-2">
               If you can't scan the QR code, you can enter this secret key manually:
             </p>
-            <div className="bg-gray-50 p-3 rounded-lg font-mono text-sm break-all">
+            <code aria-label="Manual setup key" className="block bg-gray-50 p-3 rounded-lg font-mono text-sm break-all">
               {secret}
-            </div>
+            </code>
           </div>
 
           <form onSubmit={handleVerification} className="space-y-6">
@@ -171,12 +160,13 @@ export default function TotpSetup() {
               <button
                 type="submit"
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                disabled={isLoading}
+                disabled={isLoading || !/^\d{6}$/.test(verificationCode)}
               >
                 {isLoading ? 'Verifying...' : 'Verify and Enable TOTP'}
               </button>
             </div>
           </form>
+          </>}
         </div>
       </div>
     </div>

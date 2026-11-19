@@ -1,8 +1,9 @@
+/** @jest-environment node */
 /**
  * Registration API Integration Tests
  *
  * Tests for the POST /api/auth/register endpoint
- * covering user registration flow with email and TOTP verification methods.
+ * covering user registration flow with email verification.
  */
 
 import { NextRequest } from 'next/server';
@@ -161,7 +162,7 @@ describe('POST /api/auth/register', () => {
       expect(user.twoFactorAuth.method).toBe('email');
     });
 
-    it('should register user with TOTP verification method', async () => {
+    it('sends email first when a legacy client requests an authenticator', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,10 +180,36 @@ describe('POST /api/auth/register', () => {
       expect(response.status).toBe(201);
       expect(data.success).toBe(true);
       expect(data.user).toBeDefined();
-      expect(data.user.mfaMethod).toBe('app');
-      expect(data.mfaSetup).toBeDefined();
-      expect(data.mfaSetup.totpSecret).toBeDefined();
-      expect(data.mfaSetup.totpUrl).toBeDefined();
+      expect(data.user.mfaMethod).toBe('email');
+      expect(data.mfaSetup).toBeNull();
+      expect(mockSendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'totp@example.com' }));
+      const pending = await getUserModel().findById(data.user.userId);
+      expect(pending.isTemporary).toBe(true);
+      expect(pending.emailVerified).toBe(false);
+      expect(pending.twoFactorAuth.totpSecret).toBeUndefined();
+    });
+
+    it('resumes a pending app registration by verifying its email and then closes registration', async () => {
+      const pending = await getUserModel().create({
+        name: 'Pending', email: 'resend@example.test', verificationMethod: 'app',
+        isTemporary: true, isVerified: false, twoFactorAuth: { method: 'app' },
+      });
+      const { POST: resend } = await import('@/app/api/auth/register/resend/route');
+      const { POST: verify } = await import('@/app/api/auth/verify/route');
+      const registration = { userId: pending._id.toString(), email: pending.email, verificationMethod: 'app' };
+      const request = (body: object) => new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) });
+
+      expect((await resend(request(registration))).status).toBe(200);
+      const message = mockSendMail.mock.calls[0][0];
+      expect(message.to).toBe(pending.email);
+      const code = message.text.match(/\b\d{6}\b/)?.[0];
+      expect(code).toBeDefined();
+      expect((await verify(request({ ...registration, code }))).status).toBe(200);
+      expect((await resend(request(registration))).status).toBe(404);
+      const verified = await getUserModel().findById(pending._id);
+      expect(verified.emailVerified).toBe(true);
+      expect(verified.isTemporary).toBe(false);
+      expect(verified.twoFactorAuth.method).toBe('email');
     });
 
     it('should hash password before saving', async () => {
@@ -252,7 +279,7 @@ describe('POST /api/auth/register', () => {
       expect(mockSendMail).toHaveBeenCalled();
       const emailCall = mockSendMail.mock.calls[0][0];
       expect(emailCall.to).toBe('verify@example.com');
-      expect(emailCall.subject).toContain('Verification');
+      expect(emailCall.subject).toBe('Verify your account');
     });
 
     it('should not return password in response', async () => {
@@ -304,6 +331,7 @@ describe('POST /api/auth/register', () => {
 
       // Create existing verified user
       await UserModel.create({
+        verificationMethod: 'email',
         name: 'Existing User',
         email: 'existing@example.com',
         hashedPassword: await bcrypt.hash('password123', 10),
@@ -340,6 +368,7 @@ describe('POST /api/auth/register', () => {
 
       // Create existing temporary user
       await UserModel.create({
+        verificationMethod: 'email',
         name: 'Temp User',
         email: 'cleanup@example.com',
         hashedPassword: await bcrypt.hash('password123', 10),
@@ -400,7 +429,7 @@ describe('POST /api/auth/register', () => {
   });
 
   describe('MFA Setup', () => {
-    it('should set pendingMfaVerification to true', async () => {
+    it('keeps a newly registered account unverified', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -416,11 +445,13 @@ describe('POST /api/auth/register', () => {
 
       const UserModel = getUserModel();
       const user = await UserModel.findOne({ email: 'mfa@example.com' });
-      expect(user.pendingMfaVerification).toBe(true);
+      expect(user.isVerified).toBe(false);
+      expect(user.isTemporary).toBe(true);
+      expect(user.twoFactorAuth.verified).toBe(false);
       expect(user.mfaSetupComplete).toBe(false);
     });
 
-    it('should set correct MFA method based on verification method', async () => {
+    it('starts both supported registration requests with email verification', async () => {
       // Email method
       const emailRequest = new NextRequest('http://localhost:3000/api/auth/register', {
         method: 'POST',
@@ -454,7 +485,8 @@ describe('POST /api/auth/register', () => {
       await POST(appRequest);
 
       const appUser = await UserModel.findOne({ email: 'method-app@example.com' });
-      expect(appUser.twoFactorAuth.method).toBe('app');
+      expect(appUser.verificationMethod).toBe('email');
+      expect(appUser.twoFactorAuth.method).toBe('email');
     });
   });
 
@@ -485,10 +517,8 @@ describe('POST /api/auth/register', () => {
       });
 
       const response = await POST(request);
-      // The implementation should either:
-      // 1. Return 500 and clean up the temp user
-      // 2. Return success but log the email failure
-      expect([201, 500]).toContain(response.status);
+      expect(response.status).toBe(500);
+      expect(await getUserModel().exists({ email: 'fail@example.com' })).toBeNull();
     });
   });
 });

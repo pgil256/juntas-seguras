@@ -35,7 +35,7 @@ interface UseTicketsReturn {
 
 export function useTickets({ userId, ticketId, initialData, isAdmin }: UseTicketsProps = {}): UseTicketsReturn {
   const [tickets, setTickets] = useState<SupportTicket[]>(initialData || []);
-  const [isLoading, setIsLoading] = useState(!initialData);
+  const [isLoading, setIsLoading] = useState(!initialData && Boolean(userId || ticketId || isAdmin));
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<TicketStats | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);

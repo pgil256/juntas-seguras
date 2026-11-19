@@ -806,10 +806,9 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
-                    <Switch
-                      checked={userSettings?.securitySettings?.twoFactorAuth || false}
-                      onCheckedChange={() => {}}
-                    />
+                    <Button variant="outline" onClick={() => router.push('/settings/totp')}>
+                      Set up authenticator
+                    </Button>
                   </div>
 
                 </div>

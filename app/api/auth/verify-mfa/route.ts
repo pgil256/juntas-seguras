@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { recordMfaVerification } from '../../../../lib/db/models/mfa-session-verification';
 import { getToken } from 'next-auth/jwt';
 import connectToDatabase from '../../../../lib/db/connect';
 import { getUserModel } from '../../../../lib/db/models/user';
@@ -41,6 +42,10 @@ export async function POST(req: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       );
+    }
+
+    if (token.requiresMfa && typeof token.mfaChallengeId !== 'string') {
+      return NextResponse.json({ error: 'Please sign in again to start a new verification.' }, { status: 401 });
     }
 
     const { code } = await req.json();
@@ -173,6 +178,10 @@ export async function POST(req: NextRequest) {
       }
     );
     
+    if (typeof token.mfaChallengeId === 'string') {
+      await recordMfaVerification(token.mfaChallengeId, user._id.toString());
+    }
+
     // Create response with session update flag
     const response = NextResponse.json({
       success: true,

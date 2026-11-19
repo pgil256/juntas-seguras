@@ -229,11 +229,11 @@ describe('EscrowReleaseDialog Component', () => {
 
       mockReleaseEscrowPayment.mockImplementation(() => new Promise(() => {}));
 
-      const { container } = render(<EscrowReleaseDialog {...defaultProps} />);
+      render(<EscrowReleaseDialog {...defaultProps} />);
 
       await user.click(screen.getByRole('button', { name: /release funds/i }));
 
-      expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+      expect(screen.getByRole('dialog').querySelector('.animate-spin')).toBeInTheDocument();
     });
 
     it('calls releaseEscrowPayment with correct parameters', async () => {

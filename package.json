@@ -5,7 +5,7 @@
   "description": "A secure, transparent platform for managing community savings pools (juntas/ROSCAs) — digitizing rotating savings and credit associations with mandatory MFA, audit logging, and transparent contribution/payout tracking.",
   "author": "Patrick Gilhooley",
   "license": "MIT",
-  "homepage": "https://juntas-seguras.vercel.app",
+  "homepage": "https://juntasseguras.patbuilds.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/pgil256/juntas-seguras.git"

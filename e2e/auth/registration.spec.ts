@@ -1,258 +1,217 @@
 /**
  * E2E Tests: User Registration Flow
  *
- * Tests the complete user registration flow including:
- * - Form validation
- * - Email verification method
- * - TOTP verification method
- * - Error handling
+ * Shape of the real page (app/auth/signup/page.tsx), which these tests follow:
+ *
+ * - One credentials form: Full Name, Email Address, Phone (Optional), Password,
+ *   Confirm Password. "Password" and "Confirm Password" both match /password/i,
+ *   so every locator here is exact — a loose regex resolves to two elements and
+ *   fails Playwright's strict mode.
+ * - Name/email/password/confirm are `required` and email is `type="email"`, so
+ *   empty and malformed-email submissions are stopped by the browser before
+ *   handleCredentialsSubmit runs. The app's own messages for those cases are
+ *   unreachable through the UI; the password-strength and mismatch messages are
+ *   reachable, and are asserted below.
+ * - On success the page opens a VerificationPopup dialog. It does not navigate,
+ *   so there is no /mfa or /verify URL to wait for.
+ *
+ * Not covered: authenticator-app (TOTP) setup at signup. The page offers email
+ * verification only — there is no QR code or manual-entry secret to assert on.
  */
 
 import { test, expect } from '@playwright/test';
+
+const VALID_PASSWORD = 'Test-' + crypto.randomUUID() + '!';
+
+function uniqueEmail(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+}
 
 test.describe('User Registration', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/auth/signup');
   });
 
+  const fillCredentials = async (
+    page: import('@playwright/test').Page,
+    {
+      name = 'Test User',
+      email = uniqueEmail('test'),
+      password = VALID_PASSWORD,
+      confirmPassword = password,
+    }: { name?: string; email?: string; password?: string; confirmPassword?: string } = {}
+  ) => {
+    await page.getByLabel('Full Name').fill(name);
+    await page.getByLabel('Email Address').fill(email);
+    await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByLabel('Confirm Password').fill(confirmPassword);
+    return { name, email, password };
+  };
+
+  const submit = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: /create account/i }).click();
+
   test.describe('Form Display', () => {
     test('should display registration form', async ({ page }) => {
-      // Check for form fields
-      await expect(page.getByLabel(/name/i)).toBeVisible();
-      await expect(page.getByLabel(/email/i)).toBeVisible();
-      await expect(page.getByLabel(/password/i)).toBeVisible();
-      await expect(page.getByRole('button', { name: /sign up|register|create account/i })).toBeVisible();
+      await expect(page.getByLabel('Full Name')).toBeVisible();
+      await expect(page.getByLabel('Email Address')).toBeVisible();
+      await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Confirm Password')).toBeVisible();
+      await expect(page.getByRole('button', { name: /create account/i })).toBeVisible();
     });
 
-    test('should display MFA method selection', async ({ page }) => {
-      // Should show options for email or authenticator app
-      await expect(page.getByText(/email/i)).toBeVisible();
-      await expect(page.getByText(/authenticator|app/i)).toBeVisible();
+    test('should offer an optional phone number field', async ({ page }) => {
+      const phone = page.getByLabel(/phone number/i);
+
+      await expect(phone).toBeVisible();
+      await expect(phone).not.toHaveAttribute('required', '');
     });
 
     test('should have link to sign in page', async ({ page }) => {
-      const signInLink = page.getByRole('link', { name: /sign in|log in|already have an account/i });
-      await expect(signInLink).toBeVisible();
+      await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible();
     });
   });
 
-  test.describe('Form Validation', () => {
-    test('should show validation errors for empty form submission', async ({ page }) => {
-      // Click submit without filling form
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+  test.describe('Browser-Level Validation', () => {
+    test('should block submission of an empty form', async ({ page }) => {
+      await submit(page);
 
-      // Should show validation errors
-      await expect(page.getByText(/name.*required|required.*name/i)).toBeVisible();
-      await expect(page.getByText(/email.*required|required.*email/i)).toBeVisible();
-      await expect(page.getByText(/password.*required|required.*password/i)).toBeVisible();
+      // Native constraint validation stops the submit; we stay put with the
+      // required fields reported invalid.
+      await expect(page).toHaveURL(/auth\/signup/);
+      await expect(page.getByLabel('Full Name')).toHaveJSProperty('validity.valid', false);
     });
 
-    test('should show error for invalid email format', async ({ page }) => {
-      await page.getByLabel(/name/i).fill('Test User');
-      await page.getByLabel(/email/i).fill('invalid-email');
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+    test('should block an invalid email format', async ({ page }) => {
+      await fillCredentials(page, { email: 'invalid-email' });
+      await submit(page);
 
-      await expect(page.getByText(/valid email|invalid email/i)).toBeVisible();
-    });
-
-    test('should show error for weak password', async ({ page }) => {
-      await page.getByLabel(/name/i).fill('Test User');
-      await page.getByLabel(/email/i).fill('test@example.com');
-      await page.getByLabel(/password/i).fill('weak');
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-
-      // Should show password requirements error
-      await expect(page.getByText(/password.*8|8.*characters|stronger/i)).toBeVisible();
-    });
-
-    test('should validate password requirements', async ({ page }) => {
-      await page.getByLabel(/name/i).fill('Test User');
-      await page.getByLabel(/email/i).fill('test@example.com');
-
-      // Test various weak passwords
-      const weakPasswords = [
-        { password: 'short1!', error: /8.*characters|too short/i },
-        { password: 'nouppercase1!', error: /uppercase/i },
-        { password: 'NOLOWERCASE1!', error: /lowercase/i },
-        { password: 'NoNumbers!', error: /number|digit/i },
-        { password: 'NoSpecial123', error: /special.*character/i },
-      ];
-
-      for (const { password, error } of weakPasswords) {
-        await page.getByLabel(/password/i).fill(password);
-        await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-        // Password validation error should appear
-        // Note: Exact error message depends on implementation
-      }
+      await expect(page).toHaveURL(/auth\/signup/);
+      await expect(page.getByLabel('Email Address')).toHaveJSProperty('validity.valid', false);
     });
   });
 
-  test.describe('Email Verification Method', () => {
-    test('should complete registration with email verification', async ({ page }) => {
-      const uniqueEmail = `test-${Date.now()}@example.com`;
+  test.describe('Password Rules', () => {
+    test('should reject a password under 8 characters', async ({ page }) => {
+      await fillCredentials(page, { password: crypto.randomUUID().slice(0, 6) });
+      await submit(page);
 
-      // Fill registration form
-      await page.getByLabel(/name/i).fill('Test User');
-      await page.getByLabel(/email/i).fill(uniqueEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-
-      // Select email verification method
-      await page.getByText(/email/i).first().click();
-
-      // Submit form
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-
-      // Should redirect to MFA verification page
-      await expect(page).toHaveURL(/mfa|verify|verification/i);
-
-      // Should show code input
-      await expect(page.getByPlaceholder(/code|enter.*code/i)).toBeVisible();
+      await expect(page.getByText(/at least 8 characters/i)).toBeVisible();
     });
 
-    test('should show verification code input after email registration', async ({ page }) => {
-      const uniqueEmail = `test-email-${Date.now()}@example.com`;
+    test('should require upper, lower and numeric characters', async ({ page }) => {
+      await fillCredentials(page, { password: 'x'.repeat(12) });
+      await submit(page);
 
-      await page.getByLabel(/name/i).fill('Email Test User');
-      await page.getByLabel(/email/i).fill(uniqueEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByText(/email/i).first().click();
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+      await expect(page.getByText(/uppercase, lowercase, and numbers/i)).toBeVisible();
+    });
 
-      // Wait for navigation
-      await page.waitForURL(/mfa|verify/i, { timeout: 10000 });
+    test('should reject mismatched passwords', async ({ page }) => {
+      await fillCredentials(page, { password: VALID_PASSWORD, confirmPassword: VALID_PASSWORD + 'x' });
+      await submit(page);
 
-      // Should display 6-digit code input
-      const codeInput = page.getByPlaceholder(/code/i);
-      await expect(codeInput).toBeVisible();
-
-      // Should have resend code option
-      await expect(page.getByText(/resend|send.*again/i)).toBeVisible();
+      await expect(page.getByText(/passwords don't match/i)).toBeVisible();
     });
   });
 
-  test.describe('TOTP Verification Method', () => {
-    test('should show QR code for authenticator app setup', async ({ page }) => {
-      const uniqueEmail = `test-totp-${Date.now()}@example.com`;
-
-      await page.getByLabel(/name/i).fill('TOTP Test User');
-      await page.getByLabel(/email/i).fill(uniqueEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-
-      // Select authenticator app method
-      await page.getByText(/authenticator|app/i).click();
-
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-
-      // Wait for MFA setup page
-      await page.waitForURL(/mfa|setup|verify/i, { timeout: 10000 });
-
-      // Should show QR code or setup instructions
-      const qrCode = page.locator('img[alt*="QR"]').or(page.locator('[data-testid="qr-code"]'));
-      const setupInstructions = page.getByText(/scan.*qr|authenticator.*app/i);
-
-      // Either QR code or instructions should be visible
-      await expect(qrCode.or(setupInstructions)).toBeVisible();
+  test.describe('Email Verification', () => {
+    /**
+     * Completing a signup requires POST /api/auth/register to succeed, and that
+     * endpoint sends a verification email before it returns. CI configures
+     * placeholder SMTP credentials (EMAIL_USER=ci@example.com in e2e.yml), so a
+     * real submission always answers 500 "Failed to send verification email" —
+     * these assertions could never pass against the live endpoint.
+     *
+     * Stub the endpoint so the tests cover what the browser is actually
+     * responsible for: opening the verification dialog and wiring up resend.
+     * The unstubbed failure path is asserted separately below.
+     */
+    test.beforeEach(async ({ page }) => {
+      await page.route('**/api/auth/register', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: { userId: 'e2e-user-id', mfaMethod: 'email' },
+            mfaSetup: {},
+          }),
+        })
+      );
     });
 
-    test('should show manual entry code for TOTP setup', async ({ page }) => {
-      const uniqueEmail = `test-totp-manual-${Date.now()}@example.com`;
+    test('should open the verification dialog after registering', async ({ page }) => {
+      await fillCredentials(page, { name: 'Verification User' });
+      await submit(page);
 
-      await page.getByLabel(/name/i).fill('TOTP Manual User');
-      await page.getByLabel(/email/i).fill(uniqueEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByText(/authenticator|app/i).click();
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+      await expect(page.getByPlaceholder(/enter 6-digit code/i)).toBeVisible({ timeout: 15000 });
+    });
 
-      await page.waitForURL(/mfa|setup|verify/i, { timeout: 10000 });
+    test('should offer to resend the verification code', async ({ page }) => {
+      await fillCredentials(page, { name: 'Resend User' });
+      await submit(page);
 
-      // Should have option to show secret key manually
-      const manualEntryOption = page.getByText(/manual|can't scan|enter.*key/i);
-      if (await manualEntryOption.isVisible()) {
-        await manualEntryOption.click();
-        // Should show the secret key
-        await expect(page.getByText(/[A-Z2-7]{16,}/)).toBeVisible();
-      }
+      await expect(page.getByPlaceholder(/enter 6-digit code/i)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole('button', { name: /resend code/i })).toBeVisible();
     });
   });
 
   test.describe('Error Handling', () => {
     test('should show error for duplicate email', async ({ page }) => {
-      // This test assumes we can create a user first
-      // In practice, this might need database setup
-      const existingEmail = 'existing@example.com';
+      // The seeded demo account already exists, so the duplicate check fires
+      // server-side before any mail is attempted — no SMTP needed.
+      await fillCredentials(page, {
+        name: 'Duplicate Signup',
+        email: process.env.DEMO_ACCOUNT_EMAIL || 'demo@juntas-seguras.app',
+      });
+      await submit(page);
 
-      await page.getByLabel(/name/i).fill('Duplicate User');
-      await page.getByLabel(/email/i).fill(existingEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByText(/email/i).first().click();
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-
-      // If user already exists, should show error
-      // Note: This test may pass or fail depending on database state
-      const errorMessage = page.getByText(/already exists|already registered|email.*taken/i);
-      // We check if it appears within a reasonable time, but don't fail if user doesn't exist
-      const visible = await errorMessage.isVisible().catch(() => false);
-      // This is informational - the test structure is correct
+      await expect(page.getByText(/already exists/i).first()).toBeVisible({ timeout: 15000 });
     });
 
-    test('should handle network errors gracefully', async ({ page }) => {
-      // Simulate offline mode
+    test('should surface a message when registration fails', async ({ page }) => {
       await page.route('**/api/auth/register', (route) =>
-        route.abort('connectionfailed')
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Registration failed' }),
+        })
       );
 
-      await page.getByLabel(/name/i).fill('Network Test User');
-      await page.getByLabel(/email/i).fill('network@example.com');
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByText(/email/i).first().click();
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+      await fillCredentials(page, { name: 'Network Failure User' });
+      await submit(page);
 
-      // Should show error message
-      await expect(page.getByText(/error|failed|try again/i)).toBeVisible();
+      await expect(page.getByText(/registration failed/i).first()).toBeVisible({ timeout: 15000 });
     });
-  });
 
-  test.describe('Resend Verification Email', () => {
-    test('should allow resending verification email', async ({ page }) => {
-      const uniqueEmail = `test-resend-${Date.now()}@example.com`;
+    test('should surface a mail-delivery failure to the user', async ({ page }) => {
+      // Exactly what the real endpoint returns when SMTP is unreachable. The
+      // user must see it rather than a silently stuck button.
+      await page.route('**/api/auth/register', (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Failed to send verification email' }),
+        })
+      );
 
-      await page.getByLabel(/name/i).fill('Resend Test User');
-      await page.getByLabel(/email/i).fill(uniqueEmail);
-      await page.getByLabel(/password/i).fill('SecurePass123!');
-      await page.getByText(/email/i).first().click();
-      await page.getByRole('button', { name: /sign up|register|create account/i }).click();
+      await fillCredentials(page, { name: 'Mail Failure User' });
+      await submit(page);
 
-      await page.waitForURL(/mfa|verify/i, { timeout: 10000 });
-
-      // Click resend button
-      const resendButton = page.getByRole('button', { name: /resend|send.*again/i });
-      await expect(resendButton).toBeVisible();
-      await resendButton.click();
-
-      // Should show success message
-      await expect(page.getByText(/sent|resent|check.*email/i)).toBeVisible();
+      await expect(page.getByText(/failed to send verification email/i).first()).toBeVisible({ timeout: 15000 });
     });
   });
 
   test.describe('Navigation', () => {
     test('should navigate to sign in page', async ({ page }) => {
-      const signInLink = page.getByRole('link', { name: /sign in|log in|already have an account/i });
-      await signInLink.click();
+      await page.getByRole('link', { name: /sign in/i }).click();
 
-      await expect(page).toHaveURL(/signin|login/i);
+      await expect(page).toHaveURL(/auth\/signin/);
     });
 
     test('should navigate to home when logo is clicked', async ({ page }) => {
-      const logo = page.getByRole('link').filter({ has: page.locator('img[alt*="logo"]') }).first()
-        .or(page.locator('[aria-label*="home"]'))
-        .or(page.locator('header a').first());
+      await page.getByRole('link', { name: /juntas seguras/i }).first().click();
 
-      if (await logo.isVisible()) {
-        await logo.click();
-        // Should go to home or landing page
-        await expect(page).toHaveURL(/^\/$|\/home|\/landing/i);
-      }
+      await expect(page).toHaveURL(/localhost:3000\/?$/);
     });
   });
 });

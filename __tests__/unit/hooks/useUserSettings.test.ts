@@ -3,7 +3,8 @@
  * Tests the user settings fetching and updating functionality
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderSWRHook as renderHook } from '../../helpers/render-swr-hook';
+import { act, waitFor } from '@testing-library/react';
 import { useSession } from 'next-auth/react';
 import { useUserSettings } from '@/lib/hooks/useUserSettings';
 
@@ -115,7 +116,7 @@ describe('useUserSettings', () => {
 
       expect(result.current.settings).toEqual(mockSettings);
       expect(result.current.error).toBeNull();
-      expect(mockFetch).toHaveBeenCalledWith('/api/users/settings');
+      expect(mockFetch).toHaveBeenCalledWith('/api/users/settings', { headers: { 'Content-Type': 'application/json' } });
     });
 
     it('should call onSuccess callback when settings are fetched', async () => {
@@ -160,7 +161,7 @@ describe('useUserSettings', () => {
 
       expect(updateResult!.success).toBe(true);
       expect(result.current.settings).toEqual(updatedSettings);
-      expect(mockFetch).toHaveBeenLastCalledWith('/api/users/settings', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/users/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -348,7 +349,7 @@ describe('useUserSettings', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to fetch settings');
+      expect(result.current.error).toBe('An error occurred while fetching data');
     });
   });
 

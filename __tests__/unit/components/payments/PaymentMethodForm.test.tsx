@@ -189,7 +189,7 @@ describe('PaymentMethodForm Component', () => {
       render(<PaymentMethodForm {...defaultProps} />);
 
       // Find and click the month select trigger
-      const monthSelect = screen.getByRole('combobox', { name: '' });
+      const monthSelect = screen.getByRole('combobox', { name: 'Month' });
       await user.click(monthSelect);
 
       // Select December (12)

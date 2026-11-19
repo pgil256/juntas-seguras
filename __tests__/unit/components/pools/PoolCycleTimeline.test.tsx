@@ -133,8 +133,8 @@ describe('PoolCycleTimeline Component', () => {
 
       // The completed member (John Smith) should have a checkmark
       // We can verify by checking for the green styling or completed text
-      const johnRow = screen.getByText('John Smith').closest('div');
-      expect(johnRow?.parentElement?.querySelector('.bg-green-500')).toBeInTheDocument();
+      const johnRow = screen.getByRole('group', { name: 'John Smith' });
+      expect(johnRow.querySelector('.lucide-check')).toBeInTheDocument();
     });
 
     it('shows "Receiving" badge for current recipient', () => {
@@ -199,7 +199,7 @@ describe('PoolCycleTimeline Component', () => {
       render(<PoolCycleTimeline {...defaultProps} />);
 
       // Completed member should show payout amount ($200)
-      expect(screen.getByText(/\$200/)).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'John Smith' })).toHaveTextContent('$200');
     });
   });
 

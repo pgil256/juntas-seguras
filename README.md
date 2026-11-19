@@ -79,7 +79,7 @@ The demo account is pre-verified and MFA-exempt so you can sign in without email
 - **Payments**: Manual method tracking (Venmo/PayPal/Zelle/Cash App) with payment deep links & Zelle QR; Stripe Identity KYC *scaffolded*
 - **Email**: Nodemailer with Gmail SMTP
 - **Testing**: Jest + React Testing Library + mongodb-memory-server; Playwright for E2E
-- **Deployment**: Vercel
+- **Public demo hosting**: Self-hosted Next.js with MongoDB
 
 ## Quick Start
 
@@ -214,7 +214,9 @@ See **[.env.example](.env.example)** for the full list with inline comments.
 
 ## Deployment
 
-Deployed on **Vercel** with **MongoDB Atlas**:
+The [public demo](https://juntasseguras.patbuilds.dev) runs on a self-hosted Next.js server with MongoDB.
+
+To deploy your own copy on Vercel with MongoDB Atlas, follow these steps.
 
 1. Push to GitHub and import the repo in [Vercel](https://vercel.com/import).
 2. Add every variable from `.env.example` in the Vercel dashboard (use production values; keep secrets out of the repo).

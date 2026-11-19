@@ -12,12 +12,13 @@ import { SearchInput } from '@/components/search/SearchInput';
 // Mock next/navigation
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+let mockPathname = '/';
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
   }),
-  usePathname: () => '/',
+  usePathname: () => mockPathname,
 }));
 
 // Mock the debounce hook
@@ -28,6 +29,7 @@ jest.mock('@/lib/hooks/useDebounce', () => ({
 describe('SearchInput Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPathname = '/';
     // Clear localStorage before each test
     localStorage.clear();
   });
@@ -49,8 +51,7 @@ describe('SearchInput Component', () => {
       render(<SearchInput />);
 
       // Search icon should be present (check for SVG element)
-      const input = screen.getByPlaceholderText('Search pools, members...');
-      const container = input.closest('div');
+      const container = screen.getByRole('search');
       expect(container?.querySelector('svg')).toBeInTheDocument();
     });
 
@@ -350,14 +351,14 @@ describe('SearchInput Component', () => {
     it('has default width on desktop', () => {
       render(<SearchInput />);
 
-      const container = screen.getByPlaceholderText('Search pools, members...').closest('div')?.parentElement;
+      const container = screen.getByRole('search').parentElement;
       expect(container).toHaveClass('sm:w-64');
     });
 
     it('takes full width when fullWidth is true', () => {
       render(<SearchInput fullWidth />);
 
-      const container = screen.getByPlaceholderText('Search pools, members...').closest('div')?.parentElement;
+      const container = screen.getByRole('search').parentElement;
       expect(container).toHaveClass('w-full');
     });
   });
@@ -378,17 +379,12 @@ describe('SearchInput Component', () => {
 
   describe('Search Page Behavior', () => {
     it('uses replace instead of push when on search page', async () => {
-      // Mock pathname to /search
-      jest.doMock('next/navigation', () => ({
-        useRouter: () => ({
-          push: mockPush,
-          replace: mockReplace,
-        }),
-        usePathname: () => '/search',
-      }));
-
-      // This test would need proper module re-importing to work correctly
-      // For now, we test the navigation path behavior
+      mockPathname = '/search';
+      const user = userEvent.setup();
+      render(<SearchInput />);
+      await user.type(screen.getByRole('textbox'), 'family{Enter}');
+      expect(mockReplace).toHaveBeenCalledWith('/search?q=family');
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 
@@ -417,7 +413,7 @@ describe('SearchInput Component', () => {
     it('applies custom className', () => {
       render(<SearchInput className="custom-class" />);
 
-      const container = screen.getByPlaceholderText('Search pools, members...').closest('div')?.parentElement;
+      const container = screen.getByRole('search').parentElement;
       expect(container).toHaveClass('custom-class');
     });
   });

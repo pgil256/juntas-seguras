@@ -253,7 +253,7 @@ describe('MemberContributionAvatars Component', () => {
         await user.hover(avatar);
 
         await waitFor(() => {
-          expect(screen.getByText('John Doe')).toBeInTheDocument();
+          expect(screen.getByRole('tooltip')).toHaveTextContent('John Doe');
         }, { timeout: 1000 });
       }
     });
@@ -269,8 +269,8 @@ describe('MemberContributionAvatars Component', () => {
         await user.hover(avatar);
 
         await waitFor(() => {
-          expect(screen.getByText(/john doe/i)).toBeInTheDocument();
-          expect(screen.getByText(/\(you\)/i)).toBeInTheDocument();
+          expect(screen.getByRole('tooltip')).toHaveTextContent(/john doe/i);
+          expect(screen.getByRole('tooltip')).toHaveTextContent(/\(you\)/i);
         }, { timeout: 1000 });
       }
     });
@@ -284,7 +284,7 @@ describe('MemberContributionAvatars Component', () => {
         await user.hover(avatar);
 
         await waitFor(() => {
-          expect(screen.getByText('Paid')).toBeInTheDocument();
+          expect(screen.getByRole('tooltip')).toHaveTextContent('Paid');
         }, { timeout: 1000 });
       }
     });
@@ -298,7 +298,7 @@ describe('MemberContributionAvatars Component', () => {
         await user.hover(avatar);
 
         await waitFor(() => {
-          expect(screen.getByText('Recipient this round')).toBeInTheDocument();
+          expect(screen.getByRole('tooltip')).toHaveTextContent('Recipient this round');
         }, { timeout: 1000 });
       }
     });
@@ -312,7 +312,7 @@ describe('MemberContributionAvatars Component', () => {
         await user.hover(avatar);
 
         await waitFor(() => {
-          expect(screen.getByText('Payment pending')).toBeInTheDocument();
+          expect(screen.getByRole('tooltip')).toHaveTextContent('Payment pending');
         }, { timeout: 1000 });
       }
     });

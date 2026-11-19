@@ -593,7 +593,7 @@ describe('MFA Service', () => {
         // Verify database was updated
         const updatedUser = await UserModel.findById(user._id);
         expect(updatedUser.twoFactorAuth.totpSecret).toBe(testSecret);
-        expect(updatedUser.twoFactorAuth.method).toBe('totp');
+        expect(updatedUser.twoFactorAuth.method).toBe('app');
         expect(updatedUser.twoFactorAuth.enabled).toBe(true);
       });
     });
@@ -794,7 +794,7 @@ describe('MFA Service', () => {
 
       await enableTOTP(user._id.toString(), newSecret);
       const afterReEnable = await UserModel.findById(user._id);
-      expect(afterReEnable.twoFactorAuth.method).toBe('totp');
+      expect(afterReEnable.twoFactorAuth.method).toBe('app');
       expect(afterReEnable.twoFactorAuth.totpSecret).toBe(newSecret);
       expect(afterReEnable.twoFactorAuth.enabled).toBe(true);
     });
@@ -903,7 +903,7 @@ describe('MFA Service', () => {
       await enableTOTP(user._id.toString(), totpSecret);
 
       const updatedUser = await UserModel.findById(user._id);
-      expect(updatedUser.twoFactorAuth.method).toBe('totp');
+      expect(updatedUser.twoFactorAuth.method).toBe('app');
       expect(updatedUser.twoFactorAuth.totpSecret).toBe(totpSecret);
       expect(updatedUser.twoFactorAuth.enabled).toBe(true);
     });

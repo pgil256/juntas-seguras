@@ -268,8 +268,9 @@ describe('usePayments Hook', () => {
 
       expect(result.current.isProcessing).toBe(false);
 
-      const paymentPromise = act(async () => {
-        return result.current.processPayment('pool-1', 100, 1, false);
+      let paymentPromise!: ReturnType<typeof result.current.processPayment>;
+      act(() => {
+        paymentPromise = result.current.processPayment('pool-1', 100, 1, false);
       });
 
       // Wait for state update
@@ -280,7 +281,7 @@ describe('usePayments Hook', () => {
       // Resolve the promise
       resolvePromise({ payment: mockTransaction });
 
-      await paymentPromise;
+      await act(async () => { await paymentPromise; });
 
       expect(result.current.isProcessing).toBe(false);
     });
@@ -425,8 +426,9 @@ describe('usePayments Hook', () => {
 
       expect(result.current.isReleasing).toBe(false);
 
-      const releasePromise = act(async () => {
-        return result.current.releaseEscrowPayment('txn-2', 'pool-1');
+      let releasePromise!: ReturnType<typeof result.current.releaseEscrowPayment>;
+      act(() => {
+        releasePromise = result.current.releaseEscrowPayment('txn-2', 'pool-1');
       });
 
       // Wait for state update
@@ -437,7 +439,7 @@ describe('usePayments Hook', () => {
       // Resolve the promise
       resolvePromise({ payment: mockEscrowedTransaction });
 
-      await releasePromise;
+      await act(async () => { await releasePromise; });
 
       expect(result.current.isReleasing).toBe(false);
     });

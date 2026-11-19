@@ -5,7 +5,8 @@
  * pool data for the authenticated user.
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderSWRHook as renderHook } from '../../helpers/render-swr-hook';
+import { act, waitFor } from '@testing-library/react';
 import { useSession } from 'next-auth/react';
 import { usePools } from '@/lib/hooks/usePools';
 
@@ -219,9 +220,9 @@ describe('usePools Hook', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Hook handles errors gracefully by setting empty pools
+      // A network failure is distinguishable from an empty account.
       expect(result.current.pools).toEqual([]);
-      expect(result.current.error).toBeNull();
+      expect(result.current.error).toBe('Network error');
     });
 
     it('should handle invalid JSON response', async () => {
@@ -363,8 +364,9 @@ describe('usePools Hook', () => {
         await result.current.refreshPools();
       });
 
-      // Pools should be reset to empty on error
-      expect(result.current.pools).toEqual([]);
+      // Revalidation preserves the last successful response.
+      expect(result.current.pools).toEqual(initialPools);
+      expect(result.current.error).toBe('Refresh failed');
     });
 
     it('should set loading state during refresh', async () => {
@@ -397,8 +399,9 @@ describe('usePools Hook', () => {
         result.current.refreshPools();
       });
 
-      // Should be loading during refresh
-      expect(result.current.isLoading).toBe(true);
+      // Cached data stays visible while the next response is pending.
+      expect(result.current.isValidating).toBe(true);
+      expect(result.current.isLoading).toBe(false);
 
       // Complete refresh
       await act(async () => {

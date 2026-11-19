@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Authentication Security Tests
  *

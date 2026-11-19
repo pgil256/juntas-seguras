@@ -59,7 +59,7 @@ describe('useDirectMessages', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Pool ID and member ID are required');
+      expect(result.current.error).toBe('Pool ID is required');
       expect(result.current.messages).toEqual([]);
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -73,7 +73,7 @@ describe('useDirectMessages', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Pool ID and member ID are required');
+      expect(result.current.error).toBe('Member ID is required');
       expect(mockFetch).not.toHaveBeenCalled();
     });
   });
