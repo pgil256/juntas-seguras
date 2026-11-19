@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '../../../../../lib/db/connect';
-import { User } from '../../../../../lib/db/models/user';
+import { getUserModel } from '../../../../../lib/db/models/user';
 import { generateVerificationCode } from '../../../../../lib/utils/verification';
 import { sendVerificationEmail } from '../../../../../lib/email';
+
+import { isValidObjectId } from '../../../../../lib/utils/objectId';
 
 export async function POST(req: Request) {
   try {
     const { userId, email, verificationMethod } = await req.json();
 
-    if (!userId || !email || !verificationMethod) {
+    if (!isValidObjectId(userId) || typeof email !== 'string' || !['email', 'app'].includes(verificationMethod)) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -17,38 +19,24 @@ export async function POST(req: Request) {
 
     await connectToDatabase();
 
-    // Find the user
-    const user = await User.findOne({ _id: userId, email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Generate new verification code
     const verificationCode = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Update user with new verification code
-    user.verificationCode = verificationCode;
-    user.verificationExpiry = expiresAt;
-    user.twoFactorAuth = {
-      ...(user.twoFactorAuth || {}),
-      enabled: true,
-      method: verificationMethod,
-      verified: false,
-      temporaryCode: verificationCode,
-      codeGeneratedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-    };
-    await user.save();
-
-    // Send verification email
-    if (verificationMethod === 'email') {
-      await sendVerificationEmail(email, verificationCode);
+    const now = new Date();
+    const user = await getUserModel().findOneAndUpdate(
+      { _id: userId, email: email.trim().toLowerCase(), isTemporary: true, isVerified: { $ne: true } },
+      { $set: {
+        verificationCode,
+        verificationExpiry: new Date(now.getTime() + 10 * 60 * 1000),
+        verificationMethod: 'email',
+        'twoFactorAuth.method': 'email',
+        'twoFactorAuth.temporaryCode': verificationCode,
+        'twoFactorAuth.codeGeneratedAt': now.toISOString(),
+      } }
+    );
+    if (!user) {
+      return NextResponse.json({ error: 'Pending registration not found' }, { status: 404 });
     }
 
+    await sendVerificationEmail(user.email, verificationCode);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Resend verification error:', error);

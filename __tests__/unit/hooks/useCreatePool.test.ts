@@ -496,8 +496,9 @@ describe('useCreatePool Hook', () => {
 
       expect(result.current.isLoading).toBe(false);
 
-      const createPromise = act(async () => {
-        return result.current.createPool(validPoolRequest);
+      let createPromise!: ReturnType<typeof result.current.createPool>;
+      act(() => {
+        createPromise = result.current.createPool(validPoolRequest);
       });
 
       // Wait for loading state
@@ -508,7 +509,7 @@ describe('useCreatePool Hook', () => {
       // Resolve the promise
       resolvePromise({ pool: { id: 'pool-1' } });
 
-      await createPromise;
+      await act(async () => { await createPromise; });
 
       expect(result.current.isLoading).toBe(false);
     });

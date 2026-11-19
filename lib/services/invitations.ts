@@ -42,6 +42,7 @@ export interface InvitationResult {
 
 // Create email transporter
 const getEmailTransporter = () => {
+  if (process.env.SMTP_URL) return nodemailer.createTransport(process.env.SMTP_URL);
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
     console.warn('[INVITATIONS SERVICE] Email credentials not configured');
     return null;

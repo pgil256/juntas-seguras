@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Award, Check, Clock, DollarSign, User } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, formatCalendarDate } from '../../lib/utils';
 
 interface TimelineMember {
   id: string;
@@ -45,7 +45,7 @@ export function PoolCycleTimeline({
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return formatCalendarDate(dateString, {
       month: 'short',
       day: 'numeric',
     });
@@ -119,6 +119,8 @@ export function PoolCycleTimeline({
 
               {/* Timeline item */}
               <div
+                role="group"
+                aria-label={member.name}
                 className={cn(
                   'relative flex items-start gap-4 p-3 rounded-lg border border-transparent',
                   styles.bg,

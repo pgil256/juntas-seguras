@@ -19,6 +19,14 @@ interface PullToRefreshState {
   showSuccess: boolean;
 }
 
+const idleState: PullToRefreshState = {
+  isPulling: false,
+  pullDistance: 0,
+  isRefreshing: false,
+  canRefresh: false,
+  showSuccess: false,
+};
+
 export function usePullToRefresh({
   onRefresh,
   threshold = 80,
@@ -27,16 +35,12 @@ export function usePullToRefresh({
   enableHaptics = true,
   showSuccessDuration = 1000,
 }: PullToRefreshOptions) {
-  const [state, setState] = useState<PullToRefreshState>({
-    isPulling: false,
-    pullDistance: 0,
-    isRefreshing: false,
-    canRefresh: false,
-    showSuccess: false,
-  });
-
-  const startY = useRef(0);
-  const currentY = useRef(0);
+  const [state, setState] = useState<PullToRefreshState>(idleState);
+  const startY = useRef<number | null>(null);
+  const reachedThreshold = useRef(false);
+  const refreshing = useRef(false);
+  const mounted = useRef(true);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasTriggeredHaptic = useRef(false);
 
@@ -48,25 +52,27 @@ export function usePullToRefresh({
   }, [enableHaptics]);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (disabled || state.isRefreshing) return;
+    if (disabled || refreshing.current) return;
 
     // Only trigger if at top of scroll
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     if (scrollTop > 0) return;
 
+    if (successTimer.current !== null) clearTimeout(successTimer.current);
+    reachedThreshold.current = false;
     startY.current = e.touches[0].clientY;
     hasTriggeredHaptic.current = false;
-    setState(prev => ({ ...prev, isPulling: true, showSuccess: false }));
-  }, [disabled, state.isRefreshing]);
+    setState({ ...idleState, isPulling: true });
+  }, [disabled]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!state.isPulling || disabled || state.isRefreshing) return;
+    if (startY.current === null || disabled || refreshing.current) return;
 
-    currentY.current = e.touches[0].clientY;
-    const diff = currentY.current - startY.current;
+    const diff = e.touches[0].clientY - startY.current;
 
     // Only allow pulling down
     if (diff < 0) {
+      reachedThreshold.current = false;
       setState(prev => ({ ...prev, pullDistance: 0, canRefresh: false }));
       hasTriggeredHaptic.current = false;
       return;
@@ -75,6 +81,7 @@ export function usePullToRefresh({
     // Apply resistance to make it feel natural
     const distance = Math.min(diff / resistance, threshold * 1.5);
     const canRefresh = distance >= threshold;
+    reachedThreshold.current = canRefresh;
 
     // Trigger haptic feedback when threshold is reached
     if (canRefresh && !hasTriggeredHaptic.current) {
@@ -94,69 +101,65 @@ export function usePullToRefresh({
     if (distance > 0) {
       e.preventDefault();
     }
-  }, [state.isPulling, disabled, state.isRefreshing, resistance, threshold, triggerHaptic]);
+  }, [disabled, resistance, threshold, triggerHaptic]);
+
+  const cancelPull = useCallback(() => {
+    if (startY.current === null) return;
+    startY.current = null;
+    reachedThreshold.current = false;
+    setState(idleState);
+  }, []);
 
   const handleTouchEnd = useCallback(async () => {
-    if (!state.isPulling || disabled) return;
-
-    if (state.canRefresh && !state.isRefreshing) {
-      setState(prev => ({ ...prev, isRefreshing: true, pullDistance: threshold / 2 }));
-
-      try {
-        await onRefresh();
-        // Show success state
-        setState(prev => ({
-          ...prev,
-          isRefreshing: false,
-          showSuccess: true,
-        }));
-        // Hide success state after duration
-        setTimeout(() => {
-          setState({
-            isPulling: false,
-            pullDistance: 0,
-            isRefreshing: false,
-            canRefresh: false,
-            showSuccess: false,
-          });
-        }, showSuccessDuration);
-      } catch (error) {
-        console.error('Refresh failed:', error);
-        setState({
-          isPulling: false,
-          pullDistance: 0,
-          isRefreshing: false,
-          canRefresh: false,
-          showSuccess: false,
-        });
-      }
-    } else {
-      setState({
-        isPulling: false,
-        pullDistance: 0,
-        isRefreshing: false,
-        canRefresh: false,
-        showSuccess: false,
-      });
+    if (startY.current === null) return;
+    if (disabled || !reachedThreshold.current) {
+      cancelPull();
+      return;
     }
+    startY.current = null;
+    reachedThreshold.current = false;
+    refreshing.current = true;
+    setState({ ...idleState, isRefreshing: true, pullDistance: threshold / 2 });
+    try {
+      await onRefresh();
+      if (!mounted.current) return;
+      setState({ ...idleState, showSuccess: true, pullDistance: threshold / 2 });
+      successTimer.current = setTimeout(() => setState(idleState), showSuccessDuration);
+    } catch (error) {
+      console.error('Refresh failed:', error);
+      if (mounted.current) setState(idleState);
+    } finally {
+      refreshing.current = false;
+    }
+  }, [cancelPull, disabled, onRefresh, showSuccessDuration, threshold]);
 
-    startY.current = 0;
-    currentY.current = 0;
-  }, [state.isPulling, state.canRefresh, state.isRefreshing, disabled, threshold, onRefresh, showSuccessDuration]);
+  useEffect(() => {
+    if (disabled) cancelPull();
+  }, [disabled, cancelPull]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (successTimer.current !== null) clearTimeout(successTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current || document;
 
     container.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true });
     container.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+    container.addEventListener('touchcancel', cancelPull, { passive: true });
     container.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true });
 
     return () => {
       container.removeEventListener('touchstart', handleTouchStart as EventListener);
       container.removeEventListener('touchmove', handleTouchMove as EventListener);
+      container.removeEventListener('touchcancel', cancelPull);
       container.removeEventListener('touchend', handleTouchEnd as EventListener);
     };
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [cancelPull, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   return {
     containerRef,

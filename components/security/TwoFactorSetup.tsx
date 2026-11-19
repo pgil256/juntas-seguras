@@ -110,7 +110,8 @@ export default function TwoFactorSetup({ userId, onSetupComplete, onCancel }: Tw
         },
         body: JSON.stringify({
           userId,
-          code: verificationCode
+          code: verificationCode,
+          confirmEnrollment: method === 'app'
         })
       });
 

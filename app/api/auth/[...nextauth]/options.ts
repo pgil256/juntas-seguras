@@ -24,6 +24,8 @@
  * so that API routes can query the database with getServerSession().
  */
 
+import { randomUUID } from 'crypto';
+import { hasMfaVerification } from '../../../../lib/db/models/mfa-session-verification';
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -154,6 +156,10 @@ async function authenticateUser(email: string, password: string) {
   if (!passwordIsValid) {
     console.log('[Auth] Password validation failed');
     return null;
+  }
+
+  if (user.isTemporary) {
+    throw new Error('Verify your email before signing in.');
   }
 
   console.log('[Auth] Password validation successful, checking MFA');
@@ -373,20 +379,18 @@ export const authOptions: NextAuthOptions = {
           if (oauthResult.mfaEnabled) {
             const mfaMethod = oauthResult.mfaMethod || 'email';
 
+            token.requiresMfa = true;
+            token.mfaMethod = mfaMethod === 'app' || mfaMethod === 'totp' ? 'app' : 'email';
             if (mfaMethod === 'email') {
               // Send MFA code via email
               const codeSent = await sendEmailVerificationCode(oauthResult.userId);
               if (codeSent) {
-                token.requiresMfa = true;
-                token.mfaMethod = 'email';
                 console.log(`[JWT] MFA code sent for OAuth user: ${email}`);
               } else {
                 console.error(`[JWT] Failed to send MFA code for OAuth user: ${email}`);
               }
             } else if (mfaMethod === 'app' || mfaMethod === 'totp') {
               // TOTP/authenticator app - no code to send, user enters from app
-              token.requiresMfa = true;
-              token.mfaMethod = 'app';
               console.log(`[JWT] TOTP MFA required for OAuth user: ${email}`);
             }
           }
@@ -457,23 +461,16 @@ export const authOptions: NextAuthOptions = {
       // SESSION UPDATE HANDLING
       // ============================================================
       // When update() is called (e.g., after MFA verification), refresh from DB
-      if (trigger === 'update' && token.id && isValidMongoObjectId(token.id as string)) {
-        try {
-          await connectToDatabase();
-          const UserModel = getUserModel();
-
-          const dbUser = await UserModel.findById(token.id);
-
-          if (dbUser) {
-            // Clear MFA requirement if no longer pending
-            if (!dbUser.pendingMfaVerification) {
-              token.requiresMfa = false;
-              delete token.mfaMethod;
-              console.log(`[JWT] Cleared MFA requirement for user: ${token.email}`);
-            }
-          }
-        } catch (error) {
-          console.error('[JWT] Error refreshing MFA status:', error);
+      if (token.requiresMfa && (user || account || !token.mfaChallengeId)) {
+        token.mfaChallengeId = randomUUID();
+      }
+      if (trigger === 'update' && token.requiresMfa && typeof token.mfaChallengeId === 'string' &&
+          typeof token.id === 'string' && isValidMongoObjectId(token.id)) {
+        await connectToDatabase();
+        if (await hasMfaVerification(token.mfaChallengeId, token.id)) {
+          token.requiresMfa = false;
+          delete token.mfaMethod;
+          delete token.mfaChallengeId;
         }
       }
 

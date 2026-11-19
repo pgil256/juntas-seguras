@@ -1,48 +1,14 @@
+/** @jest-environment node */
 /**
  * Input Validation Security Tests
  * Tests for XSS prevention, NoSQL injection prevention, and data type validation
  */
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 
-// Mock next-auth before importing modules that use it
-jest.mock('next-auth', () => ({
-  getServerSession: jest.fn(),
-}));
-jest.mock('next-auth/react');
-
-// Import after mocking
-import { getUserModel } from '@/lib/db/models/user';
-import getPoolModel from '@/lib/db/models/pool';
 import { isValidObjectId } from '@/lib/utils/objectId';
 
 describe('Input Validation Security', () => {
-  let mongoServer: MongoMemoryServer;
-
-  beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri);
-  });
-
-  afterAll(async () => {
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-    if (mongoServer) {
-      await mongoServer.stop();
-    }
-  });
-
-  afterEach(async () => {
-    const collections = mongoose.connection.collections;
-    for (const key in collections) {
-      await collections[key].deleteMany({});
-    }
-    jest.clearAllMocks();
-  });
-
   describe('XSS Prevention', () => {
     const xssPayloads = [
       '<script>alert("xss")</script>',

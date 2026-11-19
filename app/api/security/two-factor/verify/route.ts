@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { confirmAuthenticatorEnrollment } from '../../../../../lib/services/authenticator-enrollment';
 import { ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getUserModel } from '../../../../../lib/db/models/user';
@@ -8,7 +9,8 @@ import { verifyEmailCode, verifyTotpCode } from '../../../../../lib/services/mfa
 
 export async function POST(request: NextRequest) {
   try {
-    const userResult = await getCurrentUser();
+    const { code, recoveryCode, confirmEnrollment } = await request.json();
+    const userResult = await getCurrentUser({ requireCompletedSignIn: confirmEnrollment === true });
     if (userResult.error) {
       return NextResponse.json(
         { error: userResult.error.message },
@@ -17,7 +19,6 @@ export async function POST(request: NextRequest) {
     }
 
     const user = userResult.user;
-    const { code, recoveryCode } = await request.json();
 
     if (!code && !recoveryCode) {
       return NextResponse.json(
@@ -32,7 +33,9 @@ export async function POST(request: NextRequest) {
     let success = false;
     let usedRecoveryCode = false;
 
-    if (recoveryCode) {
+    if (confirmEnrollment === true) {
+      success = typeof code === 'string' && await confirmAuthenticatorEnrollment(user, code);
+    } else if (recoveryCode) {
       const backupCodes = user.twoFactorAuth?.backupCodes || [];
       if (backupCodes.includes(recoveryCode)) {
         success = true;

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CreatePoolModal from '@/components/pools/CreatePoolModal';
 
@@ -50,48 +50,64 @@ jest.mock('@/lib/hooks/useCreatePool', () => ({
 }));
 
 // Mock child components
-jest.mock('@/components/pools/CreatorRulesAcknowledgmentDialog', () => ({
-  CreatorRulesAcknowledgmentDialog: ({
-    open,
-    onAccept,
-    poolName,
-  }: {
-    open: boolean;
-    onAccept: () => void;
-    poolName: string;
-  }) =>
-    open ? (
-      <div data-testid="rules-dialog">
-        <p>Rules for {poolName}</p>
-        <button onClick={onAccept} data-testid="accept-rules">
-          Accept Rules
-        </button>
-      </div>
-    ) : null,
-}));
+jest.mock('@/components/pools/CreatorRulesAcknowledgmentDialog', () => {
+  const { Dialog, DialogContent, DialogTitle } = jest.requireActual('@/components/ui/dialog');
+  return {
+    CreatorRulesAcknowledgmentDialog: ({
+      open,
+      onAccept,
+      poolName,
+    }: {
+      open: boolean;
+      onAccept: () => void;
+      poolName: string;
+    }) =>
+      open ? (
+        <Dialog open>
+          <DialogContent data-testid="rules-dialog" aria-describedby={undefined}>
+            <DialogTitle>Rules for {poolName}</DialogTitle>
+            <button onClick={onAccept} data-testid="accept-rules">
+              Accept Rules
+            </button>
+          </DialogContent>
+        </Dialog>
+      ) : null,
+  };
+});
 
-jest.mock('@/components/payments/PoolOnboardingModal', () => ({
-  PoolOnboardingModal: ({
-    isOpen,
-    onComplete,
-    poolName,
-  }: {
-    isOpen: boolean;
-    onComplete: () => void;
-    poolName: string;
-  }) =>
-    isOpen ? (
-      <div data-testid="onboarding-modal">
-        <p>Onboarding for {poolName}</p>
-        <button onClick={onComplete} data-testid="complete-onboarding">
-          Complete
-        </button>
-      </div>
-    ) : null,
-}));
+jest.mock('@/components/payments/PoolOnboardingModal', () => {
+  const { Dialog, DialogContent, DialogTitle } = jest.requireActual('@/components/ui/dialog');
+  return {
+    PoolOnboardingModal: ({
+      isOpen,
+      onComplete,
+      poolName,
+    }: {
+      isOpen: boolean;
+      onComplete: () => void;
+      poolName: string;
+    }) =>
+      isOpen ? (
+        <Dialog open>
+          <DialogContent data-testid="onboarding-modal" aria-describedby={undefined}>
+            <DialogTitle>Onboarding for {poolName}</DialogTitle>
+            <button onClick={onComplete} data-testid="complete-onboarding">
+              Complete
+            </button>
+          </DialogContent>
+        </Dialog>
+      ) : null,
+  };
+});
 
 import { useCreatePool } from '@/lib/hooks/useCreatePool';
 const mockUseCreatePool = useCreatePool as jest.Mock;
+
+function futureStartDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date.toISOString().slice(0, 10);
+}
 
 describe('CreatePoolModal Component', () => {
   const defaultProps = {
@@ -102,6 +118,7 @@ describe('CreatePoolModal Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.removeItem('juntas-pool-draft');
     mockUseSession.mockReturnValue({
       data: { user: { email: 'test@example.com' } },
       status: 'authenticated',
@@ -290,7 +307,7 @@ describe('CreatePoolModal Component', () => {
       await goToStep2(user);
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/weekly/i)).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Weekly' })).toBeInTheDocument();
         expect(screen.getByLabelText(/bi-weekly/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/monthly/i)).toBeInTheDocument();
       });
@@ -391,7 +408,7 @@ describe('CreatePoolModal Component', () => {
         expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
       });
       const startDateInput = screen.getByLabelText(/start date/i);
-      await user.type(startDateInput, '2025-06-01');
+      await user.type(startDateInput, futureStartDate());
       await user.click(screen.getByRole('button', { name: /next/i }));
     };
 
@@ -416,7 +433,7 @@ describe('CreatePoolModal Component', () => {
       await goToStep3(user);
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/enter email addresses/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/email addresses/i)).toBeInTheDocument();
       });
     });
 
@@ -475,7 +492,7 @@ describe('CreatePoolModal Component', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
       });
-      await user.type(screen.getByLabelText(/start date/i), '2025-06-01');
+      await user.type(screen.getByLabelText(/start date/i), futureStartDate());
       await user.click(screen.getByRole('button', { name: /next/i }));
 
       // Step 3
@@ -514,7 +531,7 @@ describe('CreatePoolModal Component', () => {
             name: 'My Test Pool',
             contributionAmount: 10,
             frequency: 'weekly',
-            startDate: '2025-06-01',
+            startDate: futureStartDate() + 'T12:00:00.000Z',
           })
         );
       });
@@ -658,7 +675,7 @@ describe('CreatePoolModal Component', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
       });
-      await user.type(screen.getByLabelText(/start date/i), '2025-06-01');
+      await user.type(screen.getByLabelText(/start date/i), futureStartDate());
       await user.click(screen.getByRole('button', { name: /next/i }));
 
       await waitFor(() => {
@@ -689,7 +706,7 @@ describe('CreatePoolModal Component', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/start date/i)).toBeInTheDocument();
       });
-      await user.type(screen.getByLabelText(/start date/i), '2025-06-01');
+      await user.type(screen.getByLabelText(/start date/i), futureStartDate());
       await user.click(screen.getByRole('button', { name: /next/i }));
 
       await waitFor(() => {

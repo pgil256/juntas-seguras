@@ -182,8 +182,9 @@ describe('useEarlyPayout Hook', () => {
 
       expect(result.current.isLoading).toBe(false);
 
-      const checkPromise = act(async () => {
-        return result.current.checkEarlyPayoutStatus();
+      let checkPromise!: ReturnType<typeof result.current.checkEarlyPayoutStatus>;
+      act(() => {
+        checkPromise = result.current.checkEarlyPayoutStatus();
       });
 
       await waitFor(() => {
@@ -193,7 +194,7 @@ describe('useEarlyPayout Hook', () => {
       // Resolve the promise
       resolvePromise({ allowed: true });
 
-      await checkPromise;
+      await act(async () => { await checkPromise; });
 
       expect(result.current.isLoading).toBe(false);
     });
@@ -457,8 +458,9 @@ describe('useEarlyPayout Hook', () => {
 
       expect(result.current.isLoading).toBe(false);
 
-      const initiatePromise = act(async () => {
-        return result.current.initiateEarlyPayout();
+      let initiatePromise!: ReturnType<typeof result.current.initiateEarlyPayout>;
+      act(() => {
+        initiatePromise = result.current.initiateEarlyPayout();
       });
 
       await waitFor(() => {
@@ -474,7 +476,7 @@ describe('useEarlyPayout Hook', () => {
       // Resolve the payout promise
       resolvePromise({ transaction: mockEarlyPayoutTransaction });
 
-      await initiatePromise;
+      await act(async () => { await initiatePromise; });
 
       expect(result.current.isLoading).toBe(false);
     });

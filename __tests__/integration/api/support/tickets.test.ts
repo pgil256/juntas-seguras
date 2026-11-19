@@ -5,18 +5,36 @@
  * - GET /api/support/tickets - List tickets
  * - POST /api/support/tickets - Create a new ticket
  *
- * Note: The support ticket system uses an in-memory store
- * rather than MongoDB, so no database setup is needed.
- * The in-memory store persists across tests within a describe block,
- * so tests are designed to be independent of store state.
- *
  * @jest-environment node
  */
 
 import { NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/support/tickets/route';
 
+import { getServerSession } from 'next-auth';
+import { setupTestDb, clearTestDb, teardownTestDb } from '../../../helpers/db.helpers';
+
+jest.mock('next-auth', () => ({ getServerSession: jest.fn() }));
+jest.mock('@/lib/db/connect', () => ({ __esModule: true, default: jest.fn() }));
+
 describe('Support Tickets API', () => {
+  const session = jest.mocked(getServerSession);
+  const previousAdminEmails = process.env.ADMIN_EMAILS;
+
+  beforeAll(async () => {
+    process.env.ADMIN_EMAILS = 'support-staff@example.test';
+    await setupTestDb();
+  });
+  beforeEach(async () => {
+    session.mockResolvedValue(null);
+    await clearTestDb();
+  });
+  afterAll(async () => {
+    if (previousAdminEmails === undefined) delete process.env.ADMIN_EMAILS;
+    else process.env.ADMIN_EMAILS = previousAdminEmails;
+    await teardownTestDb();
+  });
+
   // Helper to create a ticket and return its data
   async function createTicket(overrides: Record<string, unknown> = {}) {
     const body = {
@@ -42,6 +60,7 @@ describe('Support Tickets API', () => {
     it('should return tickets for an authenticated user', async () => {
       const userId = `user-get-${Date.now()}`;
 
+      session.mockResolvedValue({ user: { id: userId, email: 'test@example.com' } });
       // Create a ticket for this user
       await createTicket({
         userId,
@@ -72,7 +91,7 @@ describe('Support Tickets API', () => {
     });
 
     it('should require authorization to access tickets', async () => {
-      // No userId and no admin key - should be forbidden
+      // This request has no signed-in user.
       const request = new NextRequest('http://localhost:3000/api/support/tickets', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -103,20 +122,11 @@ describe('Support Tickets API', () => {
     });
 
     it('should return all tickets for admin users', async () => {
-      // Create tickets for different unique users
-      const userA = `admin-test-a-${Date.now()}`;
-      const userB = `admin-test-b-${Date.now()}`;
-      await createTicket({ userId: userA, name: 'User A' });
-      await createTicket({ userId: userB, name: 'User B' });
+      await createTicket({ name: 'User A', email: 'a@example.test' });
+      await createTicket({ name: 'User B', email: 'b@example.test' });
 
-      // Admin request
-      const request = new NextRequest('http://localhost:3000/api/support/tickets', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': 'admin-secret',
-        },
-      });
+      session.mockResolvedValue({ user: { id: 'support-staff', email: 'support-staff@example.test' } });
+      const request = new NextRequest('http://localhost:3000/api/support/tickets');
 
       const response = await GET(request);
       const data = await response.json();

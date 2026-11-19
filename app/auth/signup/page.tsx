@@ -370,7 +370,7 @@ export default function SignUp() {
               </h2>
               <p className="mt-2 text-sm text-gray-500">
                 {registrationStep === 'credentials'
-                  ? 'Enter your details to get started with Juntas Seguras'
+                  ? 'Verify your email to create an account. You can add an authenticator app in Settings.'
                   : registrationStep === 'mfa-setup'
                     ? 'Add an extra layer of security to protect your account'
                     : 'Verify your identity to access all features'}

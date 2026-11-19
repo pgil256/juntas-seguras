@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * CSRF (Cross-Site Request Forgery) Protection Tests
  *

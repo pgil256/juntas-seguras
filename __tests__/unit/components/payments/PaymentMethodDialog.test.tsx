@@ -247,9 +247,10 @@ describe('PaymentMethodDialog Component', () => {
       await user.click(screen.getByTestId('form-submit'));
       expect(screen.getByTestId('mfa-protection')).toBeInTheDocument();
 
-      // Click cancel on form (which calls handleDialogClose)
+      await user.click(screen.getByTestId('mfa-cancel'));
+      expect(screen.queryByTestId('mfa-protection')).not.toBeInTheDocument();
+      expect(screen.getByTestId('payment-method-form')).toBeInTheDocument();
       await user.click(screen.getByTestId('form-cancel'));
-
       expect(onClose).toHaveBeenCalled();
     });
 

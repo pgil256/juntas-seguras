@@ -8,6 +8,7 @@ import { isValidObjectId } from '../utils/objectId';
 
 // Email configuration
 const createTransporter = () => {
+  if (process.env.SMTP_URL) return nodemailer.createTransport(process.env.SMTP_URL);
   console.log('[MFA] Creating email transporter with:', {
     user: process.env.EMAIL_USER ? `${process.env.EMAIL_USER.substring(0, 5)}...` : 'NOT SET',
     passwordSet: !!process.env.EMAIL_PASSWORD
@@ -36,12 +37,7 @@ const getTransporter = () => {
   return transporter;
 };
 
-// Generate a random 6-digit code for verification
-function generateEmailCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// Send verification code via email (Modified for dummy code)
+// Send a verification code via email
 export async function sendEmailVerificationCode(userId: string): Promise<boolean> {
   try {
     // Validate ObjectId format before querying
@@ -78,11 +74,11 @@ export async function sendEmailVerificationCode(userId: string): Promise<boolean
         console.log(`[MFA] Reusing existing code for user ${userId} (generated ${codeAgeInMinutes.toFixed(1)} min ago)`);
       } else {
         // Code is too old, generate a new one
-        verificationCode = generateEmailCode();
+        verificationCode = generateVerificationCode();
       }
     } else {
       // No existing code, generate a new one
-      verificationCode = generateEmailCode();
+      verificationCode = generateVerificationCode();
     }
 
     // Only update the database if we generated a new code
@@ -182,12 +178,7 @@ export async function verifyEmailCode(userId: string, code: string): Promise<boo
     }
 
     if (storedCode !== inputCode) {
-      console.error('[MFA] Code mismatch for user:', userId, {
-        storedCodeLength: storedCode.length,
-        inputCodeLength: inputCode?.length,
-        storedCodePreview: storedCode.substring(0, 2) + '****',
-        inputCodePreview: inputCode ? inputCode.substring(0, 2) + '****' : 'empty'
-      });
+      console.warn('[MFA] Incorrect verification code');
       return false;
     }
 

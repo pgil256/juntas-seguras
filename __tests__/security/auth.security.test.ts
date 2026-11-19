@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Authentication Security Tests
  * Tests for password security, session security, and MFA bypass prevention
@@ -15,7 +16,11 @@ jest.mock('next-auth', () => ({
 }));
 
 // Import after mocking
-import { User, getUserModel } from '@/lib/db/models/user';
+jest.mock('@/lib/db/connect', () => ({ __esModule: true, default: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('nodemailer', () => ({ createTransport: () => ({ sendMail: jest.fn().mockResolvedValue({}) }) }));
+import { NextRequest } from 'next/server';
+import { POST as register } from '@/app/api/auth/register/route';
+import { getUserModel } from '@/lib/db/models/user';
 import { verifyEmailCode, verifyTotpCode } from '@/lib/services/mfa';
 
 describe('Authentication Security', () => {
@@ -45,87 +50,42 @@ describe('Authentication Security', () => {
   });
 
   describe('Password Security', () => {
+    async function registerPassword(password: string) {
+      const email = 'registration@example.test';
+      return register(new NextRequest('http://localhost/api/auth/register', {
+        method: 'POST', body: JSON.stringify({ name: 'Test User', email, password, verificationMethod: 'email' }),
+      }));
+    }
+
+    async function storedHash(password: string) {
+      expect((await registerPassword(password)).status).toBe(201);
+      const user = await getUserModel().findOne({ email: 'registration@example.test' });
+      expect(user).toBeTruthy();
+      return user.hashedPassword;
+    }
+
     it('should hash passwords with bcrypt before storing', async () => {
-      const UserModel = getUserModel();
-      const plainPassword = 'SecurePassword123!';
-
-      const user = await UserModel.create({
-        email: 'secure@example.com',
-        password: plainPassword,
-        name: 'Test User',
-        emailVerified: true,
-        verificationMethod: 'email',
-        twoFactorAuth: {
-          enabled: true,
-          method: 'email',
-          verified: true,
-        },
-      });
-
-      // Password should be hashed, not stored as plain text
-      expect(user.password).not.toBe(plainPassword);
-      // Should be a bcrypt hash (starts with $2a$, $2b$, or $2y$)
-      expect(user.password).toMatch(/^\$2[aby]\$/);
+      const password = 'Registration-test-passphrase!';
+      const hash = await storedHash(password);
+      expect(hash).not.toBe(password);
+      expect(hash).toMatch(/^\$2[aby]\$/);
     });
 
-    it('should verify correct passwords against bcrypt hash', async () => {
-      const UserModel = getUserModel();
-      const plainPassword = 'SecurePassword123!';
-
-      const user = await UserModel.create({
-        email: 'verify@example.com',
-        password: plainPassword,
-        name: 'Test User',
-        emailVerified: true,
-        verificationMethod: 'email',
-        twoFactorAuth: {
-          enabled: true,
-          method: 'email',
-          verified: true,
-        },
-      });
-
-      // Verify the password matches
-      const isMatch = await bcrypt.compare(plainPassword, user.password);
-      expect(isMatch).toBe(true);
-
-      // Verify wrong password doesn't match
-      const isWrongMatch = await bcrypt.compare('WrongPassword', user.password);
-      expect(isWrongMatch).toBe(false);
+    it('should verify correct passwords against the stored bcrypt hash', async () => {
+      const password = 'Registration-test-passphrase!';
+      const hash = await storedHash(password);
+      expect(await bcrypt.compare(password, hash)).toBe(true);
+      expect(await bcrypt.compare('different-test-passphrase', hash)).toBe(false);
     });
 
-    it('should use appropriate bcrypt cost factor for timing attack resistance', async () => {
-      const UserModel = getUserModel();
-
-      const user = await UserModel.create({
-        email: 'cost@example.com',
-        password: 'TestPassword123!',
-        name: 'Test User',
-        emailVerified: true,
-        verificationMethod: 'email',
-        twoFactorAuth: {
-          enabled: true,
-          method: 'email',
-          verified: true,
-        },
-      });
-
-      // Extract cost factor from bcrypt hash (format: $2a$XX$...)
-      const costFactor = parseInt(user.password.split('$')[2], 10);
-      // Cost factor should be at least 10 for security
-      expect(costFactor).toBeGreaterThanOrEqual(10);
+    it('should use a bcrypt cost factor of at least 10', async () => {
+      const hash = await storedHash('Registration-test-passphrase!');
+      expect(bcrypt.getRounds(hash)).toBeGreaterThanOrEqual(10);
     });
 
     it('should reject empty passwords', async () => {
-      const UserModel = getUserModel();
-
-      await expect(
-        UserModel.create({
-          email: 'empty@example.com',
-          password: '',
-          name: 'Test User',
-        })
-      ).rejects.toThrow();
+      expect((await registerPassword('')).status).toBe(400);
+      expect(await getUserModel().countDocuments()).toBe(0);
     });
   });
 

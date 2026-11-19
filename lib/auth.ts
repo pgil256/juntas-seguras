@@ -74,7 +74,7 @@ export type GetCurrentUserResult =
  *
  * @returns The user document if found, or an error object with message and status
  */
-export async function getCurrentUser(): Promise<GetCurrentUserResult> {
+export async function getCurrentUser(options: { requireCompletedSignIn?: boolean } = {}): Promise<GetCurrentUserResult> {
   const session = await getSession();
 
   if (!session) {
@@ -89,6 +89,10 @@ export async function getCurrentUser(): Promise<GetCurrentUserResult> {
       user: null,
       error: { message: 'Invalid session: no user data', status: 401 }
     };
+  }
+
+  if (options.requireCompletedSignIn && session.requiresMfa) {
+    return { user: null, error: { message: 'Complete sign-in verification first', status: 403 } };
   }
 
   await connectToDatabase();
@@ -122,6 +126,10 @@ export async function getCurrentUser(): Promise<GetCurrentUserResult> {
         status: 401
       }
     };
+  }
+
+  if (options.requireCompletedSignIn && user.isTemporary) {
+    return { user: null, error: { message: 'Verify your email first', status: 403 } };
   }
 
   return { user, error: null };

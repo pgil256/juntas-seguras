@@ -49,7 +49,10 @@ export function SearchInput({
     try {
       const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
       if (stored) {
-        setRecentSearches(JSON.parse(stored));
+        const saved: unknown = JSON.parse(stored);
+        if (Array.isArray(saved)) {
+          setRecentSearches(saved.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_SEARCHES));
+        }
       }
     } catch (e) {
       // Ignore localStorage errors
@@ -156,7 +159,7 @@ export function SearchInput({
       ref={containerRef}
       className={`relative ${className} ${fullWidth ? 'w-full' : 'w-full sm:w-64'}`}
     >
-      <form onSubmit={handleSubmit}>
+      <form role="search" aria-label="Search pools and members" onSubmit={handleSubmit}>
         <Search
           className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10"
         />

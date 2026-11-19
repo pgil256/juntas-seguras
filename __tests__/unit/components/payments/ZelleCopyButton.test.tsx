@@ -75,7 +75,7 @@ describe('ZelleCopyButton Component', () => {
 
       await user.click(screen.getByRole('button'));
 
-      expect(mockWriteText).toHaveBeenCalledWith('test@email.com');
+      expect(await navigator.clipboard.readText()).toBe('test@email.com');
     });
 
     it('shows Check icon after copying', async () => {
@@ -134,7 +134,7 @@ describe('ZelleCopyButton Component', () => {
       await user.hover(screen.getByRole('button'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Copy email: test@email.com/)).toBeInTheDocument();
+        expect(screen.getByRole('tooltip')).toHaveTextContent(/Copy email: test@email.com/);
       });
     });
 
@@ -145,19 +145,23 @@ describe('ZelleCopyButton Component', () => {
       await user.hover(screen.getByRole('button'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Copy phone: 5551234567/)).toBeInTheDocument();
+        expect(screen.getByRole('tooltip')).toHaveTextContent(/Copy phone: 5551234567/);
       });
     });
 
     it('shows "Copied!" in tooltip after copying', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       render(<ZelleCopyButton {...defaultProps} />);
 
       await user.click(screen.getByRole('button'));
 
+      await user.unhover(screen.getByRole('button'));
+      await user.hover(screen.getByRole('button'));
       await waitFor(() => {
-        expect(screen.getByText('Copied!')).toBeInTheDocument();
+        expect(screen.getByRole('tooltip')).toHaveTextContent('Copied!');
       });
+      jest.useRealTimers();
     });
   });
 
@@ -245,9 +249,9 @@ describe('ZelleInstructionsCard Component', () => {
       render(<ZelleInstructionsCard {...defaultProps} />);
 
       expect(screen.getByText('Pay via Zelle')).toBeInTheDocument();
-      expect(screen.getByText('test@email.com')).toBeInTheDocument();
-      expect(screen.getByText('John Doe')).toBeInTheDocument();
-      expect(screen.getByText('$100.00')).toBeInTheDocument();
+      expect(screen.getByText('Send to:').parentElement).toHaveTextContent('test@email.com');
+      expect(screen.getByText('Recipient:').parentElement).toHaveTextContent('John Doe');
+      expect(screen.getByText('Amount:').parentElement).toHaveTextContent('$100.00');
     });
 
     it('shows email icon for email identifier', () => {
@@ -343,7 +347,7 @@ describe('ZelleInstructionsCard Component', () => {
 
       if (copyButton) {
         await user.click(copyButton);
-        expect(mockWriteText).toHaveBeenCalledWith('test@email.com');
+        expect(await navigator.clipboard.readText()).toBe('test@email.com');
       }
     });
 
@@ -433,10 +437,8 @@ describe('ZelleInstructionsCard Component', () => {
       });
 
       // Click close button
-      const closeButton = screen.getByRole('button', { name: '' });
-      if (closeButton.textContent === '') {
-        await user.click(closeButton);
-      }
+      await user.click(screen.getByRole('button', { name: 'Close QR code' }));
+      expect(screen.queryByRole('button', { name: 'Close QR code' })).not.toBeInTheDocument();
     });
   });
 
@@ -505,8 +507,7 @@ describe('ZelleDisplayBadge Component', () => {
       );
 
       // Should only have the identifier type icon
-      const svgs = container.querySelectorAll('svg');
-      expect(svgs.length).toBe(2); // Z badge icon and mail/phone icon
+      expect(container.querySelector('.lucide-copy')).toBeNull();
     });
   });
 
@@ -517,7 +518,7 @@ describe('ZelleDisplayBadge Component', () => {
 
       await user.click(screen.getByRole('button'));
 
-      expect(mockWriteText).toHaveBeenCalledWith('test@email.com');
+      expect(await navigator.clipboard.readText()).toBe('test@email.com');
     });
 
     it('does not copy when not copyable', async () => {
@@ -526,7 +527,7 @@ describe('ZelleDisplayBadge Component', () => {
 
       await user.click(screen.getByRole('button'));
 
-      expect(mockWriteText).not.toHaveBeenCalled();
+      expect(await navigator.clipboard.readText()).toBe('');
     });
 
     it('shows check icon after copying', async () => {

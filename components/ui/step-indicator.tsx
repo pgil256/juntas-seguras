@@ -58,7 +58,14 @@ export function StepIndicator({
 
       {/* Dots variant */}
       {variant === 'dots' && (
-        <div className="flex items-center justify-center">
+        <div
+          role="progressbar"
+          aria-label="Step progress"
+          aria-valuenow={currentStep}
+          aria-valuemin={0}
+          aria-valuemax={totalSteps}
+          aria-valuetext={currentStepLabel}
+          className="flex items-center justify-center">
           {Array.from({ length: totalSteps }, (_, index) => {
             const stepNumber = index + 1;
             const isCompleted = stepNumber < currentStep;

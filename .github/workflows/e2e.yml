@@ -5,18 +5,24 @@ name: E2E
 # or let it run on the nightly schedule.
 on:
   workflow_dispatch:
+    inputs:
+      test_files:
+        description: 'Optional space-separated paths to browser specs. Leave blank to run the full suite.'
+        required: false
+        type: string
   schedule:
     - cron: '0 6 * * *' # 06:00 UTC nightly
 
 jobs:
   e2e:
     name: Playwright (Chromium)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       MONGODB_URI: mongodb://localhost:27017/juntas-e2e
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-nextauth-secret-0000000000000000000
+      SMTP_URL: smtp://127.0.0.1:1025
       EMAIL_USER: ci@example.com
       EMAIL_PASSWORD: ci-password
       EMAIL_FROM: ci@example.com
@@ -24,6 +30,11 @@ jobs:
       DEMO_ACCOUNT_PASSWORD: DemoPass123!
 
     services:
+      mailpit:
+        image: axllent/mailpit:v1.27.4
+        ports:
+          - '127.0.0.1:1025:1025'
+          - '127.0.0.1:8025:8025'
       mongodb:
         image: mongo:6
         ports:
@@ -50,7 +61,17 @@ jobs:
 
       # Playwright's webServer config starts `npm run dev` automatically.
       - name: Run E2E (Chromium)
-        run: npx playwright test --project=setup --project=chromium --project=chromium-authenticated
+        env:
+          TEST_FILES: ${{ inputs.test_files }}
+        run: |
+          read -r -a specs <<< "$TEST_FILES"
+          for spec in "${specs[@]}"; do
+            if [[ ! "$spec" =~ ^e2e/[a-zA-Z0-9_./-]+\.spec\.ts$ || "$spec" == *..* || ! -f "$spec" ]]; then
+              echo "Expected an existing test file under e2e/"
+              exit 2
+            fi
+          done
+          npx playwright test --project=setup --project=chromium --project=chromium-authenticated "${specs[@]}"
 
       - name: Upload Playwright report
         if: always()

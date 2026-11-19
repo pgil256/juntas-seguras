@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * MFA Verification API Integration Tests
  *
@@ -6,7 +7,10 @@
  */
 
 import { NextRequest } from 'next/server';
+import { resetRateLimit } from '@/lib/utils/rate-limiter';
 import speakeasy from 'speakeasy';
+import { randomUUID } from 'crypto';
+import { hasMfaVerification } from '@/lib/db/models/mfa-session-verification';
 import {
   setupTestDb,
   teardownTestDb,
@@ -50,6 +54,8 @@ describe('POST /api/auth/verify-mfa', () => {
   });
 
   beforeEach(async () => {
+    // Each test owns its synthetic request history; the limiter stays active during the test.
+    resetRateLimit('unknown', 'mfa');
     await clearTestDb();
     jest.clearAllMocks();
 
@@ -173,6 +179,7 @@ describe('POST /api/auth/verify-mfa', () => {
     it('should successfully verify valid email code', async () => {
       const UserModel = getUserModel();
       const validCode = '654321';
+      const challengeId = randomUUID();
 
       const user = await UserModel.create({
         name: 'Test User',
@@ -192,11 +199,7 @@ describe('POST /api/auth/verify-mfa', () => {
         },
       });
 
-      mockGetToken.mockResolvedValue({
-        id: user._id.toString(),
-        mfaMethod: 'email',
-      });
-
+      mockGetToken.mockResolvedValue({ id: user._id.toString(), mfaMethod: 'email', requiresMfa: true, mfaChallengeId: challengeId });
       const request = new NextRequest('http://localhost:3000/api/auth/verify-mfa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -205,10 +208,11 @@ describe('POST /api/auth/verify-mfa', () => {
 
       const response = await POST(request);
       const data = await response.json();
-
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.sessionUpdated).toBe(true);
+      expect(await hasMfaVerification(challengeId, user._id.toString())).toBe(true);
+      expect(await hasMfaVerification(randomUUID(), user._id.toString())).toBe(false);
 
       // Verify user state was updated
       const updatedUser = await UserModel.findById(user._id);
@@ -507,7 +511,7 @@ describe('POST /api/auth/verify-mfa', () => {
         verificationMethod: 'email',
         twoFactorAuth: {
           enabled: true,
-          method: 'invalid',
+          method: 'email',
         },
       });
 

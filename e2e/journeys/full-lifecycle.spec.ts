@@ -7,12 +7,33 @@
  * This test uses serial mode since each step depends on the previous one.
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import speakeasy from 'speakeasy';
 import { generateTestUser, generateTestPool } from '../fixtures/test-fixtures';
+
+// Mailpit runs on the same disposable runner as the app and only receives test mail.
+async function deliveredCode(request: APIRequestContext, email: string, subject: string) {
+  const inbox = 'http://127.0.0.1:8025/api/v1';
+  let id: string | undefined;
+  await expect.poll(async () => {
+    const response = await request.get(inbox + '/search', { params: { query: 'to:' + email } });
+    if (!response.ok()) return false;
+    const data: { messages: { ID: string; Subject: string; To: { Address: string }[] }[] } = await response.json();
+    id = data.messages.find(message => message.Subject === subject &&
+      message.To.some(recipient => recipient.Address === email))?.ID;
+    return Boolean(id);
+  }, { message: 'Waiting for the test account’s email', timeout: 20000 }).toBe(true);
+  const response = await request.get(inbox + '/message/' + id);
+  expect(response.ok()).toBe(true);
+  const message: { Text: string } = await response.json();
+  const code = message.Text.match(/code[^:\n]*:\s*(\d{6})\b/i)?.[1];
+  if (!code) throw new Error('The test email did not contain the expected verification message.');
+  return code;
+}
 
 // Serial mode: steps run in order, fail-fast
 test.describe.serial('Full User Lifecycle', () => {
-  const testUser = generateTestUser();
+  const testUser = generateTestUser({ email: 'lifecycle-' + crypto.randomUUID() + '@example.test' });
   const testPool = generateTestPool({
     name: `Lifecycle Pool ${Date.now()}`,
     contributionAmount: 10,
@@ -22,12 +43,15 @@ test.describe.serial('Full User Lifecycle', () => {
 
   let page: Page;
 
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
+  test.beforeAll(async ({ browser, baseURL }) => {
+    if (!baseURL || !['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) {
+      throw new Error('Run this journey against the local test app with Mailpit.');
+    }
+    page = await browser.newPage({ baseURL });
   });
 
   test.afterAll(async () => {
-    await page.close();
+    await page?.close();
   });
 
   test('Step 1: Register a new account', async () => {
@@ -36,188 +60,105 @@ test.describe.serial('Full User Lifecycle', () => {
     // Fill registration form
     await page.getByLabel(/name/i).fill(testUser.name);
     await page.getByLabel(/email/i).fill(testUser.email);
-    await page.getByLabel(/password/i).fill(testUser.password);
+    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
 
-    // Select email MFA method
-    const emailOption = page.getByText(/email/i).first();
-    if (await emailOption.isVisible()) {
-      await emailOption.click();
-    }
-
-    // Submit registration
-    await page.getByRole('button', { name: /sign up|register|create account/i }).click();
-
-    // Should redirect to verification or MFA setup
-    await expect(page).toHaveURL(/\/(mfa|auth\/verify|dashboard)/);
+    await page.getByLabel('Confirm Password', { exact: true }).fill(testUser.password);
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await expect(page.getByRole('heading', { name: 'Email Verification Required' })).toBeVisible();
   });
 
-  test('Step 2: Complete MFA setup', async () => {
-    // Navigate to MFA setup if not already there
-    const url = page.url();
-    if (!url.includes('mfa')) {
-      await page.goto('/mfa/verify');
-    }
+  test('Step 2: Verify the account and sign in with email MFA', async ({ request }) => {
+    const verification = await deliveredCode(request, testUser.email, 'Verify your account');
+    await page.getByPlaceholder('Enter 6-digit code').fill(verification);
+    await page.getByRole('button', { name: 'Verify', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/signin/);
 
-    // If test environment has a known MFA code
-    const mfaInput = page.locator(
-      'input[name="code"], input[data-testid="mfa-code"], input[type="text"][maxlength="6"]'
-    );
-
-    if (await mfaInput.isVisible()) {
-      // Use test MFA code (set via TEST_MFA_CODE env var in test setup)
-      const testCode = process.env.TEST_MFA_CODE || '123456';
-      await mfaInput.fill(testCode);
-
-      const verifyBtn = page.getByRole('button', { name: /verify|confirm|submit/i });
-      if (await verifyBtn.isVisible()) {
-        await verifyBtn.click();
-      }
-    }
-
-    // Should proceed past MFA
-    await expect(page).toHaveURL(/.*(dashboard|create-pool|settings).*/);
+    await page.getByLabel(/email address/i).fill(testUser.email);
+    await page.getByLabel('Password', { exact: true }).fill(testUser.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL(/\/mfa\/verify/);
+    const mfa = await deliveredCode(request, testUser.email, 'Your Verification Code');
+    await page.getByLabel('Verification Code').fill(mfa);
+    await page.getByRole('button', { name: 'Verify Code' }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('Step 3: Create a savings pool', async () => {
     await page.goto('/create-pool');
-
-    // Fill pool details
-    const nameInput = page.locator('[name="name"], [data-testid="pool-name"]');
-    await nameInput.fill(testPool.name);
-
-    const descInput = page.locator('[name="description"], [data-testid="description"]');
-    if (await descInput.isVisible()) {
-      await descInput.fill(testPool.description);
-    }
-
-    // Set contribution amount
-    const amountInput = page.locator(
-      '[name="contributionAmount"], [data-testid="contribution-amount"]'
-    );
-    if (await amountInput.isVisible()) {
-      await amountInput.fill(testPool.contributionAmount.toString());
-    }
-
-    // Select frequency
-    const freqOption = page.locator(
-      `[data-testid="frequency-${testPool.frequency}"], [data-value="${testPool.frequency}"]`
-    );
-    if (await freqOption.isVisible()) {
-      await freqOption.click();
-    }
-
-    // Select payment methods
-    for (const method of testPool.allowedPaymentMethods) {
-      const methodOption = page.locator(
-        `[data-testid="payment-${method}"], label:has-text("${method}")`
-      );
-      if (await methodOption.isVisible()) {
-        await methodOption.click();
-      }
-    }
-
-    // Submit
-    await page.click('button[type="submit"]');
-
-    // Accept rules if dialog appears
-    const rulesDialog = page.locator('[data-testid="rules-dialog"], [role="dialog"]');
-    if (await rulesDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await page.click('[data-testid="accept-rules"], button:has-text("Accept")');
-    }
-
-    // Should redirect to pool page or dashboard
-    await expect(page).toHaveURL(/.*(pools|dashboard).*/);
+    await page.getByLabel(/pool name/i).fill(testPool.name);
+    await page.getByLabel(/description/i).fill(testPool.description);
+    await page.locator('button[role="combobox"]').click();
+    await page.getByRole('option', { name: '$' + testPool.contributionAmount, exact: true }).click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    await page.locator('#startDate').fill(start.toISOString().slice(0, 10));
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page.getByText(testPool.name, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Create Pool', exact: true }).click();
+    await expect(page).toHaveURL(/\/member-management\/[^/]+/, { timeout: 15000 });
   });
 
   test('Step 4: Invite a member to the pool', async () => {
-    // Navigate to the pool or member management
-    const poolLink = page.locator(`a:has-text("${testPool.name}"), [data-testid="pool-card"]`);
-    if (await poolLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await poolLink.first().click();
-    }
-
-    // Open invite dialog
-    const inviteBtn = page.locator(
-      'button:has-text("Invite"), [data-testid="invite-member-btn"]'
-    );
-    if (await inviteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await inviteBtn.click();
-
-      // Fill invite form
-      const emailInput = page.locator(
-        '[name="email"], [data-testid="invite-email"], input[type="email"]'
-      );
-      if (await emailInput.isVisible()) {
-        await emailInput.fill(`invited-${Date.now()}@example.com`);
-      }
-
-      // Submit invitation
-      const sendBtn = page.getByRole('button', { name: /send|invite/i });
-      if (await sendBtn.isVisible()) {
-        await sendBtn.click();
-      }
-    }
-
-    // Verify invitation was sent (toast or UI update)
-    const successIndicator = page.locator(
-      '[data-testid="invitation-sent"], [role="status"], text=/sent|invited/i'
-    );
-    // Don't fail if UI doesn't show indicator — the invitation API may succeed silently
-    await successIndicator.isVisible({ timeout: 5000 }).catch(() => {});
+    await page.getByRole('button', { name: 'Invite Member', exact: true }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Invite Members' });
+    await dialog.getByPlaceholder('name@example.com').fill('invite-' + crypto.randomUUID() + '@example.test');
+    await dialog.getByRole('button', { name: 'Send Invitations' }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test('Step 5: Record a payment contribution', async () => {
-    // Navigate to pool detail or payment page
-    const payBtn = page.locator(
-      'button:has-text("Pay"), button:has-text("Contribute"), [data-testid="confirm-payment-btn"]'
-    );
+    const poolId = new URL(page.url()).pathname.split('/').pop();
+    expect(poolId).toBeTruthy();
 
-    if (await payBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await payBtn.first().click();
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: 'Payment', exact: true }).click();
+    await page.getByRole('button', { name: 'Add Payment Methods' }).click();
+    await page.getByLabel('Venmo', { exact: true }).fill('juntas-e2e');
+    await page.getByRole('button', { name: 'Save Payment Methods' }).click();
+    await expect(page.getByRole('button', { name: 'Edit Payment Methods' })).toBeVisible();
 
-      // Select payment method
-      const venmoOption = page.locator(
-        '[data-testid="method-venmo"], label:has-text("Venmo"), button:has-text("Venmo")'
-      );
-      if (await venmoOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await venmoOption.click();
-      }
-
-      // Confirm payment
-      const confirmBtn = page.locator(
-        '[data-testid="submit-confirmation"], button:has-text("Confirm")'
-      );
-      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await confirmBtn.click();
-      }
-    }
-
-    // Verify payment recorded
-    const paymentStatus = page.locator(
-      '[data-testid="payment-status"], text=/paid|confirmed|recorded/i'
-    );
-    await paymentStatus.isVisible({ timeout: 5000 }).catch(() => {});
+    await page.goto('/pools/' + poolId);
+    await page.getByRole('tab', { name: 'Contributions' }).click();
+    await page.getByRole('button', { name: 'Make Contribution' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: "I've Paid via Venmo" }).click();
+    await expect(dialog.getByText('Payment recorded successfully!')).toBeVisible();
   });
 
   test('Step 6: View payout status', async () => {
-    // Navigate to payout section
-    const payoutSection = page.locator(
-      '[data-testid="payout-section"], text=/payout|round/i'
-    );
+    await page.reload();
+    await page.getByRole('tab', { name: 'Payouts' }).click();
+    await expect(page.getByRole('heading', { name: 'Current Recipient' })).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByText(testUser.email, { exact: true })).toBeVisible();
+  });
+  test('Step 7: Enroll an authenticator in Settings and use it for a new sign-in', async ({ browser, baseURL }) => {
+    await page.goto('/settings');
+    await page.getByRole('tab', { name: 'Security', exact: true }).click();
+    await page.getByRole('button', { name: 'Set up authenticator' }).click();
+    await page.getByRole('button', { name: 'Generate setup code' }).click();
+    await expect(page.getByRole('img', { name: 'TOTP QR Code' })).toBeVisible();
+    const key = await page.getByLabel('Manual setup key').innerText();
+    const nextCode = () => speakeasy.totp({ secret: key.trim(), encoding: 'base32' });
+    await page.getByPlaceholder('Enter 6-digit code from your app').fill(nextCode());
+    await page.getByRole('button', { name: 'Verify and Enable TOTP' }).click();
+    await expect(page.getByText(/TOTP setup successful/)).toBeVisible();
 
-    if (await payoutSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Verify payout information is displayed
-      const payoutInfo = page.locator(
-        '[data-testid="payout-amount"], [data-testid="payout-recipient"]'
-      );
-      await expect(payoutInfo.first()).toBeVisible({ timeout: 5000 }).catch(() => {});
+    const fresh = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+    try {
+      const signIn = await fresh.newPage();
+      await signIn.goto('/auth/signin');
+      await signIn.getByLabel(/email address/i).fill(testUser.email);
+      await signIn.getByLabel('Password', { exact: true }).fill(testUser.password);
+      await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(signIn).toHaveURL(/\/mfa\/verify/);
+      await expect(signIn.getByText('Enter the code from your authenticator app')).toBeVisible();
+      await signIn.getByLabel('Verification Code').fill(nextCode());
+      await signIn.getByRole('button', { name: 'Verify Code' }).click();
+      await expect(signIn).toHaveURL(/\/dashboard/);
+    } finally {
+      await fresh.close();
     }
-
-    // Verify pool dashboard shows round information
-    const roundInfo = page.locator(
-      '[data-testid="current-round"], text=/round/i'
-    );
-    await roundInfo.isVisible({ timeout: 5000 }).catch(() => {});
   });
 });
 

@@ -1,3 +1,4 @@
+/** @jest-environment node */
 /**
  * Rate Limiting Security Tests
  *

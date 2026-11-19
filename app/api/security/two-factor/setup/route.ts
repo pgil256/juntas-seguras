@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import qrcode from 'qrcode';
-import speakeasy from 'speakeasy';
+import { startAuthenticatorEnrollment } from '../../../../../lib/services/authenticator-enrollment';
 import { ActivityType } from '../../../../../types/security';
 import connectToDatabase from '../../../../../lib/db/connect';
 import { getUserModel } from '../../../../../lib/db/models/user';
@@ -11,7 +10,7 @@ import { generateBackupCodes } from '../../../../../lib/utils/verification';
 
 export async function POST(request: NextRequest) {
   try {
-    const userResult = await getCurrentUser();
+    const userResult = await getCurrentUser({ requireCompletedSignIn: true });
     if (userResult.error) {
       return NextResponse.json(
         { error: userResult.error.message },
@@ -35,41 +34,20 @@ export async function POST(request: NextRequest) {
     const backupCodes = generateBackupCodes();
 
     if (normalizedMethod === 'app') {
-      const secret = speakeasy.generateSecret({
-        name: `Juntas Seguras:${user.email}`,
-      });
-
-      if (!secret.base32 || !secret.otpauth_url) {
-        return NextResponse.json(
-          { error: 'Failed to generate authenticator secret' },
-          { status: 500 }
-        );
-      }
-
-      const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
-
-      await UserModel.findByIdAndUpdate(user._id, {
-        $set: {
-          'twoFactorAuth.enabled': true,
-          'twoFactorAuth.method': 'app',
-          'twoFactorAuth.totpSecret': secret.base32,
-          'twoFactorAuth.backupCodes': backupCodes,
-          'twoFactorAuth.verified': false,
-          'twoFactorAuth.lastUpdated': new Date().toISOString(),
-        },
-      });
+      const setup = await startAuthenticatorEnrollment(user, backupCodes);
 
       logServerActivity(user._id.toString(), ActivityType.TWO_FACTOR_SETUP, { method: 'app' });
 
       return NextResponse.json({
         success: true,
-        secret: secret.base32,
+        secret: setup.secret,
         backupCodes,
-        qrCodeUrl,
-      });
+        qrCodeUrl: setup.qrCode,
+      }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     await UserModel.findByIdAndUpdate(user._id, {
+      $unset: { 'twoFactorAuth.pendingTotpSecret': '', 'twoFactorAuth.pendingBackupCodes': '' },
       $set: {
         'twoFactorAuth.enabled': true,
         'twoFactorAuth.method': 'email',
