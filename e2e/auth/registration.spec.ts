@@ -21,7 +21,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const VALID_PASSWORD = 'SecurePass123!';
+const VALID_PASSWORD = 'Test-' + crypto.randomUUID() + '!';
 
 function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
